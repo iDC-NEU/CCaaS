@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package proto;
+
+import "proto/transaction.proto";
+import "proto/node.proto";
+
+message ClientReadRequest {
+  string client_ip = 1;
+  uint64 txn_id = 2;
+  repeated Row rows = 3;
+}
+
+message ClientReadResponse {
+  Result result = 1;
+  uint64 txn_id = 2;
+  repeated Row rows = 3;
+}

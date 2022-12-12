@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package proto;
+import "proto/node.proto";
+
+enum Result {
+  Fail = 0;
+  Success = 1;
+}
+
+enum TxnType {
+  ClientTxn = 0;
+  RemoteServerTxn = 1;
+  EpochEndFlag = 2;
+  CommittedTxn = 3;
+}
+
+enum TxnState {
+  Empty = 0;
+  Abort = 1;
+  Commit = 2;
+}
+
+enum OpType {
+  Read = 0;
+  Insert = 1;
+  Update = 2;
+  Delete = 3;
+}
+
+message Column {
+  uint32 id = 1; // column id
+  bytes value = 2; // column value/data
+}
+
+message Row{
+  OpType op_type = 1;
+  string table_name = 2;
+  bytes key = 3;
+  bytes data = 4;
+  repeated Column column = 5; // if needed
+}
+
+message Transaction{
+  repeated Row row = 1;
+  uint64 start_epoch = 2;
+  uint64 commit_epoch = 3;
+  uint64 csn = 4;
+
+  string server_ip = 5; // used to identify which remote server sends this txn to current server
+  uint32 server_id = 6; // used to identify which remote server sends this txn to current server
+
+  string client_ip = 7; // used to identify which client sends this txn to current server
+  uint64 client_txn_id = 8; // used to identify which txn it is in client
+
+  TxnType txn_type = 9;
+  TxnState txn_state = 10;
+
+}
