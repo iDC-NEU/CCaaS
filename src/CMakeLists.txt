@@ -11,7 +11,7 @@ file(GLOB SOURCE
         *.cpp)
 
 add_library(taas_core ${SOURCE})
-add_library(Taas::core ALIAS taas_core)
+#add_library(Taas::core ALIAS taas_core message_transmit_client.cpp message_transmit_server.cpp)
 
 target_include_directories(taas_core PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(taas_core

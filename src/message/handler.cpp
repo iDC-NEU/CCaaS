@@ -26,6 +26,7 @@ namespace Taas {
                     txn_ptr->set_commit_epoch(EpochManager::GetPhysicalEpoch());
                     EpochManager::local_should_exec_txn_num.IncCount(txn_ptr->commit_epoch(),
                                                                      thread_id, 1);
+
                     txn_ptr->set_csn(now_to_us());
                     txn_ptr->set_server_id(ctx.txn_node_ip_index);
 //                    printf("txn time: %llu, id: %llu \n", txn_ptr->csn(), txn_ptr->client_txn_id());
@@ -45,7 +46,7 @@ namespace Taas {
 //                        printf("收到来自远端服务器的事务 server_id %llu, epoch_num %llu, txn_num %llu\n",
 //                               message_server_id, txn_ptr->commit_epoch(), txn_ptr->csn());
                     } else {
-                        message_cache[message_epoch_mod][message_server_id]->push(std::move(txn_ptr));
+                        sharding_cache[message_epoch_mod][message_server_id]->push(std::move(txn_ptr));
                         EpochManager::remote_received_txn_num.IncCount(message_epoch_mod,
                                                                        message_server_id, 1);
                     }
@@ -63,7 +64,7 @@ namespace Taas {
         sleep_flag = false;
         while(first_merged_queue.try_dequeue(txn_ptr)) {/// 缓存本地第一次merge后的事务
             if(txn_ptr == nullptr) continue;
-            message_cache[txn_ptr->commit_epoch() % ctx.kCacheMaxLength][ctx.txn_node_ip_index]->push(std::move(txn_ptr));
+            sharding_cache[txn_ptr->commit_epoch() % ctx.kCacheMaxLength][ctx.txn_node_ip_index]->push(std::move(txn_ptr));
             sleep_flag = true;
         }
         return sleep_flag;
@@ -96,9 +97,9 @@ namespace Taas {
         ///收集一个epoch的完整的写集后才能放到merge_queue中
         if (server_dequeue_id != ctx.txn_node_ip_index &&
             MessageHandler::CheckTxnReceiveComplete()) {
-            while (!message_cache[epoch_mod][server_dequeue_id]->empty()) {
-                auto txn_ptr_tmp = std::move(message_cache[epoch_mod][server_dequeue_id]->front());
-                message_cache[epoch_mod][server_dequeue_id]->pop();
+            while (!sharding_cache[epoch_mod][server_dequeue_id]->empty()) {
+                auto txn_ptr_tmp = std::move(sharding_cache[epoch_mod][server_dequeue_id]->front());
+                sharding_cache[epoch_mod][server_dequeue_id]->pop();
                 if (!merge_queue.enqueue(std::move(txn_ptr_tmp))) {
                     assert(false);
                 }
@@ -108,15 +109,15 @@ namespace Taas {
                 EpochManager::should_merge_txn_num.IncCount(epoch_mod, thread_id, 1);
                 EpochManager::enqueued_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
             }
-            while (!message_cache[clear_epoch][server_dequeue_id]->empty())
-                message_cache[clear_epoch][server_dequeue_id]->pop();
+            while (!sharding_cache[clear_epoch][server_dequeue_id]->empty())
+                sharding_cache[clear_epoch][server_dequeue_id]->pop();
             sleep_flag = true;
         }
         server_dequeue_id = (server_dequeue_id + 1) % ctx.kTxnNodeNum;
         ///local txn -> merge_queue
-        while (!message_cache[epoch_mod][ctx.txn_node_ip_index]->empty()) {
-            auto txn_ptr_tmp = std::move(message_cache[epoch_mod][ctx.txn_node_ip_index]->front());
-            message_cache[epoch_mod][ctx.txn_node_ip_index]->pop();
+        while (!sharding_cache[epoch_mod][ctx.txn_node_ip_index]->empty()) {
+            auto txn_ptr_tmp = std::move(sharding_cache[epoch_mod][ctx.txn_node_ip_index]->front());
+            sharding_cache[epoch_mod][ctx.txn_node_ip_index]->pop();
             if (!merge_queue.enqueue(std::move(txn_ptr_tmp))) {
                 assert(false);
             }
@@ -140,11 +141,11 @@ namespace Taas {
         ctx = std::move(context);
         max_length = ctx.kCacheMaxLength;
 
-        message_cache.reserve( + 1);
+        sharding_cache.reserve( + 1);
         for(int i = 0; i < (int)max_length; i ++) {
-            message_cache.emplace_back(std::vector<std::unique_ptr<std::queue<std::unique_ptr<proto::Transaction>>>>());
+            sharding_cache.emplace_back(std::vector<std::unique_ptr<std::queue<std::unique_ptr<proto::Transaction>>>>());
             for(int j = 0; j <= (int)ctx.kTxnNodeNum; j++){
-                message_cache[i].push_back(std::make_unique<std::queue<std::unique_ptr<proto::Transaction>>>());
+                sharding_cache[i].push_back(std::make_unique<std::queue<std::unique_ptr<proto::Transaction>>>());
             }
         }
         return true;

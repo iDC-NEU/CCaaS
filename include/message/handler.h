@@ -26,7 +26,18 @@ namespace Taas {
         uint64_t thread_id = 0, server_dequeue_id = 0, epoch_mod = 0,
                 epoch = 0, clear_epoch = 0,max_length = 0;
         bool res, sleep_flag;
-        std::vector<std::vector<std::unique_ptr<std::queue<std::unique_ptr<proto::Transaction>>>>> message_cache;
+
+        //other txn node sends shrading txn which should be merged in current txn node
+        //sharding_cache[epoch][server_id].queue
+        std::vector<std::vector<std::unique_ptr<std::queue<std::unique_ptr<proto::Transaction>>>>> sharding_cache;
+        //sharding counters
+
+
+        //other txn node sends shrading txn backup to current txn node
+        //backup_cache[epoch][server_id].queue
+        std::vector<std::vector<std::unique_ptr<std::queue<std::unique_ptr<proto::Transaction>>>>> backup_cache;
+        //backup counters
+
         Context ctx;
     };
 
