@@ -56,11 +56,11 @@ namespace Taas {
         auto sleep_flag = false;
         while (!EpochManager::IsTimerStop()) {
             sleep_flag = false;
-            sleep_flag = sleep_flag | message_handler.HandleReceiveMessage();
+            sleep_flag = sleep_flag | message_handler.HandleReceivedMessage();
 
             sleep_flag = sleep_flag | message_handler.HandleLocalMergedTxn();
 
-            sleep_flag = sleep_flag | message_handler.HandleTxnCachea();
+            sleep_flag = sleep_flag | message_handler.HandleTxnCache();
 
             if (!sleep_flag) {
                 usleep(200);

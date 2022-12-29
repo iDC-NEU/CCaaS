@@ -30,7 +30,7 @@ namespace Taas {
 
             sleep_flag = sleep_flag | merger.EpochCommit();
 
-            sleep_flag = sleep_flag | merger.LocalMerge();
+//            sleep_flag = sleep_flag | merger.LocalMerge();
 
             if(!sleep_flag) usleep(200);
         }

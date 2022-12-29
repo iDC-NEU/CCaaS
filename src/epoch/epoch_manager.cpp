@@ -93,23 +93,23 @@ namespace Taas {
         //==========Logical=============
 
         EpochManager::local_should_exec_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-                EpochManager::local_execed_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-                EpochManager::local_should_pack_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-                EpochManager::local_packed_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-                EpochManager::local_abort_before_pack_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-                /** 下面这些存储的是每个服务器发送过来的事务数量，以kTxnNodeNum作为size 后期如果要自动扩容 需要重新初始化这些计数器 或设置默认数量*/
-                EpochManager::remote_should_receive_pack_num.Init(EpochManager::max_length, ctx.kTxnNodeNum),
-                EpochManager::remote_received_pack_num.Init(EpochManager::max_length, ctx.kTxnNodeNum),
-                EpochManager::enqueued_txn_num.Init(EpochManager::max_length, ctx.kTxnNodeNum),
-                EpochManager::remote_should_receive_txn_num.Init(EpochManager::max_length, ctx.kTxnNodeNum),
-                EpochManager::remote_received_txn_num.Init(EpochManager::max_length, ctx.kTxnNodeNum),
+            EpochManager::local_execed_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
+            EpochManager::local_should_pack_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
+            EpochManager::local_packed_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
+            EpochManager::local_abort_before_pack_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
+            /** 下面这些存储的是每个服务器发送过来的事务数量，以kTxnNodeNum作为size 后期如果要自动扩容 需要重新初始化这些计数器 或设置默认数量*/
+            EpochManager::remote_should_receive_pack_num.Init(EpochManager::max_length, ctx.kTxnNodeNum),
+            EpochManager::remote_received_pack_num.Init(EpochManager::max_length, ctx.kTxnNodeNum),
+            EpochManager::enqueued_txn_num.Init(EpochManager::max_length, ctx.kTxnNodeNum),
+            EpochManager::remote_should_receive_txn_num.Init(EpochManager::max_length, ctx.kTxnNodeNum),
+            EpochManager::remote_received_txn_num.Init(EpochManager::max_length, ctx.kTxnNodeNum),
 
-                EpochManager::should_merge_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-                EpochManager::merged_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-                EpochManager::should_commit_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-                EpochManager::committed_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-                EpochManager::record_commit_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-                EpochManager::record_committed_txn_num.Init(EpochManager::max_length, EpochManager::pack_num);
+            EpochManager::should_merge_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
+            EpochManager::merged_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
+            EpochManager::should_commit_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
+            EpochManager::committed_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
+            EpochManager::record_commit_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
+            EpochManager::record_committed_txn_num.Init(EpochManager::max_length, EpochManager::pack_num);
 
         EpochManager::online_server_num = std::make_unique<std::atomic<uint64_t>>(ctx.kTxnNodeNum);
         EpochManager::should_receive_pack_num= std::make_unique<std::atomic<uint64_t>>(ctx.kTxnNodeNum - 1);
