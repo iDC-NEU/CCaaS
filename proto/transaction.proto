@@ -10,7 +10,7 @@ enum Result {
 
 enum TxnType {
   ClientTxn = 0; // client sends to txn
-  RemoteServerTxn = 1; // txn sends to txn, transactions
+  RemoteServerTxn = 1; // txn sends to txn, transactions sharding
   EpochEndFlag = 2; // txn sends to txn, epoch transactions info
   CommittedTxn = 3; // txn sends to storage , redo log
   BackUpTxn = 4; // txn sends to txn, transactions backup

@@ -24,31 +24,17 @@ namespace Taas {
 
     bool Taas::CRDTMerge::ValidateWriteSet(Taas::Context &ctx, proto::Transaction &txn) {
         UNUSED_VALUE(ctx);
+        auto epoch_mod = txn.commit_epoch() % ctx.kCacheMaxLength;
         auto csn_temp = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
-        if(EpochManager::current_epoch_abort_txn_set.contain(csn_temp, csn_temp)) {
+        if(EpochManager::epoch_abort_txn_set[epoch_mod]->contain(csn_temp, csn_temp)) {
             return false;
         }
         return true;
     }
 
-//    bool Taas::CRDTMerge::LocalCRDTMerge(Taas::Context &ctx, proto::Transaction &txn) {
-//        auto epoch_mod = txn.commit_epoch() % ctx.kCacheMaxLength;
-//        auto csn_temp = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
-//        std::string csn_result;
-//        for(auto i = 0; i < txn.row_size(); i ++) {
-//            const auto& row = txn.row(i);
-//            if(row.op_type() == proto::OpType::Read) {
-//                continue;
-//            }
-//            if (!EpochManager::epoch_merge_map[epoch_mod]->insert(row.key(), csn_temp, csn_result)) {///可以做rollback
-//                return false;
-//            }
-//        }
-//        return true;
-//    }
-
     bool Taas::CRDTMerge::MultiMasterCRDTMerge(Taas::Context &ctx, proto::Transaction &txn) {
         UNUSED_VALUE(ctx);
+        auto epoch_mod = txn.commit_epoch() % ctx.kCacheMaxLength;
         auto csn_temp = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
         std::string csn_result;
         bool result = true;
@@ -57,8 +43,9 @@ namespace Taas {
             if(row.op_type() == proto::OpType::Read) {
                 continue;
             }
-            if (!EpochManager::current_epoch_abort_txn_set.insert(row.key(), csn_temp, csn_result)) {
-                EpochManager::current_epoch_abort_txn_set.insert(csn_result, csn_result);
+            if (!EpochManager::epoch_merge_map[epoch_mod]->insert(row.key(), csn_temp, csn_result)) {
+                EpochManager::epoch_abort_txn_set[epoch_mod]->insert(csn_result, csn_result);
+                EpochManager::local_epoch_abort_txn_set[epoch_mod]->insert(csn_result, csn_result);
                 result = false;
             }
         }
@@ -66,14 +53,22 @@ namespace Taas {
     }
 
     bool CRDTMerge::Commit(Context &ctx, proto::Transaction &txn) {
+        auto epoch_mod = txn.commit_epoch() % ctx.kCacheMaxLength;
         auto csn_temp = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
         for(auto i = 0; i < txn.row_size(); i ++) {
             const auto& row = txn.row(i);
             if(row.op_type() == proto::OpType::Read) {
                 continue;
             }
-            if(row.op_type() == proto::OpType::Insert) {
+            else if(row.op_type() == proto::OpType::Insert) {
+                EpochManager::epoch_insert_set[epoch_mod]->insert(row.key(), csn_temp);
                 EpochManager::insert_set.insert(row.key(), csn_temp);
+            }
+            else if(row.op_type() == proto::OpType::Delete) {
+                EpochManager::insert_set.remove(row.key(), csn_temp);
+            }
+            else {
+                ///update, do nothing
             }
             EpochManager::read_version_map.insert(row.key(), csn_temp);
         }

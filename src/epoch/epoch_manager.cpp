@@ -7,6 +7,8 @@
 #include "string"
 #include "utils/utilities.h"
 #include "epoch/epoch_manager.h"
+#include "message/handler_receive.h"
+#include "message/handler_send.h"
 
 namespace Taas {
 
@@ -18,9 +20,8 @@ namespace Taas {
 
 
     bool EpochManager::timerStop = false;
-    volatile bool
-            EpochManager::remote_execed = false, EpochManager::record_committed = true, EpochManager::remote_record_committed = true,
-            EpochManager::is_current_epoch_abort = false;
+    volatile bool EpochManager::merge_complete = false, EpochManager::abort_set_merge_complete = false,
+        EpochManager::commit_complete = false, EpochManager::record_committed = false, EpochManager::is_current_epoch_abort = false;
     Context EpochManager::ctx;
     volatile uint64_t
             EpochManager::logical_epoch = 1, EpochManager::physical_epoch = 0, epoch_commit_time = 0;
@@ -30,33 +31,45 @@ namespace Taas {
     uint64_t EpochManager::pack_num = ctx.kIndexNum;
 
     AtomicCounters_Cache
-            EpochManager::local_should_exec_txn_num(10, 2), EpochManager::local_execed_txn_num(10, 2),
+            EpochManager::should_merge_txn_num(10, 2),
+            EpochManager::merged_txn_num(10, 2),
 
-            EpochManager::local_should_pack_txn_num(10, 2), EpochManager::local_packed_txn_num(10, 2),
-            EpochManager::local_abort_before_pack_txn_num(10, 2),
+            EpochManager::should_commit_txn_num(10, 2),
+            EpochManager::committed_txn_num(10, 2),
 
-            EpochManager::remote_should_receive_pack_num(10, 2), EpochManager::remote_received_pack_num(10, 2),
-            EpochManager::enqueued_txn_num(10, 2),
-            EpochManager::remote_should_receive_txn_num(10, 2), EpochManager::remote_received_txn_num(10, 2),
+            EpochManager::record_commit_txn_num(10, 2),
+            EpochManager::record_committed_txn_num(10, 2);
 
-            EpochManager::should_merge_txn_num(10, 2), EpochManager::merged_txn_num(10, 2),
+    AtomicCounters
+        EpochManager::server_state(2),
+        EpochManager::epoch_log_lsn(10);
 
-            EpochManager::should_commit_txn_num(10, 2), EpochManager::committed_txn_num(10, 2),
+    std::unique_ptr<std::atomic<uint64_t>>
+        EpochManager::should_receive_pack_num,
+        EpochManager::online_server_num;
 
-            EpochManager::record_commit_txn_num(10, 2), EpochManager::record_committed_txn_num(10, 2);
+    std::vector<std::unique_ptr<concurrent_crdt_unordered_map<std::string, std::string, std::string>>>
+            EpochManager::epoch_merge_map,
+            EpochManager::local_epoch_abort_txn_set,
+            EpochManager::epoch_abort_txn_set;
 
-    AtomicCounters EpochManager::server_state(2), EpochManager::epoch_log_lsn(10);
+    std::vector<std::unique_ptr<concurrent_unordered_map<std::string, std::string>>>
+            EpochManager::epoch_insert_set;
 
-    std::unique_ptr<std::atomic<uint64_t>> EpochManager::should_receive_pack_num, EpochManager::online_server_num;
+    concurrent_unordered_map<std::string, std::string>
+            EpochManager::read_version_map,
+            EpochManager::insert_set,
+            EpochManager::abort_txn_set;
 
-    std::vector<std::unique_ptr<concurrent_crdt_unordered_map<std::string, std::string, std::string>>> EpochManager::epoch_merge_map;
-    concurrent_crdt_unordered_map<std::string, std::string, std::string>
-            EpochManager::current_epoch_merge_map, EpochManager::current_epoch_abort_txn_set;
-    concurrent_unordered_map<std::string, std::string> EpochManager::read_version_map, EpochManager::insert_set, EpochManager::abort_txn_set;
-    std::vector<std::unique_ptr<std::vector<proto::Transaction>>> EpochManager::redo_log;
+    std::vector<std::unique_ptr<std::vector<proto::Transaction>>>
+            EpochManager::redo_log;
 
-    std::vector<std::unique_ptr<std::atomic<uint64_t>>>  EpochManager::received_epoch;
-    std::vector<std::unique_ptr<concurrent_unordered_map<std::string, proto::Transaction>>>  EpochManager::committed_txn_cache;
+    std::vector<std::unique_ptr<std::atomic<uint64_t>>>
+            EpochManager::received_epoch;
+
+    std::vector<std::unique_ptr<concurrent_unordered_map<std::string, proto::Transaction>>>
+            EpochManager::committed_txn_cache;
+
 // EpochPhysicalTimerManagerThreadMain中得到的当前微秒级别的时间戳
     uint64_t start_time_ll;
     uint64_t start_physical_epoch = 1, new_start_physical_epoch = 1, new_sleep_time = 10000, start_merge_time = 0, commit_time = 0;
@@ -72,12 +85,7 @@ namespace Taas {
     BlockingConcurrentQueue<std::unique_ptr<proto::Message>> request_queue, raft_message_queue;
     BlockingConcurrentQueue<std::unique_ptr<pack_params>> pack_txn_queue;
 // client发来的写集会放到local_txn_queue中
-    TxnQueue local_txn_queue;
-
-// local_txn_queue中的事务(sql node发来的)初次冲突检测成功后，会被放到first_merged_queue中
-    TxnQueue first_merged_queue;
-
-    TxnQueue merge_queue, commit_queue;
+    BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>> local_txn_queue, merge_queue, commit_queue;
 
 
     void InitEpochTimerManager(Context& ctx){
@@ -90,26 +98,14 @@ namespace Taas {
 
         EpochManager::max_length = ctx.kCacheMaxLength;
         EpochManager::pack_num = ctx.kIndexNum;
-        //==========Logical=============
+        //==========Logical Merge=============
 
-        EpochManager::local_should_exec_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-            EpochManager::local_execed_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-            EpochManager::local_should_pack_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-            EpochManager::local_packed_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-            EpochManager::local_abort_before_pack_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-            /** 下面这些存储的是每个服务器发送过来的事务数量，以kTxnNodeNum作为size 后期如果要自动扩容 需要重新初始化这些计数器 或设置默认数量*/
-            EpochManager::remote_should_receive_pack_num.Init(EpochManager::max_length, ctx.kTxnNodeNum),
-            EpochManager::remote_received_pack_num.Init(EpochManager::max_length, ctx.kTxnNodeNum),
-            EpochManager::enqueued_txn_num.Init(EpochManager::max_length, ctx.kTxnNodeNum),
-            EpochManager::remote_should_receive_txn_num.Init(EpochManager::max_length, ctx.kTxnNodeNum),
-            EpochManager::remote_received_txn_num.Init(EpochManager::max_length, ctx.kTxnNodeNum),
-
-            EpochManager::should_merge_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-            EpochManager::merged_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-            EpochManager::should_commit_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-            EpochManager::committed_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-            EpochManager::record_commit_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
-            EpochManager::record_committed_txn_num.Init(EpochManager::max_length, EpochManager::pack_num);
+        EpochManager::should_merge_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
+        EpochManager::merged_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
+        EpochManager::should_commit_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
+        EpochManager::committed_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
+        EpochManager::record_commit_txn_num.Init(EpochManager::max_length, EpochManager::pack_num),
+        EpochManager::record_committed_txn_num.Init(EpochManager::max_length, EpochManager::pack_num);
 
         EpochManager::online_server_num = std::make_unique<std::atomic<uint64_t>>(ctx.kTxnNodeNum);
         EpochManager::should_receive_pack_num= std::make_unique<std::atomic<uint64_t>>(ctx.kTxnNodeNum - 1);
@@ -190,12 +186,15 @@ namespace Taas {
 //        fflush(stdout);
 //        return;
 //    }
+/**
+ * LocalShouldExecTxnNum %15lu, LocalExecedTxnNum %15lu,
+        PackedTxnNum %15lu, ShouldPackTxnNum %15lu,
+        ReceivedPackNum %15lu, ShouldReceivePackNum %15lu,
+        ReceivedTxnNum %15lu, enqueued_txn_num %15lu ShouldReceiveTxnNum %15lu, \
+        */
+
         printf("%50s physical %15lu, logical %15lu, \
         epoch_mod %llu, %15lu, \
-        LocalShouldExecTxnNum %15lu, LocalExecedTxnNum %15lu, \
-        PackedTxnNum %15lu, ShouldPackTxnNum %15lu, \
-        ReceivedPackNum %15lu, ShouldReceivePackNum %15lu, \
-        ReceivedTxnNum %15lu, enqueued_txn_num %15lu ShouldReceiveTxnNum %15lu, \
         MergedTxnNum %15lu, ShouldMergeTxnNum %15lu, \
         CommittedTxnNum %15lu, ShouldCommitTxnNum %15lu, \
         record_commit %15lu, record_committed %15lu, \
@@ -204,12 +203,6 @@ namespace Taas {
                s.c_str(),
                EpochManager::GetPhysicalEpoch(), EpochManager::GetLogicalEpoch(),
                epoch_mod, EpochManager::GetPhysicalEpoch() - EpochManager::GetLogicalEpoch(),
-               EpochManager::local_should_exec_txn_num.GetCount(epoch_mod)  , EpochManager::local_execed_txn_num.GetCount(epoch_mod),
-               EpochManager::local_packed_txn_num.GetCount(epoch_mod), EpochManager::local_should_pack_txn_num.GetCount(epoch_mod),
-
-               EpochManager::remote_received_pack_num.GetCount(epoch_mod), EpochManager::should_receive_pack_num->load(),
-               EpochManager::remote_received_txn_num.GetCount(epoch_mod), EpochManager::enqueued_txn_num.GetCount(epoch_mod),
-               EpochManager::remote_should_receive_txn_num.GetCount(epoch_mod),
 
                EpochManager::merged_txn_num.GetCount(epoch_mod), EpochManager::should_merge_txn_num.GetCount(epoch_mod),
                EpochManager::committed_txn_num.GetCount(epoch_mod), EpochManager::should_commit_txn_num.GetCount(epoch_mod),
@@ -231,7 +224,9 @@ namespace Taas {
         if(ctx.is_cache_server_available)
             cache_server_available = 0;
 
-        EpochManager::RemoteCacheClear(0); //清空当前epoch的remote信息 为后面腾出空间 远端已经发送过来，不能清空下一个epoch的信息
+        //清空当前epoch的remote信息 为后面腾出空间 远端已经发送过来，不能清空下一个epoch的信息
+        MessageReceiveHandler::Clear(0);
+
         EpochManager::ClearMergeEpochState(0); //清空当前epoch的merge信息
         EpochManager::SetCacheServerStored(0, cache_server_available);
 
@@ -241,16 +236,7 @@ namespace Taas {
 
             while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(100);
 
-            while(EpochManager::local_execed_txn_num.GetCount(epoch_mod) <
-                  EpochManager::local_should_exec_txn_num.GetCount(epoch_mod)) {
-                cnt++;
-                if(cnt % 100 == 0){
-                    OUTPUTLOG("=======等待本地事务进入commit完成===== " , epoch_mod);
-                }
-                usleep(100);
-            }
-
-            while(!EpochManager::RemotePackReceiveComplete(epoch_mod)) {
+            while(!MessageReceiveHandler::RemoteShardingPackReceiveComplete(epoch_mod)) {
                 cnt++;
                 if(cnt % 100 == 0){
                     OUTPUTLOG("============等待远端pack接收完成===== " , epoch_mod);
@@ -258,7 +244,15 @@ namespace Taas {
                 usleep(100);
             }
 
-            while(!EpochManager::TxnReceiveComplete(epoch_mod)) {
+            while(!MessageReceiveHandler::RemoteShardingTxnReceiveComplete(epoch_mod)) {
+                cnt++;
+                if (cnt % 100 == 0) {
+                    OUTPUTLOG("======等待远端txn接收完成===== ", epoch_mod);
+                }
+                usleep(100);
+            }
+
+            while(!MessageReceiveHandler::EpochTxnEnqeueud_MergeQueue(epoch_mod)) {
                 cnt++;
                 if (cnt % 100 == 0) {
                     OUTPUTLOG("======等待txn进入merge_queue===== ", epoch_mod);
@@ -266,20 +260,36 @@ namespace Taas {
                 usleep(100);
             }
 
-
             while(EpochManager::should_merge_txn_num.GetCount(epoch_mod) >
                   EpochManager::merged_txn_num.GetCount(epoch_mod)){
                 cnt++;
                 if(cnt % 100 == 0){
-                    OUTPUTLOG("=============等待事务merge完成======= " , epoch_mod);
+                    OUTPUTLOG("=============等待所有事务 本地和远端事务 merge完成======= " , epoch_mod);
                 }
                 usleep(100);
             }
+            EpochManager::SetMergeComplete(true);
 
-            while(!EpochManager::IsCacheServerStored(epoch_mod)) {
+            ///todo send Abort Set to other txn nodes
+//            while(!EpochManager::IsCacheServerStored(epoch_mod)) {
+//                cnt++;
+//                if(cnt % 100 == 0){
+//                    OUTPUTLOG("=============等待cache 备份 接收完成======= " , epoch_mod);
+//                }
+//                usleep(100);
+//            }
+//            while(!AbortSetSendSuccess()) {
+//                cnt++;
+//                if(cnt % 100 == 0){
+//                    OUTPUTLOG("=============等待AbortSet 接收完成======= " , epoch_mod);
+//                }
+//                usleep(100);
+//            }
+
+            while(!MessageReceiveHandler::RemoteAbortSetReceiveComplete(epoch_mod)) {
                 cnt++;
                 if(cnt % 100 == 0){
-                    OUTPUTLOG("=============等待cache接收完成======= " , epoch_mod);
+                    OUTPUTLOG("=============等待AbortSet 接收完成======= " , epoch_mod);
                 }
                 usleep(100);
             }
@@ -287,10 +297,17 @@ namespace Taas {
 //        OUTPUTLOG("==进行一个Epoch的合并 merge 完成====== " , epoch_mod);
             // ======= Merge结束 开始Commit ============
             EpochManager::SetRecordCommitted(false);
-            EpochManager::SetRemoteRecordCommitted(false);
-            EpochManager::SetRemoteExeced(true);
+            EpochManager::SetCommitComplete(false);
+            EpochManager::SetAbortSetMergeComplete(true);
 
 //        OUTPUTLOG("==进行一个Epoch的合并 merge 完成====== " , epoch_mod);
+            while(!MessageReceiveHandler::EpochTxnEnqeueud_LocalTxnQueue(epoch_mod)) {
+                cnt++;
+                if (cnt % 100 == 0) {
+                    OUTPUTLOG("======等待txn进入local_txn_queue===== ", epoch_mod);
+                }
+                usleep(100);
+            }
 
             while(EpochManager::should_commit_txn_num.GetCount(epoch_mod) >
                   EpochManager::committed_txn_num.GetCount(epoch_mod)) {
@@ -301,13 +318,15 @@ namespace Taas {
                 }
                 usleep(100);
             }
+            ///todo: send local insert set and receive other txn node's insert set
 
             EpochManager::SetRecordCommitted(true);
             total_commit_txn_num += EpochManager::record_committed_txn_num.GetCount(epoch_mod);
             OUTPUTLOG(out, epoch_mod);
             // ============= 结束处理 ==================
             //远端事务已经写完，不写完无法开始下一个logical epoch
-            EpochManager::RemoteCacheClear(epoch_mod); //清空当前epoch的remote信息 为后面腾出空间 远端已经发送过来，不能清空下一个epoch的信息
+            MessageReceiveHandler::Clear(epoch_mod);//清空当前epoch的remote信息 为后面腾出空间 远端已经发送过来，不能清空下一个epoch的信息
+            ///todo: clear MessageReceiveHandler's cahce
             EpochManager::ClearMergeEpochState(epoch_mod); //清空当前epoch的merge信息
             EpochManager::SetCacheServerStored(epoch_mod, cache_server_available);
             last_epoch_mod = epoch_mod;
@@ -315,7 +334,6 @@ namespace Taas {
             epoch_mod = epoch % EpochManager::max_length;
             EpochManager::ClearLog(epoch_mod); //清空next epoch的redo_log信息
             merge_num.store(0);
-
             EpochManager::AddLogicalEpoch();
             epoch_commit_time = commit_time = now_to_us();
 

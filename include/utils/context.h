@@ -13,7 +13,7 @@ namespace Taas {
         std::vector<std::string> kServerIp, kCacheServerIp;
         std::vector<uint64_t> port; // ServerNum * PackageNum
         // server_num，txn node的个数
-        volatile uint64_t kTxnNodeNum = 1;
+        volatile uint64_t kTxnNodeNum = 1, kBackUpNum = 1;
         uint64_t kIndexNum = 1, kEpochSize_us = 10000/** us */, txn_node_ip_index = 0, kWorkerThreadNum = 10, kSendClientThreadNum = 2,
                 kMessageCacheThreadNum = 2, kPackThreadNum = 2, kDurationTime_us = 0,
                 kTestClientNum = 2, kTestKeyRange = 1000000, kTestTxnOpNum = 10,

@@ -119,7 +119,15 @@ namespace Taas {
             (void) value;
             auto &v = (*vec[epoch % _length]);
             for (auto &i: v) {
-                i->store(0);
+                i->store(value);
+            }
+        }
+
+        void Clear() {
+            for (auto &v : vec) {
+                for (auto &i: *v) {
+                    i->store(0);
+                }
             }
         }
 

@@ -9,8 +9,8 @@
 #include "zmq.hpp"
 #include "proto/message.pb.h"
 #include "transaction/crdt_merge.h"
-#include "message/transmit.h"
-#include "message/handler.h"
+#include "message/handler_send.h"
+#include "message/handler_receive.h"
 
 namespace Taas {
 
@@ -26,15 +26,20 @@ namespace Taas {
         bool res, sleep_flag;
         Context ctx;
         CRDTMerge merger;
-        MessageTransmitter message_transmitter;
-        MessageHandler message_handler;
+        MessageSendHandler message_transmitter;
+        MessageReceiveHandler message_handler;
 
 
     public:
         void Init(uint64_t id, Context ctx);
-        bool LocalMerge();
-        bool EpochMerge();
-        bool EpochCommit();
+//        bool LocalMerge();
+//        bool EpochMerge();
+//        bool EpochCommit();
+        bool EpochMerge_RedoLog_ShardingMode();
+        bool EpochCommit_RedoLog_ShardingMode();
+
+        bool EpochMerge_RedoLog_TxnMode();
+        bool EpochCommit_RedoLog_TxnMode();
         bool Run(uint64_t id, Context ctx);
     };
 }
