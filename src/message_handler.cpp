@@ -3,7 +3,7 @@
 //
 
 #include "epoch/epoch_manager.h"
-#include "utils/utilities.h"
+#include "tools/utilities.h"
 #include "queue"
 #include "message/handler_receive.h"
 #include "message/handler_send.h"
@@ -24,7 +24,7 @@ namespace Taas {
         std::unique_ptr<pack_params> pack_param;
         while (!init_ok.load()) usleep(100);
         printf("PackThreadMain start %llu\n", id);
-        MessageSendHandler::SendTxn(id, ctx);
+        MessageSendHandler::SendTxnToSendThread(id, ctx);
     }
 
 ///目前实现的是对远端txn node传递过来的写集进行缓存处理，只想merge_queue中放入当前epoch的写集。
@@ -32,7 +32,7 @@ namespace Taas {
     void MessageCacheThreadMain(const uint64_t id, Context ctx) {//处理写集，远端，本地写集需要给写集附加epoch和csn。
         SetCPU();
         MessageReceiveHandler message_receive_handler;
-        message_receive_handler.Init(id);
+        message_receive_handler.Init(id, ctx);
         printf("CacheThreadMain start %lu txn_node_ip_index %lu\n", id, ctx.txn_node_ip_index);
         while (!init_ok.load()) usleep(100);
         auto sleep_flag = false;

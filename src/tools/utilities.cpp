@@ -2,9 +2,9 @@
 // Created by 周慰星 on 11/8/22.
 //
 
-#include "utils/utilities.h"
-#include <google/protobuf/io/gzip_stream.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include "tools/utilities.h"
+#include "_deps/protobuf-src/src/google/protobuf/io/gzip_stream.h"
+#include "_deps/protobuf-src/src/google/protobuf/io/zero_copy_stream_impl.h"
 
 namespace Taas {
 

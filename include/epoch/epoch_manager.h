@@ -11,9 +11,9 @@
 #include <atomic>
 #include <mutex>
 #include <unistd.h>
-#include "utils/atomic_counters.h"
-#include "utils/concurrent_hash_map.h"
-#include "utils/context.h"
+#include "tools/atomic_counters.h"
+#include "tools/concurrent_hash_map.h"
+#include "tools/context.h"
 #include "tools/blocking_concurrent_queue.hpp"
 #include "proto/message.pb.h"
 #include "zmq.hpp"

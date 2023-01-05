@@ -2,10 +2,11 @@
 // Created by 周慰星 on 11/9/22.
 //
 #include <queue>
+#include <utility>
 #include "message/handler_receive.h"
 #include "epoch/epoch_manager.h"
 #include "message/handler_send.h"
-#include "utils/utilities.h"
+#include "tools/utilities.h"
 
 namespace Taas {
 
@@ -44,8 +45,7 @@ namespace Taas {
 
 
     bool MessageReceiveHandler::Sharding() {
-        epoch = txn_ptr->commit_epoch();
-        sharding_should_handle_local_txn_num.IncCount(epoch, thread_id, 1);
+        sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
         std::vector<std::unique_ptr<proto::Transaction>> sharding_row_vector;
         for(uint64_t i = 0; i < sharding_num; i ++) {
             sharding_row_vector.emplace_back(std::make_unique<proto::Transaction>());
@@ -65,31 +65,36 @@ namespace Taas {
             if(sharding_row_vector[i]->row_size() > 0) {
                 ///sharding sending
                 if(i == ctx.txn_node_ip_index) {
-                    sharding_should_enqueue_merge_queue_txn_num.IncCount(epoch, i, 1);
-                    sharding_cache[epoch % ctx.kCacheMaxLength][ctx.txn_node_ip_index]->push(std::move(sharding_row_vector[i]));
+                    sharding_should_enqueue_merge_queue_txn_num.IncCount(message_epoch, i, 1);
+                    sharding_cache[message_epoch_mod][ctx.txn_node_ip_index]->push(std::move(sharding_row_vector[i]));
                 }
                 else {
-                    sharding_should_send_txn_num.IncCount(epoch, i, 1);
-                    MessageSendHandler::SendTxnToPack(ctx, *(sharding_row_vector[i]), proto::TxnType::RemoteServerTxn);
+                    sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
+                    MessageSendHandler::SendTxnToPackThread(ctx, *(sharding_row_vector[i]), proto::TxnType::RemoteServerTxn);
                 }
             }
         }
         {///backup sending
-            backup_should_send_txn_num.IncCount(epoch, ctx.txn_node_ip_index, 1);
-            MessageSendHandler::SendTxnToPack(ctx, *(txn_ptr), proto::TxnType::BackUpTxn);
+            backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+            MessageSendHandler::SendTxnToPackThread(ctx, *(txn_ptr), proto::TxnType::BackUpTxn);
         }
-        sharding_handled_local_txn_num.IncCount(epoch, thread_id, 1);
+        sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
         return true;
     }
 
     bool MessageReceiveHandler::UpdateEpochAbortSet() {
-        //todo update abort set
+        message_epoch = txn_ptr->commit_epoch();
+        message_epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
+        for(int i = 0; i < txn_ptr->row_size(); i ++) {
+            EpochManager::epoch_insert_set[message_epoch_mod]->insert(txn_ptr->row(i).key(), txn_ptr->row(i).data());
+        }
     }
 
     bool MessageReceiveHandler::HandleReceivedTxn() {
-        auto message_epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
-        auto message_server_id = txn_ptr->server_id();
-        auto sharding_id = txn_ptr->sharding_id();
+        message_epoch = txn_ptr->commit_epoch();
+        message_epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
+        message_server_id = txn_ptr->server_id();
+        message_sharding_id = txn_ptr->sharding_id();
         ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
         if ((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==
             ((message_epoch_mod + 2) % ctx.kCacheMaxLength))
@@ -100,8 +105,10 @@ namespace Taas {
                 txn_ptr->set_commit_epoch(EpochManager::GetPhysicalEpoch());
                 txn_ptr->set_csn(now_to_us());
                 txn_ptr->set_server_id(ctx.txn_node_ip_index);
+                message_epoch = txn_ptr->commit_epoch();
                 message_epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
                 message_server_id = txn_ptr->server_id();
+                message_sharding_id = txn_ptr->sharding_id();
                 Sharding();
 
                 local_txn_cache[message_epoch_mod][message_server_id]->push(std::move(txn_ptr));
@@ -109,34 +116,34 @@ namespace Taas {
                 break;
             }
             case proto::TxnType::RemoteServerTxn : {
-                sharding_received_txn_num.IncCount(message_epoch_mod,message_server_id, 1);
+                sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
                 sharding_cache[message_epoch_mod][message_server_id]->push(std::move(txn_ptr));
                 break;
             }
             case proto::TxnType::EpochEndFlag : {
-                sharding_should_receive_txn_num.IncCount(message_epoch_mod,message_server_id,txn_ptr->csn());
-                sharding_received_pack_num.IncCount(message_epoch_mod,message_server_id, 1);
+                sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
+                sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
                 break;
             }
             case proto::TxnType::BackUpTxn : {
-                backup_received_txn_num.IncCount(message_epoch_mod,sharding_id, 1);
-                backup_cache[message_epoch_mod][sharding_id]->push(std::move(txn_ptr));
+                backup_received_txn_num.IncCount(message_epoch,message_sharding_id, 1);
+                backup_cache[message_epoch_mod][message_sharding_id]->push(std::move(txn_ptr));
                 break;
             }
             case proto::TxnType::BackUpEpochEndFlag : {
-                backup_should_receive_txn_num.IncCount(message_epoch_mod,sharding_id,txn_ptr->csn());
-                backup_should_receive_pack_num.IncCount(message_epoch_mod,sharding_id, 1);
+                backup_should_receive_txn_num.IncCount(message_epoch,message_sharding_id,txn_ptr->csn());
+                backup_should_receive_pack_num.IncCount(message_epoch,message_sharding_id, 1);
                 break;
             }
             case proto::TxnType::AbortSet : {
                 UpdateEpochAbortSet();
-                sharding_received_abort_set_num.IncCount(message_epoch_mod,sharding_id, 1);
-                abort_set_cache[message_epoch_mod][sharding_id]->push(std::move(txn_ptr));
+                sharding_received_abort_set_num.IncCount(message_epoch,message_sharding_id, 1);
+                abort_set_cache[message_epoch_mod][message_sharding_id]->push(std::move(txn_ptr));
                 break;
             }
             case proto::TxnType::InsertSet : {
-                backup_insert_set_received_num.IncCount(message_epoch_mod,sharding_id, 1);
-                backup_insert_set_cache[message_epoch_mod][sharding_id]->push(std::move(txn_ptr));
+                backup_insert_set_received_num.IncCount(message_epoch,message_sharding_id, 1);
+                backup_insert_set_cache[message_epoch_mod][message_sharding_id]->push(std::move(txn_ptr));
                 break;
             }
             case proto::CommittedTxn:
@@ -146,6 +153,7 @@ namespace Taas {
             case proto::TxnType_INT_MAX_SENTINEL_DO_NOT_USE_:
                 break;
         }
+        ///todo : reply ack to the txn node(sender)
 
         return true;
     }
@@ -267,13 +275,14 @@ namespace Taas {
 
 
 
-    bool MessageReceiveHandler::Init(uint64_t id) {
+    bool MessageReceiveHandler::Init(uint64_t id, Context context) {
         message_ptr = nullptr;
         txn_ptr = nullptr;
         pack_param = nullptr;
         server_dequeue_id = 0, epoch_mod = 0, epoch = 0, clear_epoch = 0, max_length = 0;
         res = false, sleep_flag = false;
         thread_id = id;
+        ctx = std::move(context);
         max_length = ctx.kCacheMaxLength;
         sharding_num = ctx.kTxnNodeNum;
         sharding_cache.reserve(max_length + 1);
@@ -299,9 +308,8 @@ namespace Taas {
     }
 
     bool MessageReceiveHandler::StaticInit(Context context) {
-        ctx = std::move(context);
-        auto max_length = ctx.kCacheMaxLength;
-        auto sharding_num = ctx.kTxnNodeNum;
+        auto max_length = context.kCacheMaxLength;
+        auto sharding_num = context.kTxnNodeNum;
         MessageReceiveHandler::sharding_should_receive_pack_num.Init(max_length, sharding_num),
         MessageReceiveHandler::sharding_received_pack_num.Init(max_length, sharding_num),
         MessageReceiveHandler::sharding_should_receive_txn_num.Init(max_length, sharding_num),

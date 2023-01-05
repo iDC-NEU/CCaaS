@@ -139,6 +139,18 @@ namespace Taas {
             return ans;
         }
 
+        bool getValue(std::vector<key> &keys, std::vector<value> &values) {
+            for(uint64_t i = 0; i < _N; i ++){
+                std::unique_lock<std::mutex> lock(_mutex[i]);
+            }
+            for(uint64_t i = 0; i < _N; i ++){
+                for(auto p : _map[i]) {
+                    keys.push_back(p.first);
+                    values.push_back(p.second);
+                }
+            }
+        }
+
     protected:
         inline std::unordered_map<key, value>& GetMapRef(const key k){ return _map[(_hash(k) % _N)]; }
         inline std::unordered_map<key, value>& GetMapRef(const key k) const { return _map[(_hash(k) % _N)]; }
@@ -254,6 +266,18 @@ namespace Taas {
                 ans += _map[i].size();
             }
             return ans;
+        }
+
+        bool getValue(std::vector<key> &keys, std::vector<value> &values) {
+            for(uint64_t i = 0; i < _N; i ++){
+                std::unique_lock<std::mutex> lock(_mutex[i]);
+            }
+            for(uint64_t i = 0; i < _N; i ++){
+                for(auto p : _map[i]) {
+                    keys.push_back(p.first);
+                    values.push_back(p.second);
+                }
+            }
         }
 
     protected:

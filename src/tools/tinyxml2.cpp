@@ -605,7 +605,7 @@ void XMLUtil::ToStr( int64_t v, char* buffer, int bufferSize )
 void XMLUtil::ToStr( uint64_t v, char* buffer, int bufferSize )
 {
     // horrible syntax trick to make the compiler happy about %lu
-    TIXML_SNPRINTF(buffer, bufferSize, "%lu", (long long)v);
+    TIXML_SNPRINTF(buffer, bufferSize, "%lld", (long long)v);
 }
 
 bool XMLUtil::ToInt(const char* str, int* value)
@@ -699,7 +699,7 @@ bool XMLUtil::ToInt64(const char* str, int64_t* value)
 
 bool XMLUtil::ToUnsigned64(const char* str, uint64_t* value) {
     unsigned long long v = 0;	// horrible syntax trick to make the compiler happy about %lu
-    if(TIXML_SSCANF(str, IsPrefixHex(str) ? "%llx" : "%lu", &v) == 1) {
+    if(TIXML_SSCANF(str, IsPrefixHex(str) ? "%llx" : "%llu", &v) == 1) {
         *value = (uint64_t)v;
         return true;
     }

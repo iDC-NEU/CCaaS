@@ -6,7 +6,7 @@
 #include <utility>
 #include "epoch/merge.h"
 #include "epoch/epoch_manager.h"
-#include "utils/utilities.h"
+#include "tools/utilities.h"
 
 namespace Taas {
 
@@ -26,9 +26,13 @@ namespace Taas {
         while(!EpochManager::IsTimerStop()) {
             sleep_flag = false;
 
-            sleep_flag = sleep_flag | merger.EpochMerge();
+            sleep_flag = sleep_flag | merger.EpochMerge_RedoLog_TxnMode();
 
-            sleep_flag = sleep_flag | merger.EpochCommit();
+            sleep_flag = sleep_flag | merger.EpochCommit_RedoLog_TxnMode();
+
+//            sleep_flag = sleep_flag | merger.EpochMerge_RedoLog_ShardingMode();
+//
+//            sleep_flag = sleep_flag | merger.EpochCommit_RedoLog_ShardingMode();
 
 //            sleep_flag = sleep_flag | merger.LocalMerge();
 

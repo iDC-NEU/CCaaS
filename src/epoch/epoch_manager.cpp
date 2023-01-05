@@ -5,7 +5,7 @@
 #include <ctime>
 #include "sys/time.h"
 #include "string"
-#include "utils/utilities.h"
+#include "tools/utilities.h"
 #include "epoch/epoch_manager.h"
 #include "message/handler_receive.h"
 #include "message/handler_send.h"
@@ -216,35 +216,28 @@ namespace Taas {
     void EpochLogicalTimerManagerThreadMain(uint64_t id, Context ctx){
         SetCPU();
         UNUSED_VALUE(id);
-        uint64_t should_merged_txn_num = 0, remote_commit_txn_num = 0, current_local_txn_num = 0, remote_received_txn_num = 0,
-                cnt = 0, epoch = 1, epoch_mod = 1, last_epoch_mod = 0, cache_server_available = 1, total_commit_txn_num = 0;
-        string out = "=============完成一个Epoch的合并===== ";
+        uint64_t should_merge_txn_num = 0, should_commit_txn_num = 0, cnt = 0,
+                epoch = 1, epoch_mod = 1, last_epoch_mod = 0,
+                cache_server_available = 1, total_commit_txn_num = 0;
         while(!init_ok.load()) usleep(100);
-
         if(ctx.is_cache_server_available)
             cache_server_available = 0;
 
         //清空当前epoch的remote信息 为后面腾出空间 远端已经发送过来，不能清空下一个epoch的信息
         MessageReceiveHandler::Clear(0);
-
         EpochManager::ClearMergeEpochState(0); //清空当前epoch的merge信息
         EpochManager::SetCacheServerStored(0, cache_server_available);
 
         while(!EpochManager::IsTimerStop()){
-            //等所有上一个epoch 的事务写完 再开始下一个epoch
-            cnt = 0;
-
             while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(100);
-
-            while(!MessageReceiveHandler::RemoteShardingPackReceiveComplete(epoch_mod)) {
+            while(!MessageReceiveHandler::RemoteShardingPackReceiveComplete(epoch_mod, ctx)) {
                 cnt++;
                 if(cnt % 100 == 0){
                     OUTPUTLOG("============等待远端pack接收完成===== " , epoch_mod);
                 }
                 usleep(100);
             }
-
-            while(!MessageReceiveHandler::RemoteShardingTxnReceiveComplete(epoch_mod)) {
+            while(!MessageReceiveHandler::RemoteShardingTxnReceiveComplete(epoch_mod, ctx)) {
                 cnt++;
                 if (cnt % 100 == 0) {
                     OUTPUTLOG("======等待远端txn接收完成===== ", epoch_mod);
@@ -252,14 +245,13 @@ namespace Taas {
                 usleep(100);
             }
 
-            while(!MessageReceiveHandler::EpochTxnEnqeueud_MergeQueue(epoch_mod)) {
+            while(!MessageReceiveHandler::EpochTxnEnqeueud_MergeQueue(epoch_mod, ctx)) {
                 cnt++;
                 if (cnt % 100 == 0) {
                     OUTPUTLOG("======等待txn进入merge_queue===== ", epoch_mod);
                 }
                 usleep(100);
             }
-
             while(EpochManager::should_merge_txn_num.GetCount(epoch_mod) >
                   EpochManager::merged_txn_num.GetCount(epoch_mod)){
                 cnt++;
@@ -270,23 +262,26 @@ namespace Taas {
             }
             EpochManager::SetMergeComplete(true);
 
-            ///todo send Abort Set to other txn nodes
+            ///send abort set
+            MessageSendHandler::SendTaskToPackThread(ctx, epoch, proto::TxnType::AbortSet);///发送abort set 任务
+
+            ///todo check ack
 //            while(!EpochManager::IsCacheServerStored(epoch_mod)) {
 //                cnt++;
 //                if(cnt % 100 == 0){
-//                    OUTPUTLOG("=============等待cache 备份 接收完成======= " , epoch_mod);
+//                    OUTPUTLOG("=============等待备份 接收完成======= " , epoch_mod); ///接收到follower的ack
 //                }
 //                usleep(100);
 //            }
 //            while(!AbortSetSendSuccess()) {
 //                cnt++;
 //                if(cnt % 100 == 0){
-//                    OUTPUTLOG("=============等待AbortSet 接收完成======= " , epoch_mod);
+//                    OUTPUTLOG("=============等待AbortSet 发送完成======= " , epoch_mod); ///接收到follower的ack
 //                }
 //                usleep(100);
 //            }
 
-            while(!MessageReceiveHandler::RemoteAbortSetReceiveComplete(epoch_mod)) {
+            while(!MessageReceiveHandler::RemoteAbortSetReceiveComplete(epoch_mod, ctx)) {
                 cnt++;
                 if(cnt % 100 == 0){
                     OUTPUTLOG("=============等待AbortSet 接收完成======= " , epoch_mod);
@@ -301,7 +296,7 @@ namespace Taas {
             EpochManager::SetAbortSetMergeComplete(true);
 
 //        OUTPUTLOG("==进行一个Epoch的合并 merge 完成====== " , epoch_mod);
-            while(!MessageReceiveHandler::EpochTxnEnqeueud_LocalTxnQueue(epoch_mod)) {
+            while(!MessageReceiveHandler::EpochTxnEnqeueud_LocalTxnQueue(epoch_mod, ctx)) {
                 cnt++;
                 if (cnt % 100 == 0) {
                     OUTPUTLOG("======等待txn进入local_txn_queue===== ", epoch_mod);
@@ -314,15 +309,24 @@ namespace Taas {
                 cnt++;
                 if(cnt % 100 == 0){
                     OUTPUTLOG("==进行一个Epoch的合并 commit========= " , epoch_mod);
-//                OUTPUTLOG("=============完成一个Epoch的合并===== " , epoch_mod);
                 }
                 usleep(100);
             }
-            ///todo: send local insert set and receive other txn node's insert set
 
+            ///todo: send local insert set and receive other txn node's insert set
+            ///send insert set
+//            MessageSendHandler::SendTaskToPackThread(ctx, epoch, proto::TxnType::InsertSet);///发送insert set 任务
+//            while() {
+//                cnt++;
+//                if(cnt % 100 == 0){
+//                    OUTPUTLOG("=============等待InsertSet 接收完成======= " , epoch_mod); ///接收到follower的ack
+//                }
+//                usleep(100);
+//            }
             EpochManager::SetRecordCommitted(true);
             total_commit_txn_num += EpochManager::record_committed_txn_num.GetCount(epoch_mod);
-            OUTPUTLOG(out, epoch_mod);
+            OUTPUTLOG("=============完成一个Epoch的合并===== ", epoch_mod);
+            //                OUTPUTLOG("=============完成一个Epoch的合并===== " , epoch_mod);
             // ============= 结束处理 ==================
             //远端事务已经写完，不写完无法开始下一个logical epoch
             MessageReceiveHandler::Clear(epoch_mod);//清空当前epoch的remote信息 为后面腾出空间 远端已经发送过来，不能清空下一个epoch的信息

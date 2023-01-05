@@ -6,14 +6,14 @@
 #define TAAS_HANDLER_RECEIVE_H
 
 #include "epoch/epoch_manager.h"
-#include "utils/utilities.h"
+#include "tools/utilities.h"
+#include "queue"
 
 namespace Taas {
     class MessageReceiveHandler{
     public:
-        bool Init(uint64_t id);
+        bool Init(uint64_t id, Context context);
         bool HandleReceivedMessage();
-        bool HandleReceivedClientTxn();
         bool HandleReceivedTxn();
         bool Sharding();
         bool UpdateEpochAbortSet();
@@ -34,11 +34,12 @@ namespace Taas {
         std::unique_ptr<proto::Transaction> txn_ptr;
         std::unique_ptr<pack_params> pack_param;
         std::string csn_temp, key_temp, key_str, table_name, csn_result;
-        uint64_t thread_id = 0, server_dequeue_id = 0, epoch_mod = 0,
-                epoch = 0, clear_epoch = 0,max_length = 0, sharding_num = 0;
+        uint64_t thread_id = 0, server_dequeue_id = 0,
+                epoch_mod = 0, epoch = 0, clear_epoch = 0,max_length = 0,sharding_num = 0, ///cache check
+                message_epoch = 0, message_epoch_mod = 0, message_sharding_id = 0, message_server_id = 0; ///message epoch info
         bool res, sleep_flag;
 
-        static Context ctx;
+        Context ctx;
 
         std::hash<std::string> _hash;
 
@@ -83,7 +84,7 @@ namespace Taas {
                    && epoch < EpochManager::GetPhysicalEpoch();
         }
 
-        static bool RemoteShardingPackReceiveComplete(uint64_t epoch) {
+        static bool RemoteShardingPackReceiveComplete(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
                 if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
                 if(sharding_should_receive_pack_num.GetCount(epoch, i) < EpochManager::server_state.GetCount(i)) return false;
@@ -91,7 +92,7 @@ namespace Taas {
             return true;
         }
 
-        static bool RemoteShardingTxnReceiveComplete(uint64_t epoch) {
+        static bool RemoteShardingTxnReceiveComplete(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
                 if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
                 if(sharding_received_txn_num.GetCount(epoch, i) < sharding_received_txn_num.GetCount(epoch, i)) return false;
@@ -99,7 +100,7 @@ namespace Taas {
             return true;
         }
 
-        static bool RemoteAbortSetReceiveComplete(uint64_t epoch) {
+        static bool RemoteAbortSetReceiveComplete(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
                 if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
                 if(sharding_received_abort_set_num.GetCount(epoch, i) < EpochManager::server_state.GetCount(i)) return false;
@@ -107,7 +108,7 @@ namespace Taas {
             return true;
         }
 
-        static bool RemoteInsertSetReceiveComplete(uint64_t epoch) {
+        static bool RemoteInsertSetReceiveComplete(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
                 if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
                 if(backup_insert_set_received_num.GetCount(epoch, i) < EpochManager::server_state.GetCount(i)) return false;
@@ -115,7 +116,7 @@ namespace Taas {
             return true;
         }
 
-        static bool EpochTxnEnqeueud_MergeQueue(uint64_t epoch) {
+        static bool EpochTxnEnqeueud_MergeQueue(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
                 if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
                 if(sharding_should_enqueue_merge_queue_txn_num.GetCount(epoch, i) <
@@ -124,7 +125,7 @@ namespace Taas {
             return true;
         }
 
-        static bool EpochTxnEnqeueud_LocalTxnQueue(uint64_t epoch) {
+        static bool EpochTxnEnqeueud_LocalTxnQueue(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
                 if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
                 if(should_enqueue_local_txn_queue_txn_num.GetCount(epoch, i) <

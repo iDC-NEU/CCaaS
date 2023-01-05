@@ -5,8 +5,8 @@
 #ifndef TAAS_TEST_H
 #define TAAS_TEST_H
 
-#include "utils/context.h"
-#include "utils/utilities.h"
+#include "tools/context.h"
+#include "tools/utilities.h"
 #include "epoch/epoch_manager.h"
 #include <cstdlib>
 
