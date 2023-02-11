@@ -32,15 +32,18 @@ namespace Taas {
         MessageReceiveHandler::backup_should_receive_pack_num(10, 2),
         MessageReceiveHandler::backup_received_pack_num(10, 2),
         MessageReceiveHandler::backup_should_receive_txn_num(10, 2),
-        MessageReceiveHandler::backup_received_txn_num(10, 2);
+        MessageReceiveHandler::backup_received_txn_num(10, 2),
+        MessageReceiveHandler::backup_received_ack_num(10, 2);
 
     AtomicCounters_Cache ///epoch, index, value
-        MessageReceiveHandler::backup_insert_set_should_receive_num(10, 2),
-        MessageReceiveHandler::backup_insert_set_received_num(10, 2);
+        MessageReceiveHandler::insert_set_should_receive_num(10, 2),
+        MessageReceiveHandler::insert_set_received_num(10, 2),
+        MessageReceiveHandler::insert_set_received_ack_num(10, 2);
 
     AtomicCounters_Cache ///epoch, index, value
         MessageReceiveHandler::sharding_should_receive_abort_set_num(10, 2),
-        MessageReceiveHandler::sharding_received_abort_set_num(10, 2);
+        MessageReceiveHandler::sharding_received_abort_set_num(10, 2),
+        MessageReceiveHandler::sharding_abort_set_received_ack_num(10, 2);
 
 
 
@@ -132,7 +135,7 @@ namespace Taas {
             }
             case proto::TxnType::BackUpEpochEndFlag : {
                 backup_should_receive_txn_num.IncCount(message_epoch,message_sharding_id,txn_ptr->csn());
-                backup_should_receive_pack_num.IncCount(message_epoch,message_sharding_id, 1);
+                backup_received_pack_num.IncCount(message_epoch,message_sharding_id, 1);
                 break;
             }
             case proto::TxnType::AbortSet : {
@@ -142,8 +145,21 @@ namespace Taas {
                 break;
             }
             case proto::TxnType::InsertSet : {
-                backup_insert_set_received_num.IncCount(message_epoch,message_sharding_id, 1);
-                backup_insert_set_cache[message_epoch_mod][message_sharding_id]->push(std::move(txn_ptr));
+                insert_set_received_num.IncCount(message_epoch,message_sharding_id, 1);
+                insert_set_cache[message_epoch_mod][message_sharding_id]->push(std::move(txn_ptr));
+                break;
+            }
+            ///todo : reply ack to the txn node(sender)
+            case proto::TxnType::BackUpACK : {
+                backup_received_ack_num.IncCount(message_epoch,message_server_id, 1);
+                break;
+            }
+            case proto::TxnType::AbortSetACK : {
+                sharding_abort_set_received_ack_num.IncCount(message_epoch,message_server_id, 1);
+                break;
+            }
+            case proto::TxnType::InsertSetACK : {
+                insert_set_received_ack_num.IncCount(message_epoch,message_server_id, 1);
                 break;
             }
             case proto::CommittedTxn:
@@ -153,7 +169,7 @@ namespace Taas {
             case proto::TxnType_INT_MAX_SENTINEL_DO_NOT_USE_:
                 break;
         }
-        ///todo : reply ack to the txn node(sender)
+
 
         return true;
     }
@@ -264,7 +280,28 @@ namespace Taas {
     }
 
 
-
+    bool MessageReceiveHandler::CheckReceivedStatesAndReply() {
+        res = false;
+        if(server_reply_ack_id != ctx.txn_node_ip_index) {
+            if(backup_should_receive_pack_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0 &&
+                    backup_received_txn_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) ==
+                    backup_should_receive_txn_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id)
+            ) {
+                ///send reply message
+                backup_send_ack_epoch_num[server_reply_ack_id] ++;
+                res = true;
+            }
+            if(sharding_received_abort_set_num.GetCount(backup_insert_set_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0) {
+                backup_insert_set_send_ack_epoch_num[server_reply_ack_id] ++;
+                res = true;
+            }
+            if(insert_set_received_num.GetCount(abort_set_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0) {
+                abort_set_send_ack_epoch_num[server_reply_ack_id] ++;
+                res = true;
+            }
+        }
+        server_reply_ack_id ++;
+    }
 
 
 
@@ -285,29 +322,37 @@ namespace Taas {
         ctx = std::move(context);
         max_length = ctx.kCacheMaxLength;
         sharding_num = ctx.kTxnNodeNum;
+        backup_send_ack_epoch_num.reserve(sharding_num + 1);
+        backup_insert_set_send_ack_epoch_num.reserve(sharding_num + 1);
+        abort_set_send_ack_epoch_num.reserve(sharding_num + 1);
+        for(int i = 0; i <= (int) sharding_num; i ++ ) {
+            backup_send_ack_epoch_num.emplace_back(0);
+            backup_insert_set_send_ack_epoch_num.emplace_back(0);
+            abort_set_send_ack_epoch_num.emplace_back(0);
+        }
         sharding_cache.reserve(max_length + 1);
         local_txn_cache.reserve(max_length + 1);
         backup_cache.reserve(max_length + 1);
-        backup_insert_set_cache.reserve(max_length+ 1);
+        insert_set_cache.reserve(max_length+ 1);
         abort_set_cache.reserve(max_length + 1);
         for(int i = 0; i < (int)max_length; i ++) {
             sharding_cache.emplace_back(std::vector<std::unique_ptr<std::queue<std::unique_ptr<proto::Transaction>>>>());
             local_txn_cache.emplace_back(std::vector<std::unique_ptr<std::queue<std::unique_ptr<proto::Transaction>>>>());
             backup_cache.emplace_back(std::vector<std::unique_ptr<std::queue<std::unique_ptr<proto::Transaction>>>>());
-            backup_insert_set_cache.emplace_back(std::vector<std::unique_ptr<std::queue<std::unique_ptr<proto::Transaction>>>>());
+            insert_set_cache.emplace_back(std::vector<std::unique_ptr<std::queue<std::unique_ptr<proto::Transaction>>>>());
             abort_set_cache.emplace_back(std::vector<std::unique_ptr<std::queue<std::unique_ptr<proto::Transaction>>>>());
             for(int j = 0; j <= (int)ctx.kTxnNodeNum; j++){
                 sharding_cache[i].push_back(std::make_unique<std::queue<std::unique_ptr<proto::Transaction>>>());
                 local_txn_cache[i].push_back(std::make_unique<std::queue<std::unique_ptr<proto::Transaction>>>());
                 backup_cache[i].push_back(std::make_unique<std::queue<std::unique_ptr<proto::Transaction>>>());
-                backup_insert_set_cache[i].push_back(std::make_unique<std::queue<std::unique_ptr<proto::Transaction>>>());
+                insert_set_cache[i].push_back(std::make_unique<std::queue<std::unique_ptr<proto::Transaction>>>());
                 abort_set_cache[i].push_back(std::make_unique<std::queue<std::unique_ptr<proto::Transaction>>>());
             }
         }
         return true;
     }
 
-    bool MessageReceiveHandler::StaticInit(Context context) {
+    bool MessageReceiveHandler::StaticInit(const Context& context) {
         auto max_length = context.kCacheMaxLength;
         auto sharding_num = context.kTxnNodeNum;
         MessageReceiveHandler::sharding_should_receive_pack_num.Init(max_length, sharding_num),
@@ -331,13 +376,18 @@ namespace Taas {
         MessageReceiveHandler::backup_received_pack_num.Init(max_length, sharding_num),
         MessageReceiveHandler::backup_should_receive_txn_num.Init(max_length, sharding_num),
         MessageReceiveHandler::backup_received_txn_num.Init(max_length, sharding_num),
+        MessageReceiveHandler::backup_received_ack_num.Init(max_length, sharding_num),
 
 
-        MessageReceiveHandler::backup_insert_set_should_receive_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::backup_insert_set_received_num.Init(max_length, sharding_num),
+        MessageReceiveHandler::insert_set_should_receive_num.Init(max_length, sharding_num),
+        MessageReceiveHandler::insert_set_received_num.Init(max_length, sharding_num),
+        MessageReceiveHandler::insert_set_received_ack_num.Init(max_length, sharding_num),
 
         MessageReceiveHandler::sharding_should_receive_abort_set_num.Init(max_length, sharding_num),
         MessageReceiveHandler::sharding_received_abort_set_num.Init(max_length, sharding_num);
+        MessageReceiveHandler::sharding_abort_set_received_ack_num.Init(max_length, sharding_num);
+
+        return true;
     }
 
     bool MessageReceiveHandler::Clear() {
@@ -362,13 +412,15 @@ namespace Taas {
         MessageReceiveHandler::backup_received_pack_num.Clear(),
         MessageReceiveHandler::backup_should_receive_txn_num.Clear(),
         MessageReceiveHandler::backup_received_txn_num.Clear(),
+        MessageReceiveHandler::backup_received_ack_num.Clear(),
 
-
-        MessageReceiveHandler::backup_insert_set_should_receive_num.Clear(),
-        MessageReceiveHandler::backup_insert_set_received_num.Clear(),
+        MessageReceiveHandler::insert_set_should_receive_num.Clear(),
+        MessageReceiveHandler::insert_set_received_num.Clear(),
+        MessageReceiveHandler::insert_set_received_ack_num.Clear(),
 
         MessageReceiveHandler::sharding_should_receive_abort_set_num.Clear(),
-        MessageReceiveHandler::sharding_received_abort_set_num.Clear();
+        MessageReceiveHandler::sharding_received_abort_set_num.Clear(),
+        MessageReceiveHandler::sharding_abort_set_received_ack_num.Clear();
         return true;
     }
 
@@ -394,16 +446,45 @@ namespace Taas {
         MessageReceiveHandler::backup_received_pack_num.Clear(epoch, 0),
         MessageReceiveHandler::backup_should_receive_txn_num.Clear(epoch, 0),
         MessageReceiveHandler::backup_received_txn_num.Clear(epoch, 0),
+        MessageReceiveHandler::backup_received_ack_num.Clear(epoch, 0),
 
-
-        MessageReceiveHandler::backup_insert_set_should_receive_num.Clear(epoch, 0),
-        MessageReceiveHandler::backup_insert_set_received_num.Clear(epoch, 0),
+        MessageReceiveHandler::insert_set_should_receive_num.Clear(epoch, 0),
+        MessageReceiveHandler::insert_set_received_num.Clear(epoch, 0),
+        MessageReceiveHandler::insert_set_received_ack_num.Clear(epoch, 0),
 
         MessageReceiveHandler::sharding_should_receive_abort_set_num.Clear(epoch, 0),
         MessageReceiveHandler::sharding_received_abort_set_num.Clear(epoch, 0);
+        MessageReceiveHandler::sharding_abort_set_received_ack_num.Clear(epoch, 0);
 
+        return true;
     }
 
+    bool MessageReceiveHandler::ClearCache() {
+        res = false;
+        while(cache_clear_epoch_num < EpochManager::GetLogicalEpoch()) {
+            cache_clear_epoch_num ++;
+            cache_clear_epoch_num_mod = cache_clear_epoch_num % ctx.kCacheMaxLength;
+            for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
+                while (!sharding_cache[cache_clear_epoch_num_mod][i]->empty()) {
+                    sharding_cache[cache_clear_epoch_num_mod][i]->pop();
+                }
+                while (!local_txn_cache[cache_clear_epoch_num_mod][i]->empty()) {
+                    local_txn_cache[cache_clear_epoch_num_mod][i]->pop();
+                }
+                while (!backup_cache[cache_clear_epoch_num_mod][i]->empty()) {
+                    backup_cache[cache_clear_epoch_num_mod][i]->pop();
+                }
+                while (!insert_set_cache[cache_clear_epoch_num_mod][i]->empty()) {
+                    insert_set_cache[cache_clear_epoch_num_mod][i]->pop();
+                }
+                while (!abort_set_cache[cache_clear_epoch_num_mod][i]->empty()) {
+                    abort_set_cache[cache_clear_epoch_num_mod][i]->pop();
+                }
+            }
+            res = true;
+        }
+        return res;
+    }
 
 
 }

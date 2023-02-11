@@ -44,6 +44,8 @@ namespace Taas {
 
             sleep_flag = sleep_flag | message_receive_handler.HandleTxnCache();
 
+            sleep_flag = sleep_flag | message_receive_handler.ClearCache();
+
             if (!sleep_flag) {
                 usleep(200);
             }

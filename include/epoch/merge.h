@@ -32,14 +32,9 @@ namespace Taas {
 
     public:
         void Init(uint64_t id, Context ctx);
-//        bool LocalMerge();
-//        bool EpochMerge();
-//        bool EpochCommit();
-        bool EpochMerge_RedoLog_ShardingMode();
-        bool EpochCommit_RedoLog_ShardingMode();
-
-        bool EpochMerge_RedoLog_TxnMode();
+        bool EpochMerge();
         bool EpochCommit_RedoLog_TxnMode();
+        bool EpochCommit_RedoLog_ShardingMode();
         bool Run(uint64_t id, Context ctx);
     };
 }

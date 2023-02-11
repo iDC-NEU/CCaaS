@@ -54,9 +54,7 @@ namespace Taas {
         auto res = Gzip(msg.get(), serialized_txn_str_ptr.get());
         assert(res);
         assert(!serialized_txn_str_ptr->empty());
-        pack_txn_queue.enqueue(std::move(std::make_unique<pack_params>(txn.sharding_id(), 0, "",
-                                                                       txn.commit_epoch(),
-                                                       txn_type, std::move(serialized_txn_str_ptr), nullptr)));
+        pack_txn_queue.enqueue(std::move(std::make_unique<pack_params>(txn.sharding_id(), 0, "", txn.commit_epoch(),txn_type, std::move(serialized_txn_str_ptr), nullptr)));
         pack_txn_queue.enqueue(std::move(std::make_unique<pack_params>(0, 0, "", 0, txn_type, nullptr, nullptr)));
         return true;
     }
@@ -78,7 +76,12 @@ namespace Taas {
             sleep_flag = false;
             while(pack_txn_queue.try_dequeue(pack_param)) {
                 if(pack_param == nullptr || pack_param->str == nullptr) continue;
-                if((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((EpochManager::GetPhysicalEpoch() + 2) % ctx.kCacheMaxLength) ) assert(false);
+                if((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((EpochManager::GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength) ) {
+                    printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                    printf("+++++++++++++++Fata : Cache Size exceeded!!! +++++++++++++++++++++\n");
+                    printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                    assert(false);
+                }
 
                 if(pack_param->type == proto::TxnType::RemoteServerTxn) {
                     send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(0, 0, "", std::move(pack_param->str))));
@@ -111,7 +114,7 @@ namespace Taas {
     }
 
     bool MessageSendHandler::SendEpochEndMessage(uint64_t& id, Context& ctx, std::vector<uint64_t>& send_epoch) {
-        for(int sharding_id = 0; sharding_id < ctx.kTxnNodeNum; sharding_id ++) {
+        for(int sharding_id = 0; sharding_id < ctx.kTxnNodeNum; sharding_id ++) { /// send to everyone  sharding_num == TxnNodeNum
             while (MessageReceiveHandler::IsShardingSendFinish(send_epoch[sharding_id], sharding_id)) {
                 auto msg = std::make_unique<proto::Message>();
                 auto *txn_end = msg->mutable_txn();
@@ -119,7 +122,7 @@ namespace Taas {
                 txn_end->set_txn_type(proto::TxnType::EpochEndFlag);
                 txn_end->set_commit_epoch(send_epoch[sharding_id]);
                 txn_end->set_csn(static_cast<uint64_t>(MessageReceiveHandler::sharding_should_send_txn_num.GetCount(
-                        send_epoch[sharding_id])));
+                        send_epoch[sharding_id]))); /// bu tong server you bu tong de txn shu liang
                 auto serialized_txn_str_ptr = std::make_unique<std::string>();
                 auto res = Gzip(msg.get(), serialized_txn_str_ptr.get());
                 assert(res);
@@ -149,7 +152,7 @@ namespace Taas {
             auto res = Gzip(msg.get(), serialized_txn_str_ptr.get());
             assert(res);
             auto to_id = ctx.txn_node_ip_index + 1;
-            for(int i = 0; i < ctx.kBackUpNum; i ++) {
+            for(int i = 0; i < ctx.kBackUpNum; i ++) { /// send to i+1, i+2...i+kBackNum-1
                 to_id = (to_id + i) % ctx.kTxnNodeNum;
                 send_to_server_queue.enqueue(std::move(
                         std::make_unique<send_params>(to_id, 0, "", std::make_unique<std::string>(*serialized_txn_str_ptr))));
@@ -182,7 +185,7 @@ namespace Taas {
             auto serialized_txn_str_ptr = std::make_unique<std::string>();
             auto res = Gzip(msg.get(), serialized_txn_str_ptr.get());
             assert(res);
-            for(int i = 0; i < ctx.kTxnNodeNum; i ++) {
+            for(int i = 0; i < ctx.kTxnNodeNum; i ++) { /// send to everyone
                 if(i == ctx.txn_node_ip_index) continue;
                 send_to_server_queue.enqueue(std::move(
                         std::make_unique<send_params>(i, 0, "", std::make_unique<std::string>(*serialized_txn_str_ptr))));
@@ -215,7 +218,7 @@ namespace Taas {
             auto serialized_txn_str_ptr = std::make_unique<std::string>();
             auto res = Gzip(msg.get(), serialized_txn_str_ptr.get());
             assert(res);
-            for(int i = 0; i < ctx.kTxnNodeNum; i ++) {
+            for(int i = 0; i < ctx.kTxnNodeNum; i ++) { /// send to everyone
                 if(i == ctx.txn_node_ip_index) continue;
                 send_to_server_queue.enqueue(std::move(
                         std::make_unique<send_params>(i, 0, "", std::make_unique<std::string>(*serialized_txn_str_ptr))));
