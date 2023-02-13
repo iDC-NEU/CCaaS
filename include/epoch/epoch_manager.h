@@ -212,17 +212,6 @@ namespace Taas {
             }
         }
 
-        static void ReceiveAMessage() {}
-
-        static bool IsCacheServerStored(uint64_t epoch) {
-            if(received_epoch[epoch % max_length]->load() == static_cast<uint64_t>(1)) {
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-
         static void SetCacheServerStored(uint64_t epoch, uint64_t value) {
             received_epoch[epoch % max_length]->store(value);
         }

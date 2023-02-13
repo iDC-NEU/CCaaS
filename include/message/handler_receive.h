@@ -29,6 +29,7 @@ namespace Taas {
         static bool Clear();
         static bool Clear(uint64_t epoch);
         bool ClearCache();
+        bool ClearStaticCounters();
     private:
         std::unique_ptr<zmq::message_t> message_ptr;
         std::unique_ptr<std::string> message_string_ptr;
@@ -40,7 +41,8 @@ namespace Taas {
                 server_dequeue_id = 0, epoch_mod = 0, epoch = 0, clear_epoch = 0,max_length = 0,sharding_num = 0,///cache check
                 message_epoch = 0, message_epoch_mod = 0, message_sharding_id = 0, message_server_id = 0, ///message epoch info
                 server_reply_ack_id = 0,
-                cache_clear_epoch_num = 0, cache_clear_epoch_num_mod = 0;
+                cache_clear_epoch_num = 0, cache_clear_epoch_num_mod = 0,
+                counters_clear_epoch_num = 0, counters_clear_epoch_num_mod = 0;
         std::vector<uint64_t> backup_send_ack_epoch_num, backup_insert_set_send_ack_epoch_num, abort_set_send_ack_epoch_num; /// check and reply ack
 
         bool res, sleep_flag;
@@ -91,7 +93,7 @@ namespace Taas {
              && epoch < EpochManager::GetPhysicalEpoch();
         }
 
-        static bool IsBackUpSendFinish(uint64_t epoch) {
+        static bool IsBackUpSendFinish(uint64_t epoch, Context &ctx) {
             return backup_send_txn_num.GetCount(epoch) >= backup_should_send_txn_num.GetCount(epoch)
                    && epoch < EpochManager::GetPhysicalEpoch();
         }
@@ -146,6 +148,32 @@ namespace Taas {
             return true;
         }
 
+        static bool IsBackUpACKReceiveComplete(uint64_t epoch, Context &ctx) {
+            for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
+                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
+                if(backup_received_ack_num.GetCount(epoch, i) <
+                   1) return false;
+            }
+            return true;
+        }
+
+        static bool IsAbortSetACKReceiveComplete(uint64_t epoch, Context &ctx) {
+            for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
+                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
+                if(sharding_abort_set_received_ack_num.GetCount(epoch, i) <
+                   1) return false;
+            }
+            return true;
+        }
+
+        static bool IsInsertSetACKReceiveComplete(uint64_t epoch, Context &ctx) {
+            for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
+                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
+                if(insert_set_received_ack_num.GetCount(epoch, i) <
+                   1) return false;
+            }
+            return true;
+        }
     };
 
 }

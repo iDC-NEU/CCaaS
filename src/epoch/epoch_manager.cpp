@@ -258,27 +258,32 @@ namespace Taas {
                 usleep(100);
             }
 
-            ///todo check backup complete (ack)
+            while(!MessageReceiveHandler::IsBackUpSendFinish(epoch_mod, ctx)) {
+                cnt++;
+                if(cnt % 100 == 0){
+                    OUTPUTLOG("=============等待local server 备份send完成======= " , epoch_mod);
+                }
+                usleep(100);
+            }
 
-            //            while(!EpochManager::IsCacheServerStored(epoch_mod)) {
-            //                cnt++;
-            //                if(cnt % 100 == 0){
-            //                    OUTPUTLOG("=============等待备份 接收完成======= " , epoch_mod); ///接收到follower的ack
-            //                }
-            //                usleep(100);
-            //            }
+            while(!MessageReceiveHandler::IsBackUpACKReceiveComplete(epoch_mod, ctx)) {
+                cnt++;
+                if(cnt % 100 == 0){
+                    OUTPUTLOG("=============等待remote server 备份接收完成======= " , epoch_mod); ///接收到follower的ack
+                }
+                usleep(100);
+            }
 
             ///send abort set
-            MessageSendHandler::SendTaskToPackThread(ctx, epoch, proto::TxnType::AbortSet);///发送abort set 任务
+            MessageSendHandler::SendTaskToPackThread(ctx, epoch, 0, proto::TxnType::AbortSet);///发送abort set 任务
 
-            ///todo check ack
-//            while(!AbortSetSendSuccess()) {
-//                cnt++;
-//                if(cnt % 100 == 0){
-//                    OUTPUTLOG("=============等待AbortSet 发送完成======= " , epoch_mod); ///接收到follower的ack
-//                }
-//                usleep(100);
-//            }
+            while(!MessageReceiveHandler::IsAbortSetACKReceiveComplete(epoch_mod, ctx)) {
+                cnt++;
+                if(cnt % 100 == 0){
+                    OUTPUTLOG("=============等待AbortSet 发送完成======= " , epoch_mod); ///接收到follower的ack
+                }
+                usleep(100);
+            }
 
             while(!MessageReceiveHandler::IsRemoteAbortSetReceiveComplete(epoch_mod, ctx)) {
                 cnt++;
@@ -312,24 +317,29 @@ namespace Taas {
                 usleep(100);
             }
 
-            ///todo: send local insert set and receive other txn node's insert set
             ///send insert set
-//            MessageSendHandler::SendTaskToPackThread(ctx, epoch, proto::TxnType::InsertSet);///发送insert set 任务
-//            while() {
+//            MessageSendHandler::SendTaskToPackThread(ctx, epoch, 0, proto::TxnType::InsertSet);///异步 发送insert set 任务
+//            while(!MessageReceiveHandler::IsRemoteInsertSetReceiveComplete(epoch_mod, ctx)) {//异步
 //                cnt++;
 //                if(cnt % 100 == 0){
 //                    OUTPUTLOG("=============等待InsertSet 接收完成======= " , epoch_mod); ///接收到follower的ack
 //                }
 //                usleep(100);
 //            }
+//            while(!MessageReceiveHandler::IsInsertSetACKReceiveComplete(epoch_mod, ctx)) {//异步
+//                cnt++;
+//                if(cnt % 100 == 0){
+//                    OUTPUTLOG("=============等待InsertSet send完成======= " , epoch_mod); ///接收到follower的ack
+//                }
+//                usleep(100);
+//            }
+
+
             EpochManager::SetRecordCommitted(true);
             total_commit_txn_num += EpochManager::record_committed_txn_num.GetCount(epoch_mod);
             OUTPUTLOG("=============完成一个Epoch的合并===== ", epoch_mod);
-            //                OUTPUTLOG("=============完成一个Epoch的合并===== " , epoch_mod);
+
             // ============= 结束处理 ==================
-            //远端事务已经写完，不写完无法开始下一个logical epoch
-            MessageReceiveHandler::Clear(epoch_mod);//清空当前epoch的remote信息 为后面腾出空间 远端已经发送过来，不能清空下一个epoch的信息
-            ///todo: clear MessageReceiveHandler's cahce
             EpochManager::ClearMergeEpochState(epoch_mod); //清空当前epoch的merge信息
             EpochManager::SetCacheServerStored(epoch_mod, cache_server_available);
             last_epoch_mod = epoch_mod;

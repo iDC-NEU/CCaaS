@@ -11,14 +11,16 @@ namespace Taas {
     class MessageSendHandler {
     public:
         static bool SendTxnCommitResultToClient(Context& ctx, proto::Transaction& txn, proto::TxnState txn_state);
-        static bool SendTaskToPackThread(Context& ctx, uint64_t &epoch, proto::TxnType txn_type);
+        static bool SendTaskToPackThread(Context& ctx, uint64_t &epoch, uint64_t to_whom, proto::TxnType txn_type);
         static bool SendTxnToPackThread(Context& ctx, proto::Transaction& txn, proto::TxnType txn_type);
-        static bool SendTxnToSendThread(uint64_t& id, Context& ctx);
+
+        static bool HandlerSendTask(uint64_t& id, Context& ctx);
 
         static bool SendEpochEndMessage(uint64_t& id, Context& ctx, std::vector<uint64_t>& send_epoch);
         static bool SendBackUpEpochEndMessage(uint64_t& id, Context& ctx, uint64_t& send_epoch);
         static bool SendAbortSet(uint64_t& id, Context& ctx, uint64_t& send_epoch);
         static bool SendInsertSet(uint64_t& id, Context& ctx, uint64_t& send_epoch);
+        static bool SendACK(uint64_t &id, Context &ctx, uint64_t &send_epoch, uint64_t to_whom, proto::TxnType txn_type);
 
     private:
         static AtomicCounters_Cache ///epoch, server_id, num

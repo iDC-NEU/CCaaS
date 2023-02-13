@@ -20,6 +20,7 @@ enum TxnType {
   BackUpACK = 8;
   AbortSetACK = 9;
   InsertSetACK = 10;
+  NullMark = 11;
 }
 
 enum TxnState {

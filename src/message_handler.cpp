@@ -23,8 +23,8 @@ namespace Taas {
         uint64_t send_epoch = 1;
         std::unique_ptr<pack_params> pack_param;
         while (!init_ok.load()) usleep(100);
-        printf("PackThreadMain start %llu\n", id);
-        MessageSendHandler::SendTxnToSendThread(id, ctx);
+        printf("MessageSendHandler PackThreadMain start %llu\n", id);
+        MessageSendHandler::HandlerSendTask(id, ctx);
     }
 
 ///目前实现的是对远端txn node传递过来的写集进行缓存处理，只想merge_queue中放入当前epoch的写集。
@@ -33,21 +33,35 @@ namespace Taas {
         SetCPU();
         MessageReceiveHandler message_receive_handler;
         message_receive_handler.Init(id, ctx);
-        printf("CacheThreadMain start %lu txn_node_ip_index %lu\n", id, ctx.txn_node_ip_index);
+        printf("MessageReceiveHandler CacheThreadMain start %lu txn_node_ip_index %lu\n", id, ctx.txn_node_ip_index);
         while (!init_ok.load()) usleep(100);
         auto sleep_flag = false;
-        while (!EpochManager::IsTimerStop()) {
-            sleep_flag = false;
-            sleep_flag = sleep_flag | message_receive_handler.HandleReceivedMessage();
+        if(id == 0) {
+            while (!EpochManager::IsTimerStop()) {
+                sleep_flag = false;
+                sleep_flag = sleep_flag | message_receive_handler.HandleReceivedMessage();
 
-//            sleep_flag = sleep_flag | message_receive_handler.HandleLocalMergedTxn();
+                sleep_flag = sleep_flag | message_receive_handler.HandleTxnCache();
 
-            sleep_flag = sleep_flag | message_receive_handler.HandleTxnCache();
+                sleep_flag = sleep_flag | message_receive_handler.CheckReceivedStatesAndReply(); /// 该函数只由handler的第一个线程调用，防止多次发送ACK
 
-            sleep_flag = sleep_flag | message_receive_handler.ClearCache();
+                sleep_flag = sleep_flag | message_receive_handler.ClearStaticCounters(); /// 该函数只由handler的第一个线程调用，防止多次发送ACK
 
-            if (!sleep_flag) {
-                usleep(200);
+                if (!sleep_flag) {
+                    usleep(200);
+                }
+            }
+        }
+        else {
+            while (!EpochManager::IsTimerStop()) {
+                sleep_flag = false;
+                sleep_flag = sleep_flag | message_receive_handler.HandleReceivedMessage();
+
+                sleep_flag = sleep_flag | message_receive_handler.HandleTxnCache();
+
+                if (!sleep_flag) {
+                    usleep(200);
+                }
             }
         }
     }
