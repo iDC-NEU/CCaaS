@@ -23,8 +23,8 @@ namespace Taas {
         static bool SendACK(uint64_t &id, Context &ctx, uint64_t &send_epoch, uint64_t to_whom, proto::TxnType txn_type);
 
     private:
-        static AtomicCounters_Cache ///epoch, server_id, num
-            sharding_send_txn_num, backup_send_txn_num;
+//        static AtomicCounters_Cache ///epoch, server_id, num
+//            sharding_send_txn_num, backup_send_txn_num;
 
     };
 }

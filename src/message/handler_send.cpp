@@ -89,6 +89,7 @@ namespace Taas {
                     }
                     case proto::TxnType::RemoteServerTxn : {
                         send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(0, 0, "", std::move(pack_param->str))));
+                        send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(0, 0, "", nullptr)));
                         MessageReceiveHandler::sharding_send_txn_num.IncCount(pack_param->epoch, pack_param->id, 1);
                         break;
                     }
@@ -104,6 +105,7 @@ namespace Taas {
                             to_id = (to_id + i) % ctx.kTxnNodeNum;
                             send_to_server_queue.enqueue(std::move(
                                     std::make_unique<send_params>(to_id, 0, "", std::make_unique<std::string>(*pack_param->str))));
+                            send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(0, 0, "", nullptr)));
                         }
                         MessageReceiveHandler::backup_send_txn_num.IncCount(pack_param->epoch, pack_param->id, 1);
                         break;
@@ -139,28 +141,6 @@ namespace Taas {
                         break;
 
                 }
-//                if(pack_param->type == proto::TxnType::RemoteServerTxn) {
-//                    send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(0, 0, "", std::move(pack_param->str))));
-//                    MessageReceiveHandler::sharding_send_txn_num.IncCount(pack_param->epoch, pack_param->id, 1);
-//                }
-//                else if(pack_param->type == proto::TxnType::BackUpTxn) {
-//                    auto to_id = ctx.txn_node_ip_index + 1;
-//                    for(int i = 0; i < ctx.kBackUpNum; i ++) {
-//                        to_id = (to_id + i) % ctx.kTxnNodeNum;
-//                        send_to_server_queue.enqueue(std::move(
-//                                std::make_unique<send_params>(to_id, 0, "", std::make_unique<std::string>(*pack_param->str))));
-//                    }
-//                    MessageReceiveHandler::backup_send_txn_num.IncCount(pack_param->epoch, pack_param->id, 1);
-//                }
-//                else if(pack_param->type == proto::TxnType::AbortSet) {
-//                    SendAbortSet(id, ctx, pack_param->epoch);
-//                }
-//                else if(pack_param->type == proto::TxnType::InsertSet) {
-//                    SendInsertSet(id, ctx, pack_param->epoch);
-//                }
-//                else if() {
-//                    SendACK();
-//                }
                 sleep_flag = true;
             }
             if(id == 0) {

@@ -36,7 +36,7 @@ namespace Taas {
         for (int i = 0; i < (int) ctx.kServerIp.size(); i++) {
             if (i == (int) ctx.txn_node_ip_index) continue;
             auto socket = std::make_unique<zmq::socket_t>(context, ZMQ_PUSH);
-            socket->connect("tcp://" + params->ip + ":" + std::to_string(20000+i));
+            socket->connect("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(20000+i));
             socket_map[i] = std::move(socket);
             printf("Send Server connect ZMQ_PUSH %s", ("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(20000+i) + "\n").c_str());
         }
@@ -67,14 +67,14 @@ namespace Taas {
         zmq::socket_t socket_listen(listen_context, ZMQ_PULL);
         int queue_length = 0;
         socket_listen.bind("tcp://*:" + std::to_string(20000+ctx.txn_node_ip_index));//to server
-        socket_listen.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
-        socket_listen.setsockopt(ZMQ_SUBSCRIBE, "", 0);
+//        socket_listen.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
+//        socket_listen.setsockopt(ZMQ_PULL, "", 0);
         printf("线程开始工作 ListenServerThread ZMQ_PULL tcp://*: %s\n", std::to_string(20000+ctx.txn_node_ip_index).c_str());
 
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             socket_listen.recv(&(*message_ptr));//防止上次遗留消息造成message cache出现问题
-            if (is_epoch_advance_started.load() == true) {
+            if (is_epoch_advance_started.load()) {
                 if (!listen_message_queue.enqueue(std::move(message_ptr))) assert(false);
                 if (!listen_message_queue.enqueue(std::move(std::make_unique<zmq::message_t>())))
                     assert(false); //防止moodycamel取不出

@@ -100,7 +100,7 @@ namespace Taas {
         message_sharding_id = txn_ptr->sharding_id();
         ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
         if ((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==
-            ((message_epoch_mod + 2) % ctx.kCacheMaxLength))
+            ((message_epoch_mod + 55) % ctx.kCacheMaxLength))
             assert(false);
 
         switch (txn_ptr->txn_type()) {

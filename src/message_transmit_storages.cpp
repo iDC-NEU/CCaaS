@@ -106,7 +106,6 @@ namespace Taas {
         zmq::message_t reply(5);
         zmq::socket_t socket_send(context, ZMQ_PUB);
         int queue_length = 0;
-        socket_send.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
         socket_send.bind("tcp://*:5556");//to server
         printf("线程开始工作 SendStorage PUBServerThread ZMQ_PUB tcp:// ip + :5556\n");
         std::unique_ptr<send_params> params;

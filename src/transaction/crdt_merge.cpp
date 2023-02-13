@@ -80,7 +80,6 @@ namespace Taas {
         auto lsn = EpochManager::epoch_log_lsn.IncCount(epoch_id, 1);
         auto key = std::to_string(epoch_id) + ":" + std::to_string(lsn);
         EpochManager::committed_txn_cache[epoch_id % EpochManager::max_length]->insert(key, txn);
-
     }
 }
 
