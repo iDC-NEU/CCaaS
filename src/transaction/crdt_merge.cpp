@@ -68,7 +68,7 @@ namespace Taas {
                 EpochManager::insert_set.remove(row.key(), csn_temp);
             }
             else {
-                ///update, do nothing
+                //todo: update timestamp
             }
             EpochManager::read_version_map.insert(row.key(), csn_temp);
         }

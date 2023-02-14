@@ -99,9 +99,6 @@ namespace Taas {
         message_server_id = txn_ptr->server_id();
         message_sharding_id = txn_ptr->sharding_id();
         ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
-        if ((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==
-            ((message_epoch_mod + 55) % ctx.kCacheMaxLength))
-            assert(false);
 
         switch (txn_ptr->txn_type()) {
             case proto::TxnType::ClientTxn : {/// sql node --> txn node
@@ -113,10 +110,14 @@ namespace Taas {
                 message_server_id = txn_ptr->server_id();
                 message_sharding_id = txn_ptr->sharding_id();
                 Sharding();
+                assert(txn_ptr != nullptr);
                 local_txn_cache[message_epoch_mod][message_server_id]->push(std::move(txn_ptr));
                 break;
             }
             case proto::TxnType::RemoteServerTxn : {
+                if ((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==
+                    ((message_epoch_mod + 55) % ctx.kCacheMaxLength))
+                    assert(false);
                 sharding_received_txn_num.IncCount(message_epoch,message_sharding_id, 1);
                 sharding_cache[message_epoch_mod][message_sharding_id]->push(std::move(txn_ptr));
                 break;
@@ -129,6 +130,9 @@ namespace Taas {
             case proto::CommittedTxn:
                 break;
             case proto::TxnType::BackUpTxn : {
+                if ((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==
+                    ((message_epoch_mod + 55) % ctx.kCacheMaxLength))
+                    assert(false);
                 backup_received_txn_num.IncCount(message_epoch,message_sharding_id, 1);
                 backup_cache[message_epoch_mod][message_sharding_id]->push(std::move(txn_ptr));
                 break;
@@ -260,10 +264,12 @@ namespace Taas {
         }
 
         ///local txn -> local_txn_queue 做redo log时，使用整个事务，而不是当前分片的自事务
-        ///如果使用分片事务做redo log，则使用commit_queue 而不是这里的local_txn_queue
+        ///如果使用分片事务做redo log，则使用commit_queue
         while (!local_txn_cache[epoch_mod][ctx.txn_node_ip_index]->empty()) {
-            auto txn_ptr_tmp = std::move(sharding_cache[epoch_mod][ctx.txn_node_ip_index]->front());
+            assert(local_txn_cache[epoch_mod][ctx.txn_node_ip_index]->front() != NULL);
+            auto txn_ptr_tmp = std::move(local_txn_cache[epoch_mod][ctx.txn_node_ip_index]->front());
             local_txn_cache[epoch_mod][ctx.txn_node_ip_index]->pop();
+            assert(txn_ptr_tmp != nullptr);
             if (!local_txn_queue.enqueue(std::move(txn_ptr_tmp))) {
                 assert(false);
             }

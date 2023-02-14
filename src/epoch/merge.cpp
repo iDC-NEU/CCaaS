@@ -52,10 +52,14 @@ namespace Taas {
         if(EpochManager::IsMergeComplete()) {
             while (commit_queue.try_dequeue(txn_ptr) && txn_ptr != nullptr) {
                 //不对分片事务进行commit处理
-                // do nothing;
+//                printf("commit commit queue\n");
+                epoch = txn_ptr->commit_epoch();
+                EpochManager::committed_txn_num.IncCount(epoch, thread_id, 1);
+                sleep_flag = true;
             }
 
             while (local_txn_queue.try_dequeue(txn_ptr) && txn_ptr != nullptr) {
+//                printf("commit local txn queue\n");
                 epoch = txn_ptr->commit_epoch();
                 if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
                     MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Abort);
