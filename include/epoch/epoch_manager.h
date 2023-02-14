@@ -30,7 +30,7 @@ namespace Taas {
         proto::TxnType type;
         std::unique_ptr<std::string> str;
         std::unique_ptr<proto::Transaction> txn;
-        explicit pack_params(uint64_t id_, uint64_t time_, std::string ip_, uint64_t e = 0, proto::TxnType ty = proto::TxnType::RemoteServerTxn,
+        explicit pack_params(uint64_t id_, uint64_t time_, std::string ip_, uint64_t e = 0, proto::TxnType ty = proto::TxnType::NullMark,
                              std::unique_ptr<std::string> && s = nullptr, std::unique_ptr<proto::Transaction> &&t = nullptr):
                              id(id_), time(time_), ip(std::move(ip_)), epoch(e), type(ty), str(std::move(s)), txn(std::move(t)){}
         pack_params()= default;
@@ -40,9 +40,13 @@ namespace Taas {
         uint64_t id{}; /// send to whom
         uint64_t time{};
         std::string ip; /// send to whom
-        std::unique_ptr<std::string> merge_request_ptr;
-        send_params(uint64_t id_, uint64_t time_, std::string ip_, std::unique_ptr<std::string> &&str):
-                id(id_), time(time_), ip(std::move(ip_)), merge_request_ptr(std::move(str)){}
+        uint64_t epoch{};
+        proto::TxnType type;
+        std::unique_ptr<std::string> str;
+        std::unique_ptr<proto::Transaction> txn;
+        send_params(uint64_t id_, uint64_t time_, std::string ip_, uint64_t e = 0, proto::TxnType ty = proto::TxnType::NullMark,
+                std::unique_ptr<std::string> && s = nullptr, std::unique_ptr<proto::Transaction> &&t = nullptr):
+        id(id_), time(time_), ip(std::move(ip_)), epoch(e), type(ty), str(std::move(s)), txn(std::move(t)){}
         send_params()= default;
     };
 

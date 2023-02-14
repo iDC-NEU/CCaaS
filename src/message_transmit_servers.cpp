@@ -45,10 +45,11 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
 
             send_to_server_queue.wait_dequeue(params);
-            if (params == nullptr || params->merge_request_ptr == nullptr) continue;
+            if (params == nullptr || params->str == nullptr || params->type == proto::TxnType::NullMark) continue;
 //        msg = std::make_unique<zmq::message_t>(static_cast<void*>(const_cast<char*>(params->merge_request_ptr->data())),
 //                                               params->merge_request_ptr->size(), string_free, static_cast<void*>(&(params->merge_request_ptr)));
-            msg = std::make_unique<zmq::message_t>(*(params->merge_request_ptr));
+            msg = std::make_unique<zmq::message_t>(*(params->str));
+            printf("send to %lu type %d\n", params->id, params->type);
             socket_map[params->id]->send(*msg);
         }
         socket_map[id]->send((zmq::message_t &) "end");

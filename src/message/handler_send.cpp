@@ -55,7 +55,7 @@ namespace Taas {
         assert(res);
         assert(!serialized_txn_str_ptr->empty());
         pack_txn_queue.enqueue(std::move(std::make_unique<pack_params>(txn.sharding_id(), 0, "", txn.commit_epoch(),txn_type, std::move(serialized_txn_str_ptr), nullptr)));
-        pack_txn_queue.enqueue(std::move(std::make_unique<pack_params>(0, 0, "", 0, proto::TxnType::NullMark, nullptr, nullptr)));
+        pack_txn_queue.enqueue(std::move(std::make_unique<pack_params>(txn.sharding_id(), 0, "", txn.commit_epoch(), proto::TxnType::NullMark, nullptr, nullptr)));
         return true;
     }
 
@@ -89,8 +89,8 @@ namespace Taas {
                     }
                     case proto::TxnType::RemoteServerTxn : {
                         if(pack_param->id == ctx.txn_node_ip_index) assert(false);
-                        send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(pack_param->id, 0, "", std::move(pack_param->str))));
-                        send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(0, 0, "", nullptr)));
+                        send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(pack_param->id, pack_param->time, pack_param->ip, pack_param->epoch, pack_param->type, std::move(pack_param->str), nullptr)));
+                        send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(pack_param->id, pack_param->time, pack_param->ip, pack_param->epoch, proto::TxnType::NullMark, nullptr, nullptr)));
                         MessageReceiveHandler::sharding_send_txn_num.IncCount(pack_param->epoch, pack_param->id, 1);
                         break;
                     }
@@ -105,9 +105,9 @@ namespace Taas {
                         for(int i = 0; i < ctx.kBackUpNum; i ++) {
                             to_id = (to_id + i) % ctx.kTxnNodeNum;
                             if(to_id == ctx.txn_node_ip_index) continue;
-                            send_to_server_queue.enqueue(std::move(
-                                    std::make_unique<send_params>(to_id, 0, "", std::make_unique<std::string>(*pack_param->str))));
-                            send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(0, 0, "", nullptr)));
+                            send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(to_id, pack_param->time, pack_param->ip, pack_param->epoch, pack_param->type, std::move(pack_param->str), nullptr)));
+                            send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(to_id, pack_param->time, pack_param->ip, pack_param->epoch, proto::TxnType::NullMark, nullptr, nullptr)));
+
                         }
                         MessageReceiveHandler::backup_send_txn_num.IncCount(pack_param->epoch, pack_param->id, 1);
                         break;
@@ -169,10 +169,8 @@ namespace Taas {
                 auto serialized_txn_str_ptr = std::make_unique<std::string>();
                 auto res = Gzip(msg.get(), serialized_txn_str_ptr.get());
                 assert(res);
-                !send_to_server_queue.enqueue(std::move(
-                        std::make_unique<send_params>(sharding_id, 0, "", std::move(serialized_txn_str_ptr))));
-                !send_to_server_queue.enqueue(std::move(
-                        std::make_unique<send_params>(sharding_id, 0, "", nullptr)));
+                send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(sharding_id, 0, "", send_epoch[sharding_id], proto::TxnType::EpochEndFlag, std::move(serialized_txn_str_ptr), nullptr)));
+                send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(sharding_id, 0, "", send_epoch[sharding_id], proto::TxnType::NullMark, nullptr, nullptr)));
                 send_epoch[sharding_id]++;
             }
         }
@@ -194,11 +192,9 @@ namespace Taas {
             for(int i = 0; i < ctx.kBackUpNum; i ++) { /// send to i+1, i+2...i+kBackNum-1
                 to_id = (to_id + i) % ctx.kTxnNodeNum;
                 if(to_id == ctx.txn_node_ip_index) continue;
-                send_to_server_queue.enqueue(std::move(
-                        std::make_unique<send_params>(to_id, 0, "", std::make_unique<std::string>(*serialized_txn_str_ptr))));
+                send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(to_id, 0, "", send_epoch, proto::TxnType::BackUpEpochEndFlag, std::move(serialized_txn_str_ptr), nullptr)));
             }
-            send_to_server_queue.enqueue(std::move(
-                    std::make_unique<send_params>(to_id, 0, "", nullptr)));
+            send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(to_id, 0, "", send_epoch, proto::TxnType::NullMark, nullptr, nullptr)));
             send_epoch ++;
         }
         return true;
@@ -222,11 +218,9 @@ namespace Taas {
         assert(res);
         for(int i = 0; i < ctx.kTxnNodeNum; i ++) { /// send to everyone
             if(i == ctx.txn_node_ip_index) continue;
-            send_to_server_queue.enqueue(std::move(
-                    std::make_unique<send_params>(i, 0, "", std::make_unique<std::string>(*serialized_txn_str_ptr))));
+            send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(i, 0, "", send_epoch, proto::TxnType::AbortSet, std::move(serialized_txn_str_ptr), nullptr)));
         }
-        send_to_server_queue.enqueue(std::move(
-                std::make_unique<send_params>(0, 0, "", nullptr)));
+        send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(0, 0, "", send_epoch, proto::TxnType::NullMark, nullptr, nullptr)));
         send_epoch ++;
         return true;
     }
@@ -249,11 +243,11 @@ namespace Taas {
         assert(res);
         for(int i = 0; i < ctx.kTxnNodeNum; i ++) { /// send to everyone
             if(i == ctx.txn_node_ip_index) continue;
-            send_to_server_queue.enqueue(std::move(
-                    std::make_unique<send_params>(i, 0, "", std::make_unique<std::string>(*serialized_txn_str_ptr))));
+//            send_to_server_queue.enqueue(std::move(
+//                    std::make_unique<send_params>(i, 0, "", std::make_unique<std::string>(*serialized_txn_str_ptr))));
+            send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(i, 0, "", send_epoch, proto::TxnType::InsertSet, std::move(serialized_txn_str_ptr), nullptr)));
         }
-        send_to_server_queue.enqueue(std::move(
-                std::make_unique<send_params>(0, 0, "", nullptr)));
+        send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(0, 0, "", send_epoch, proto::TxnType::NullMark, nullptr, nullptr)));
         send_epoch ++;
         return true;
     }
@@ -269,10 +263,8 @@ namespace Taas {
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         auto res = Gzip(msg.get(), serialized_txn_str_ptr.get());
         assert(res);
-        send_to_server_queue.enqueue(std::move(
-                std::make_unique<send_params>(to_whom, 0, "", std::make_unique<std::string>(*serialized_txn_str_ptr))));
-        send_to_server_queue.enqueue(std::move(
-                std::make_unique<send_params>(0, 0, "", nullptr)));
+        send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(to_whom, 0, "", send_epoch, txn_type, std::move(serialized_txn_str_ptr), nullptr)));
+        send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(to_whom, 0, "", send_epoch, proto::TxnType::NullMark, nullptr, nullptr)));
         send_epoch ++;
         return true;
     }
