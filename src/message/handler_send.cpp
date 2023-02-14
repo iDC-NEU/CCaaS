@@ -31,10 +31,8 @@ namespace Taas {
         assert(res);
 
         // 将序列化的Transaction放到send_to_client_queue中，等待发送给client
-        send_to_client_queue.enqueue(std::move(std::make_unique<send_params>(
-                txn.client_txn_id(), txn.csn(), txn.client_ip(), std::move(serialized_txn_str_ptr))));
-        send_to_client_queue.enqueue(std::move(std::make_unique<send_params>(
-                0, 0, "", nullptr)));
+        send_to_client_queue.enqueue(std::move(std::make_unique<send_params>(txn.client_txn_id(), txn.csn(), txn.client_ip(), txn.commit_epoch(), proto::TxnType::CommittedTxn, std::move(serialized_txn_str_ptr), nullptr)));
+        send_to_client_queue.enqueue(std::move(std::make_unique<send_params>(0, 0, "", 0, proto::TxnType::NullMark, nullptr, nullptr)));
         return true;
     }
 

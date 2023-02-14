@@ -82,10 +82,10 @@ namespace Taas {
 //         使用ZeroMQ发送Reply给client
             while(!EpochManager::IsTimerStop()){
                 send_to_client_queue.wait_dequeue(params);
-                if(params == nullptr || params->merge_request_ptr == nullptr) continue;
+                if(params == nullptr || params->str == nullptr) continue;
                 //            msg = std::make_unique<zmq::message_t>(static_cast<void*>(const_cast<char*>(params->merge_request_ptr->data())),
                 //                                                   params->merge_request_ptr->size(), string_free, static_cast<void*>(&(params->merge_request_ptr)));
-                msg = std::make_unique<zmq::message_t>(*(params->merge_request_ptr));
+                msg = std::make_unique<zmq::message_t>(*(params->str));
                 auto key = "tcp://" + params->ip + ":5552";
                 if(socket_map.find(key) != socket_map.end()) {
                     socket_map[key]->send(*(msg));

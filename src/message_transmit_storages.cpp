@@ -91,10 +91,10 @@ namespace Taas {
         while (init_ok.load() == false);
         while (!EpochManager::IsTimerStop()) {
             send_to_storage_queue.wait_dequeue(params);
-            if (params == nullptr || params->merge_request_ptr == nullptr) continue;
+            if (params == nullptr || params->str == nullptr) continue;
 //        msg = std::make_unique<zmq::message_t>(static_cast<void*>(const_cast<char*>(params->merge_request_ptr->data())),
 //                                               params->merge_request_ptr->size(), string_free, static_cast<void*>(&(params->merge_request_ptr)));
-            msg = std::make_unique<zmq::message_t>(*(params->merge_request_ptr));
+            msg = std::make_unique<zmq::message_t>(*(params->str));
             socket_send.send(*msg);
         }
         socket_send.send((zmq::message_t &) "end");
