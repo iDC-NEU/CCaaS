@@ -69,7 +69,7 @@ namespace Taas {
         socket_listen.bind("tcp://*:" + std::to_string(20000+ctx.txn_node_ip_index));//to server
 //        socket_listen.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
 //        socket_listen.setsockopt(ZMQ_PULL, "", 0);
-        printf("线程开始工作 ListenServerThread ZMQ_PULL tcp://*: %s\n", std::to_string(20000+ctx.txn_node_ip_index).c_str());
+        printf("线程开始工作 ListenServerThread ZMQ_PULL tcp://*:%s\n", std::to_string(20000+ctx.txn_node_ip_index).c_str());
 
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <root>
-    <txn_node_num>1</txn_node_num>
+    <txn_node_num>2</txn_node_num>
     <txn_node_ip>
         <txn_ip>219.216.65.102</txn_ip>
         <txn_ip>219.216.65.12</txn_ip>
@@ -30,6 +30,6 @@
     <test_key_range>10000</test_key_range>
     <test_txn_op_num>10</test_txn_op_num>
 
-    <sync_start>0</sync_start>
+    <sync_start>1</sync_start>
 
 </root>

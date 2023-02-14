@@ -88,7 +88,8 @@ namespace Taas {
                         break;
                     }
                     case proto::TxnType::RemoteServerTxn : {
-                        send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(0, 0, "", std::move(pack_param->str))));
+                        if(pack_param->id == ctx.txn_node_ip_index) assert(false);
+                        send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(pack_param->id, 0, "", std::move(pack_param->str))));
                         send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(0, 0, "", nullptr)));
                         MessageReceiveHandler::sharding_send_txn_num.IncCount(pack_param->epoch, pack_param->id, 1);
                         break;
@@ -103,6 +104,7 @@ namespace Taas {
                         auto to_id = ctx.txn_node_ip_index + 1;
                         for(int i = 0; i < ctx.kBackUpNum; i ++) {
                             to_id = (to_id + i) % ctx.kTxnNodeNum;
+                            if(to_id == ctx.txn_node_ip_index) continue;
                             send_to_server_queue.enqueue(std::move(
                                     std::make_unique<send_params>(to_id, 0, "", std::make_unique<std::string>(*pack_param->str))));
                             send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(0, 0, "", nullptr)));
@@ -155,6 +157,7 @@ namespace Taas {
     bool MessageSendHandler::SendEpochEndMessage(uint64_t& id, Context& ctx, std::vector<uint64_t>& send_epoch) {
         for(int sharding_id = 0; sharding_id < ctx.kTxnNodeNum; sharding_id ++) { /// send to everyone  sharding_num == TxnNodeNum
         ///检查当前server(sharding_id)的第send_epoch的endFlag是否能够发送
+            if(sharding_id == ctx.txn_node_ip_index) continue;
             while (MessageReceiveHandler::IsShardingSendFinish(send_epoch[sharding_id], sharding_id)) {
                 auto msg = std::make_unique<proto::Message>();
                 auto *txn_end = msg->mutable_txn();
@@ -190,6 +193,7 @@ namespace Taas {
             auto to_id = ctx.txn_node_ip_index + 1;
             for(int i = 0; i < ctx.kBackUpNum; i ++) { /// send to i+1, i+2...i+kBackNum-1
                 to_id = (to_id + i) % ctx.kTxnNodeNum;
+                if(to_id == ctx.txn_node_ip_index) continue;
                 send_to_server_queue.enqueue(std::move(
                         std::make_unique<send_params>(to_id, 0, "", std::make_unique<std::string>(*serialized_txn_str_ptr))));
             }
@@ -255,6 +259,7 @@ namespace Taas {
     }
 
     bool MessageSendHandler::SendACK(uint64_t &id, Context &ctx, uint64_t &send_epoch, uint64_t to_whom, proto::TxnType txn_type) {
+        if(to_whom == ctx.txn_node_ip_index) return true;
         auto msg = std::make_unique<proto::Message>();
         auto* txn_end = msg->mutable_txn();
         txn_end->set_server_id(ctx.txn_node_ip_index);
