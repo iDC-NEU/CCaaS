@@ -162,6 +162,7 @@ namespace Taas {
                 txn_end->set_server_id(ctx.txn_node_ip_index);
                 txn_end->set_txn_type(proto::TxnType::EpochEndFlag);
                 txn_end->set_commit_epoch(send_epoch[sharding_id]);
+                txn_end->set_sharding_id(sharding_id);
                 txn_end->set_csn(static_cast<uint64_t>(MessageReceiveHandler::sharding_should_send_txn_num.GetCount(
                         send_epoch[sharding_id]))); /// 不同server由不同的分片数量
                 auto serialized_txn_str_ptr = std::make_unique<std::string>();
@@ -182,6 +183,7 @@ namespace Taas {
             txn_end->set_server_id(ctx.txn_node_ip_index);
             txn_end->set_txn_type(proto::TxnType::BackUpEpochEndFlag);
             txn_end->set_commit_epoch(send_epoch);
+            txn_end->set_sharding_id(0);
             txn_end->set_csn(static_cast<uint64_t>(MessageReceiveHandler::backup_should_send_txn_num.GetCount(send_epoch)));
             auto serialized_txn_str_ptr = std::make_unique<std::string>();
             auto res = Gzip(msg.get(), serialized_txn_str_ptr.get());
@@ -204,6 +206,7 @@ namespace Taas {
         txn_end->set_server_id(ctx.txn_node_ip_index);
         txn_end->set_txn_type(proto::TxnType::AbortSet);
         txn_end->set_commit_epoch(send_epoch);
+        txn_end->set_sharding_id(0);
         std::vector<std::string> keys, values;
         EpochManager::local_epoch_abort_txn_set[send_epoch % ctx.kCacheMaxLength]->getValue(keys, values);
         for(int i = 0; i < keys.size(); i ++) {
@@ -229,6 +232,7 @@ namespace Taas {
         txn_end->set_server_id(ctx.txn_node_ip_index);
         txn_end->set_txn_type(proto::TxnType::InsertSet);
         txn_end->set_commit_epoch(send_epoch);
+        txn_end->set_sharding_id(0);
         std::vector<std::string> keys, values;
         EpochManager::epoch_insert_set[send_epoch % ctx.kCacheMaxLength]->getValue(keys, values);
         for(int i = 0; i < keys.size(); i ++) {
@@ -257,6 +261,7 @@ namespace Taas {
         txn_end->set_server_id(ctx.txn_node_ip_index);
         txn_end->set_txn_type(txn_type);
         txn_end->set_commit_epoch(send_epoch);
+        txn_end->set_sharding_id(0);
         std::vector<std::string> keys, values;
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         auto res = Gzip(msg.get(), serialized_txn_str_ptr.get());
