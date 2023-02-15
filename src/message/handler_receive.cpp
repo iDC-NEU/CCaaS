@@ -353,10 +353,10 @@ namespace Taas {
         backup_send_ack_epoch_num.reserve(sharding_num + 1);
         backup_insert_set_send_ack_epoch_num.reserve(sharding_num + 1);
         abort_set_send_ack_epoch_num.reserve(sharding_num + 1);
-        for(int i = 0; i <= (int) sharding_num; i ++ ) {
-            backup_send_ack_epoch_num.emplace_back(0);
-            backup_insert_set_send_ack_epoch_num.emplace_back(0);
-            abort_set_send_ack_epoch_num.emplace_back(0);
+        for(int i = 0; i <= (int) sharding_num; i ++ ) { /// start at 1, not 0
+            backup_send_ack_epoch_num.emplace_back(1);
+            backup_insert_set_send_ack_epoch_num.emplace_back(1);
+            abort_set_send_ack_epoch_num.emplace_back(1);
         }
         sharding_cache.reserve(max_length + 1);
         local_txn_cache.reserve(max_length + 1);
