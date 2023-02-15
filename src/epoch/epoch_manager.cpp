@@ -325,6 +325,9 @@ namespace Taas {
                     usleep(100);
                 }
 
+                ///send abort set
+                MessageSendHandler::SendTaskToPackThread(ctx, epoch, 0, proto::TxnType::AbortSet);///发送abort set 任务
+
                 while(!MessageReceiveHandler::IsBackUpSendFinish(epoch, ctx)) {
                     cnt++;
                     if(cnt % 100 == 0){
@@ -340,9 +343,6 @@ namespace Taas {
                     }
                     usleep(100);
                 }
-
-                ///send abort set
-                MessageSendHandler::SendTaskToPackThread(ctx, epoch, 0, proto::TxnType::AbortSet);///发送abort set 任务
 
                 while(!MessageReceiveHandler::IsAbortSetACKReceiveComplete(epoch, ctx)) {
                     cnt++;
@@ -400,7 +400,6 @@ namespace Taas {
 //                }
 //                usleep(100);
 //            }
-
 
                 EpochManager::SetRecordCommitted(true);
                 total_commit_txn_num += EpochManager::record_committed_txn_num.GetCount(epoch);
