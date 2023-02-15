@@ -306,7 +306,7 @@ namespace Taas {
                     backup_should_receive_txn_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id)
             ) {
                 ///send reply message
-                printf("send backup ack\n");
+                printf("send backup ack server_id %lu epoch %lu sharding_id %lu\n", server_reply_ack_id, backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id);
                 MessageSendHandler::SendTaskToPackThread(ctx, backup_send_ack_epoch_num[server_reply_ack_id],
                                                         server_reply_ack_id, proto::TxnType::BackUpACK);
                 backup_send_ack_epoch_num[server_reply_ack_id] ++;
@@ -315,14 +315,14 @@ namespace Taas {
             if(sharding_received_abort_set_num.GetCount(backup_insert_set_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0) {
                 printf("send abort set ack\n");
                 MessageSendHandler::SendTaskToPackThread(ctx, backup_insert_set_send_ack_epoch_num[server_reply_ack_id],
-                                                        server_reply_ack_id, proto::TxnType::BackUpACK);
+                                                        server_reply_ack_id, proto::TxnType::AbortSetACK);
                 backup_insert_set_send_ack_epoch_num[server_reply_ack_id] ++;
                 res = true;
             }
             if(insert_set_received_num.GetCount(abort_set_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0) {
                 printf("send insert set ack\n");
                 MessageSendHandler::SendTaskToPackThread(ctx, abort_set_send_ack_epoch_num[server_reply_ack_id],
-                                                        server_reply_ack_id, proto::TxnType::BackUpACK);
+                                                        server_reply_ack_id, proto::TxnType::InsertSetACK);
                 abort_set_send_ack_epoch_num[server_reply_ack_id] ++;
                 res = true;
             }
