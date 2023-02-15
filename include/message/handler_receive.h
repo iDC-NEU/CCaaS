@@ -101,7 +101,7 @@ namespace Taas {
         static bool IsRemoteShardingPackReceiveComplete(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
                 if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
-                if(sharding_should_receive_pack_num.GetCount(epoch, i) < EpochManager::server_state.GetCount(i)) return false;
+                if(sharding_received_pack_num.GetCount(epoch, i) < EpochManager::server_state.GetCount(i)) return false;
             }
             return true;
         }
@@ -133,7 +133,7 @@ namespace Taas {
         static bool IsEpochTxnEnqueued_MergeQueue(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
                 if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
-                if(sharding_should_enqueue_merge_queue_txn_num.GetCount(epoch, i) <
+                if(sharding_should_enqueue_merge_queue_txn_num.GetCount(epoch, i) >
                     sharding_enqueued_merge_queue_txn_num.GetCount(epoch, i)) return false;
             }
             return true;
@@ -142,7 +142,7 @@ namespace Taas {
         static bool IsEpochTxnEnqueued_LocalTxnQueue(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
                 if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
-                if(should_enqueue_local_txn_queue_txn_num.GetCount(epoch, i) <
+                if(should_enqueue_local_txn_queue_txn_num.GetCount(epoch, i) >
                    enqueued_local_txn_queue_txn_num.GetCount(epoch, i)) return false;
             }
             return true;
