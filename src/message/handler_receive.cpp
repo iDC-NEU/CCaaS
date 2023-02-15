@@ -302,29 +302,32 @@ namespace Taas {
         res = false;
         if(server_reply_ack_id != ctx.txn_node_ip_index) {
             if(backup_received_pack_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0 &&
-                    backup_received_txn_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) ==
+                    backup_received_txn_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) >=
                     backup_should_receive_txn_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id)
             ) {
                 ///send reply message
+                printf("send backup ack\n");
                 MessageSendHandler::SendTaskToPackThread(ctx, backup_send_ack_epoch_num[server_reply_ack_id],
                                                         server_reply_ack_id, proto::TxnType::BackUpACK);
                 backup_send_ack_epoch_num[server_reply_ack_id] ++;
                 res = true;
             }
             if(sharding_received_abort_set_num.GetCount(backup_insert_set_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0) {
+                printf("send abort set ack\n");
                 MessageSendHandler::SendTaskToPackThread(ctx, backup_insert_set_send_ack_epoch_num[server_reply_ack_id],
                                                         server_reply_ack_id, proto::TxnType::BackUpACK);
                 backup_insert_set_send_ack_epoch_num[server_reply_ack_id] ++;
                 res = true;
             }
             if(insert_set_received_num.GetCount(abort_set_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0) {
+                printf("send insert set ack\n");
                 MessageSendHandler::SendTaskToPackThread(ctx, abort_set_send_ack_epoch_num[server_reply_ack_id],
                                                         server_reply_ack_id, proto::TxnType::BackUpACK);
                 abort_set_send_ack_epoch_num[server_reply_ack_id] ++;
                 res = true;
             }
         }
-        server_reply_ack_id ++;
+        server_reply_ack_id = (server_reply_ack_id + 1) % ctx.kTxnNodeNum;
         return res;
     }
 
