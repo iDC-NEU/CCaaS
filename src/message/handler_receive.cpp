@@ -190,6 +190,7 @@ namespace Taas {
     bool MessageReceiveHandler::HandleReceivedMessage() {
         sleep_flag = false;
         while (listen_message_queue.try_dequeue(message_ptr)) {
+            printf("handler receive a message\n");
             if (message_ptr->empty()) continue;
             message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
                                                                     message_ptr->size());
@@ -198,6 +199,7 @@ namespace Taas {
             assert(res);
             if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
                 txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
+                printf("handle message:txn\n");
                 HandleReceivedTxn();
             } else {
                 request_queue.enqueue(std::move(msg_ptr));

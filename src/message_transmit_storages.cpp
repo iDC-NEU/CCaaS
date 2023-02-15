@@ -26,9 +26,14 @@ namespace Taas {
         uint32_t recv_port = 5553;
         UNUSED_VALUE(id);
         UNUSED_VALUE(ctx);
+        int queue_length = 0;
         zmq::context_t context(1);
         zmq::socket_t recv_socket(context, ZMQ_PULL);
+        recv_socket.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
+        recv_socket.setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
         zmq::socket_t send_socket(context, ZMQ_PUSH);
+        send_socket.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
+        send_socket.setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
         recv_socket.bind("tcp://*:" + std::to_string(recv_port));
 
         while (!EpochManager::IsTimerStop()) {
@@ -81,9 +86,12 @@ namespace Taas {
     }
 
     void SendStoragePUBThreadMain(uint64_t id, Context ctx) { //PUB Txn
+        int queue_length = 0;
         zmq::context_t context(1);
         zmq::message_t reply(5);
         zmq::socket_t socket_send(context, ZMQ_PUB);
+        socket_send.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
+        socket_send.setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
         socket_send.bind("tcp://*:5556");//to server
         printf("线程开始工作 SendStoragePUBServerThread ZMQ_PUB tcp:// ip + :5556\n");
         std::unique_ptr<send_params> params;
@@ -102,10 +110,12 @@ namespace Taas {
 
     void SendStoragePUBThreadMain2(uint64_t id, Context ctx) {//PUB PACK
         SetCPU();
+        int queue_length = 0;
         zmq::context_t context(1);
         zmq::message_t reply(5);
         zmq::socket_t socket_send(context, ZMQ_PUB);
-        int queue_length = 0;
+        socket_send.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
+        socket_send.setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
         socket_send.bind("tcp://*:5556");//to server
         printf("线程开始工作 SendStorage PUBServerThread ZMQ_PUB tcp:// ip + :5556\n");
         std::unique_ptr<send_params> params;

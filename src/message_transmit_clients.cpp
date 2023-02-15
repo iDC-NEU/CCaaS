@@ -28,8 +28,11 @@ namespace Taas {
         (void) id;
         (void) ctx;
         // 设置ZeroMQ的相关变量，并监听5555端口，接受client发来的写集
+        int queue_length = 0;
         zmq::context_t listen_context(1);
         zmq::socket_t socket_listen(listen_context, ZMQ_PULL);
+        socket_listen.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
+        socket_listen.setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
         socket_listen.bind("tcp://*:5551");
         printf("线程开始工作 ListenClientThread ZMQ_PULL tcp://*:5551\n");
 
@@ -92,6 +95,8 @@ namespace Taas {
                 }
                 else {
                     auto socket = std::make_unique<zmq::socket_t>(context, ZMQ_PUSH);
+                    socket->setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
+                    socket->setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
                     socket->connect("tcp://" + params->ip + ":5552");
                     socket_map[key] = std::move(socket);
                     socket_map[key]->send(*(msg));
@@ -105,6 +110,8 @@ namespace Taas {
 //==========================PUB==========================
 //            zmq::socket_t socket_send(context, ZMQ_PUB);
 //            socket_send.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
+//            socket->setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
+//            socket->setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
 //            socket_send.bind("tcp://*:5552");
 //            while (!EpochManager::IsTimerStop()) {
 //                send_to_client_queue.wait_dequeue(params);
