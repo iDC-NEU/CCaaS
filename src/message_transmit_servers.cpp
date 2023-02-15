@@ -16,9 +16,6 @@ namespace Taas {
 
  */
 
-//    void SendServerThreadMain(uint64_t id, Context ctx);//PUSH
-//    void ListenServerThreadMain(uint64_t id, Context ctx);//PULL
-
 /**
  * @brief 将send_to_server_queue中的数据通过5557端口发送给其他txn node
  *
@@ -45,13 +42,9 @@ namespace Taas {
         printf("线程开始工作 SendServerThread\n");
         while (!init_ok.load());
         while (!EpochManager::IsTimerStop()) {
-
             send_to_server_queue.wait_dequeue(params);
             if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
-//        msg = std::make_unique<zmq::message_t>(static_cast<void*>(const_cast<char*>(params->merge_request_ptr->data())),
-//                                               params->merge_request_ptr->size(), string_free, static_cast<void*>(&(params->merge_request_ptr)));
             msg = std::make_unique<zmq::message_t>(*(params->str));
-//            printf("send to %lu epoch %lu type %d\n", params->id, params->epoch, params->type);
             socket_map[params->id]->send(*msg);
         }
         socket_map[id]->send((zmq::message_t &) "end");
@@ -77,7 +70,6 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             socket_listen.recv(&(*message_ptr));//防止上次遗留消息造成message cache出现问题
-//            printf("listen receive a message 1\n");
             if (is_epoch_advance_started.load()) {
                 if (!listen_message_queue.enqueue(std::move(message_ptr))) assert(false);
                 if (!listen_message_queue.enqueue(std::move(std::make_unique<zmq::message_t>())))
@@ -89,7 +81,6 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             socket_listen.recv(&(*message_ptr));
-//            printf("listen receive a message 2\n");
             if (!listen_message_queue.enqueue(std::move(message_ptr))) assert(false);
             if (!listen_message_queue.enqueue(std::move(std::make_unique<zmq::message_t>())))
                 assert(false); //防止moodycamel取不出

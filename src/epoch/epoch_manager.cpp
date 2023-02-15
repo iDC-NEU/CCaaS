@@ -366,7 +366,6 @@ namespace Taas {
                 EpochManager::SetCommitComplete(false);
                 EpochManager::SetAbortSetMergeComplete(true);
 
-//        OUTPUTLOG("==进行一个Epoch的合并 merge 完成====== " , epoch_mod);
                 while(!MessageReceiveHandler::IsEpochTxnEnqueued_LocalTxnQueue(epoch, ctx)) {
                     cnt++;
                     if (cnt % 100 == 0) {
@@ -456,15 +455,8 @@ namespace Taas {
         uint64_t epoch = EpochManager::GetPhysicalEpoch(), epoch_mod = EpochManager::GetPhysicalEpoch();
         printf("EpochTimerManager 同步完成，数据库开始正常运行\n");
         while(!EpochManager::IsTimerStop()){
-//        OUTPUTLOG("====开始一个Physiacal Epoch, physical info" , EpochManager::GetLogicalEpoch());
             usleep(GetSleeptime(ctx));
-//        epoch ++;
-//        epoch_mod = epoch % EpochManager::max_length;
-//        EpochManager::ClearEpochState(epoch_mod);
-//        EpochManager::SetCacheServerStored(epoch_mod, cache_server_available);
-
             EpochManager::AddPhysicalEpoch();
-
             if((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((EpochManager::GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength) ) {
                 printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
                 printf("+++++++++++++++Fata : Cache Size exceeded!!! +++++++++++++++++++++\n");

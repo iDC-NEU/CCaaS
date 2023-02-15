@@ -74,8 +74,6 @@ namespace Taas {
                 pull_resp->set_result(proto::Fail);
             }
 
-//        std::unique_ptr<std::string> serialized_pull_resp = std::make_unique<std::string>();
-//        pull_resp->SerializeToString(&(*serialized_pull_resp));
             auto serialized_pull_resp = std::make_unique<std::string>();
             res = Gzip(pull_msg_resp.get(), serialized_pull_resp.get());
             std::unique_ptr<zmq::message_t> send_message = std::make_unique<zmq::message_t>(*serialized_pull_resp);
@@ -100,8 +98,6 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             send_to_storage_queue.wait_dequeue(params);
             if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
-//        msg = std::make_unique<zmq::message_t>(static_cast<void*>(const_cast<char*>(params->merge_request_ptr->data())),
-//                                               params->merge_request_ptr->size(), string_free, static_cast<void*>(&(params->merge_request_ptr)));
             msg = std::make_unique<zmq::message_t>(*(params->str));
             socket_send.send(*msg);
         }
@@ -142,10 +138,8 @@ namespace Taas {
                 auto serialized_pull_resp_str = std::make_unique<std::string>();
                 auto res = Gzip(push_msg.get(), serialized_pull_resp_str.get());
                 assert(res);
-//            printf("message size %u\n", serialized_pull_resp_str->size());
                 auto send_message = std::make_unique<zmq::message_t>(*serialized_pull_resp_str);
                 if (!socket_send.send(*send_message)) printf("send error!!!!!\n");
-//            printf("send to storage pub pack\n");
 
                 epoch++;
             } else {

@@ -33,7 +33,7 @@ namespace Taas {
         SetCPU();
         MessageReceiveHandler message_receive_handler;
         message_receive_handler.Init(id, ctx);
-        printf("MessageReceiveHandler CacheThreadMain start %lu txn_node_ip_index %lu\n", id, ctx.txn_node_ip_index);
+        printf("MessageReceiveHandler start %lu txn_node_ip_index %lu\n", id, ctx.txn_node_ip_index);
         while (!init_ok.load()) usleep(100);
         auto sleep_flag = false;
         if(id == 0) {

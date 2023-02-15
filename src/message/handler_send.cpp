@@ -114,27 +114,22 @@ namespace Taas {
                         break;
                     }
                     case proto::TxnType::AbortSet : {
-//                        printf("pack abort set\n");
                         SendAbortSet(id, ctx, pack_param->epoch);
                         break;
                     }
                     case proto::TxnType::InsertSet : {
-//                        printf("pack Insert set\n");
                         SendInsertSet(id, ctx, pack_param->epoch);
                         break;
                     }
                     case proto::TxnType::BackUpACK : {
-//                        printf("pack backup ack\n");
                         SendACK(id, ctx, pack_param->epoch, pack_param->id, pack_param->type);
                         break;
                     }
                     case proto::TxnType::AbortSetACK : {
-//                        printf("pack AbortSetACK\n");
                         SendACK(id, ctx, pack_param->epoch, pack_param->id, pack_param->type);
                         break;
                     }
                     case proto::TxnType::InsertSetACK : {
-//                        printf("pack InsertSetACK\n");
                         SendACK(id, ctx, pack_param->epoch, pack_param->id, pack_param->type);
                         break;
                     }
@@ -252,8 +247,6 @@ namespace Taas {
         assert(res);
         for(int i = 0; i < ctx.kTxnNodeNum; i ++) { /// send to everyone
             if(i == ctx.txn_node_ip_index) continue;
-//            send_to_server_queue.enqueue(std::move(
-//                    std::make_unique<send_params>(i, 0, "", std::make_unique<std::string>(*serialized_txn_str_ptr))));
             send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(i, 0, "", send_epoch, proto::TxnType::InsertSet, std::move(serialized_txn_str_ptr), nullptr)));
         }
         send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(0, 0, "", send_epoch, proto::TxnType::NullMark, nullptr, nullptr)));
@@ -273,7 +266,6 @@ namespace Taas {
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         auto res = Gzip(msg.get(), serialized_txn_str_ptr.get());
         assert(res);
-//        printf("send ack to %lu epoch %lu type %lu\n", to_whom, send_epoch, txn_type);
         send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(to_whom, 0, "", send_epoch, txn_type, std::move(serialized_txn_str_ptr), nullptr)));
         send_to_server_queue.enqueue(std::move(std::make_unique<send_params>(to_whom, 0, "", send_epoch, proto::TxnType::NullMark, nullptr, nullptr)));
         send_epoch ++;

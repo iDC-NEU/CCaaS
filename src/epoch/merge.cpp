@@ -52,14 +52,12 @@ namespace Taas {
         if(EpochManager::IsMergeComplete()) {
             while (commit_queue.try_dequeue(txn_ptr) && txn_ptr != nullptr) {
                 //不对分片事务进行commit处理
-//                printf("commit commit queue\n");
                 epoch = txn_ptr->commit_epoch();
                 EpochManager::committed_txn_num.IncCount(epoch, thread_id, 1);
                 sleep_flag = true;
             }
 
             while (local_txn_queue.try_dequeue(txn_ptr) && txn_ptr != nullptr) {
-//                printf("commit local txn queue\n");
                 epoch = txn_ptr->commit_epoch();
                 if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
                     MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Abort);
@@ -86,13 +84,11 @@ namespace Taas {
             while (commit_queue.try_dequeue(txn_ptr) && txn_ptr != nullptr) {
                 epoch = txn_ptr->commit_epoch();
                 if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
-//                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Abort);
                 } else {
                     EpochManager::record_commit_txn_num.IncCount(epoch, thread_id, 1);
                     CRDTMerge::Commit(ctx, *(txn_ptr));
                     CRDTMerge::RedoLog(ctx, *(txn_ptr));
                     EpochManager::record_committed_txn_num.IncCount(epoch, thread_id, 1);
-//                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
                 }
                 EpochManager::committed_txn_num.IncCount(epoch, thread_id, 1);
                 sleep_flag = true;
@@ -121,12 +117,6 @@ namespace Taas {
             sleep_flag = sleep_flag | EpochCommit_RedoLog_TxnMode();
 
             sleep_flag = sleep_flag | EpochMerge();
-
-//            sleep_flag = sleep_flag | message_handler.HandleReceiveMessage();
-//            sleep_flag = sleep_flag | message_handler.HandleLocalMergedTxn();
-//            sleep_flag = sleep_flag | message_handler.HandleTxnCachea();
-
-//            sleep_flag = sleep_flag | MessageSendHandler::SendEpochSerializedTxn(thread_id, ctx, send_epoch, pack_param);
 
             if(!sleep_flag) usleep(200);
         }

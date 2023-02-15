@@ -30,11 +30,7 @@ namespace Taas {
 
             sleep_flag = sleep_flag | merger.EpochCommit_RedoLog_TxnMode();
 
-//            sleep_flag = sleep_flag | merger.EpochMerge_RedoLog_ShardingMode();
-//
 //            sleep_flag = sleep_flag | merger.EpochCommit_RedoLog_ShardingMode();
-
-//            sleep_flag = sleep_flag | merger.LocalMerge();
 
             if(!sleep_flag) usleep(200);
         }

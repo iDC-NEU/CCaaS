@@ -40,7 +40,6 @@ namespace Taas {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             socket_listen.recv(&(*message_ptr));//防止上次遗留消息造成message cache出现问题
             if (is_epoch_advance_started.load()) {
-                // TODO: 将client发来的写集放到local_listen_queue中，而不是listen_message_queue
                 // 从而将client的写集和txn node的写集队列分开. by singheart.
                 if (!listen_message_queue.enqueue(std::move(message_ptr))) assert(false);
                 if (!listen_message_queue.enqueue(std::move(std::make_unique<zmq::message_t>())))
@@ -75,7 +74,6 @@ namespace Taas {
         printf("线程开始工作 SendClientThread ZMQ_PUSH tcp://ip+:5552 \n");
         while (!init_ok.load()) usleep(200);
         std::unordered_map<std::string, std::unique_ptr<zmq::socket_t>> socket_map;
-
         // 测试用，如果设置了会丢弃发送给client的Reply
         if (ctx.kTestClientNum > 0) {
             while (!EpochManager::IsTimerStop()) {
@@ -86,8 +84,6 @@ namespace Taas {
             while(!EpochManager::IsTimerStop()){
                 send_to_client_queue.wait_dequeue(params);
                 if(params == nullptr || params->type == proto::TxnType::NullMark) continue;
-                //            msg = std::make_unique<zmq::message_t>(static_cast<void*>(const_cast<char*>(params->merge_request_ptr->data())),
-                //                                                   params->merge_request_ptr->size(), string_free, static_cast<void*>(&(params->merge_request_ptr)));
                 msg = std::make_unique<zmq::message_t>(*(params->str));
                 auto key = "tcp://" + params->ip + ":5552";
                 if(socket_map.find(key) != socket_map.end()) {
@@ -101,11 +97,6 @@ namespace Taas {
                     socket_map[key] = std::move(socket);
                     socket_map[key]->send(*(msg));
                 }
-                //            zmq::socket_t socket_send(context, ZMQ_PUSH);
-                //            socket_send.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
-                ////            printf("send a txn reply to %s\n", ("tcp://" + params->ip + ":5552").c_str());
-                //            socket_send.connect("tcp://" + params->ip + ":5552");//to server
-                //            socket_send.send(*(msg));
             }
 //==========================PUB==========================
 //            zmq::socket_t socket_send(context, ZMQ_PUB);
