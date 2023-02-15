@@ -5,12 +5,13 @@ file(GLOB SOURCE
         epoch/*.cpp
         message/*.cpp
         test/*.cpp
+        tikv_client/*.cpp
         tools/*.cpp
         transaction/*.cpp
         utils/*.cpp
         *.cpp)
 
-add_library(taas_core ${SOURCE})
+add_library(taas_core ${SOURCE} tikv_client/tikv_client.cpp)
 #add_library(Taas::core ALIAS taas_core message_transmit_client.cpp message_transmit_server.cpp)
 
 target_include_directories(taas_core PUBLIC ${CMAKE_SOURCE_DIR})

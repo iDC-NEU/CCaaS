@@ -79,6 +79,8 @@ namespace Taas {
         uint64_t epoch_id = txn.commit_epoch();
         auto lsn = EpochManager::epoch_log_lsn.IncCount(epoch_id, 1);
         auto key = std::to_string(epoch_id) + ":" + std::to_string(lsn);
+//        redo_log_queue.enqueue(std::make_unique<proto::Transaction>(txn));
+//        redo_log_queue.enqueue(nullptr);
         EpochManager::committed_txn_cache[epoch_id % EpochManager::max_length]->insert(key, txn);
     }
 }

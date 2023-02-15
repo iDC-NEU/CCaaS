@@ -4,6 +4,7 @@
 
 #include "epoch/epoch_manager.h"
 #include "tools/utilities.h"
+//#include "tikv_client/tikv_client.h"
 
 namespace Taas {
 
@@ -147,6 +148,49 @@ namespace Taas {
             }
         }
         socket_send.send((zmq::message_t &) "end");
+    }
+
+    void SendStorageTiKVThreadMain(uint64_t id, Context ctx) { //PUB Txn
+        SetCPU();
+        int queue_length = 0;
+        zmq::context_t context(1);
+        zmq::message_t reply(5);
+        zmq::socket_t socket_send(context, ZMQ_PUB);
+        socket_send.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
+        socket_send.setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
+        socket_send.bind("tcp://*:5556");//to server
+        printf("线程开始工作 SendStorage PUBServerThread ZMQ_PUB tcp:// ip + :5556\n");
+        std::unique_ptr<send_params> params;
+        std::unique_ptr<zmq::message_t> msg;
+        uint64_t epoch = 1;
+//        tikv_client::TransactionClient client({"172.19.215.168:2379"});
+        while (init_ok.load() == false);
+        while (!EpochManager::IsTimerStop()) {
+            if (epoch < EpochManager::GetLogicalEpoch()) {
+                auto s = std::to_string(epoch) + ":";
+                auto epoch_mod = epoch % EpochManager::max_length;
+                auto total_num = EpochManager::epoch_log_lsn.GetCount(epoch);
+                ///todo: send to tikv
+//                auto tikv_txn = client.begin();
+//                printf("开启client的连接，开始向tikv客户端，准备向tikv中写入数据！！！\n");
+//                for (int i = 0; i < total_num; i++) {
+//                    auto key = s + std::to_string(i);
+//                    auto ptr = std::make_unique<proto::Transaction>();
+//                    assert(EpochManager::committed_txn_cache[epoch_mod]->getValue(key, (*ptr))); //copy
+//                    for (auto i = 0; i < ptr->row_size(); i++) {
+//                        const auto& row = ptr->row(i);
+//                        if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
+//                            tikv_txn.put(row.key(), row.data());
+////                            printf("put key: %s, put value: %s\n", row.key().c_str(), row.data().c_str());
+//                        }
+//                    }
+//                    tikv_txn.commit();
+//                }
+                epoch++;
+            } else {
+                usleep(2000);
+            }
+        }
     }
 
 }

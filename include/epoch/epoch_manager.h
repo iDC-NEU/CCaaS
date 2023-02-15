@@ -58,7 +58,7 @@ namespace Taas {
     ///local_txn_queue 本地接收到的完整的事务
     ///merge_queue 当前epoch的涉及当前分片的子事务
     ///commit_queue 当前epoch的能提交的涉及当前分片的子事务
-    extern BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>> local_txn_queue, merge_queue, commit_queue;
+    extern BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>> local_txn_queue, merge_queue, commit_queue, redo_log_queue;
     extern BlockingConcurrentQueue<std::unique_ptr<pack_params>> pack_txn_queue;
     extern BlockingConcurrentQueue<std::unique_ptr<proto::Message>> request_queue, raft_message_queue;
     extern std::atomic<bool> init_ok, is_epoch_advance_started, test_start;

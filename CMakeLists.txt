@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 project(Taas)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 #========================================
 #               Dependencies
@@ -228,5 +228,9 @@ add_subdirectory("src")
 add_executable(Taas main.cpp)
 # add the include directory to our compile directives
 target_include_directories(Taas PUBLIC taas_core proto gflags cppzmq)
+
+##add library path
+#target_link_directories(Taas PUBLIC ${CMAKE_SOURCE_DIR})
+
 # at the 0mq library to our link directive
-target_link_libraries(Taas taas_core proto gflags cppzmq)
+target_link_libraries(Taas taas_core proto gflags cppzmq pthread dl ssl crypto)

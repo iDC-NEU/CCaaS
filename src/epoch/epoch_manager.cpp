@@ -82,7 +82,8 @@ namespace Taas {
 // client发来的写集会放到local_txn_queue中
     BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>> local_txn_queue, ///存放当前epoch由client发送过来的事务，存放每个epoch要进行写日志的事务，整个事务写日志
                                                                     merge_queue, ///存放每个epoch要进行merge的事务，分片
-                                                                    commit_queue;///存放每个epoch要进行写日志的事务，分片写日志
+                                                                    commit_queue,///存放每个epoch要进行写日志的事务，分片写日志
+                                                                    redo_log_queue;///cun fang fa song gei tikv de shiwu
 
 
     void InitEpochTimerManager(Context& ctx){
