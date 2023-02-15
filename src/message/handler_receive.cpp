@@ -301,7 +301,7 @@ namespace Taas {
     bool MessageReceiveHandler::CheckReceivedStatesAndReply() { /// 该函数只由handler的第一个线程调用，防止多次发送
         res = false;
         if(server_reply_ack_id != ctx.txn_node_ip_index) {
-            if(backup_should_receive_pack_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0 &&
+            if(backup_received_pack_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0 &&
                     backup_received_txn_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) ==
                     backup_should_receive_txn_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id)
             ) {
