@@ -115,7 +115,7 @@ namespace Taas {
                 break;
             }
             case proto::TxnType::RemoteServerTxn : {
-                printf("receive remote txn\n");
+//                printf("receive remote txn\n");
                 if ((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==
                     ((message_epoch_mod + 55) % ctx.kCacheMaxLength))
                     assert(false);
@@ -124,7 +124,7 @@ namespace Taas {
                 break;
             }
             case proto::TxnType::EpochEndFlag : {
-                printf("receive remote end flag server_id %lu epoch %lu sharding_id %lu\n", message_server_id, message_epoch, message_sharding_id);
+//                printf("receive remote end flag server_id %lu epoch %lu sharding_id %lu\n", message_server_id, message_epoch, message_sharding_id);
                 sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
                 break;
@@ -132,7 +132,7 @@ namespace Taas {
             case proto::CommittedTxn:
                 break;
             case proto::TxnType::BackUpTxn : {
-                printf("receive remote backup txn\n");
+//                printf("receive remote backup txn\n");
                 if ((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==
                     ((message_epoch_mod + 55) % ctx.kCacheMaxLength))
                     assert(false);
@@ -141,36 +141,36 @@ namespace Taas {
                 break;
             }
             case proto::TxnType::BackUpEpochEndFlag : {
-                printf("receive remote backup end flag server_id %lu epoch %lu sharding_id %lu\n", message_server_id, message_epoch, message_sharding_id);
+//                printf("receive remote backup end flag server_id %lu epoch %lu sharding_id %lu\n", message_server_id, message_epoch, message_sharding_id);
                 backup_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 backup_received_pack_num.IncCount(message_epoch,message_server_id, 1);
                 break;
             }
             case proto::TxnType::AbortSet : {
-                printf("receive abort\n");
+//                printf("receive abort\n");
                 UpdateEpochAbortSet();
                 sharding_received_abort_set_num.IncCount(message_epoch,message_server_id, 1);
                 abort_set_cache[message_epoch_mod][message_server_id]->push(std::move(txn_ptr));
                 break;
             }
             case proto::TxnType::InsertSet : {
-                printf("receive insert \n");
+//                printf("receive insert \n");
                 insert_set_received_num.IncCount(message_epoch,message_server_id, 1);
                 insert_set_cache[message_epoch_mod][message_server_id]->push(std::move(txn_ptr));
                 break;
             }
             case proto::TxnType::BackUpACK : {
-                printf("receive backup ack\n");
+//                printf("receive backup ack\n");
                 backup_received_ack_num.IncCount(message_epoch,message_server_id, 1);
                 break;
             }
             case proto::TxnType::AbortSetACK : {
-                printf("receive abort ack\n");
+//                printf("receive abort ack\n");
                 sharding_abort_set_received_ack_num.IncCount(message_epoch,message_server_id, 1);
                 break;
             }
             case proto::TxnType::InsertSetACK : {
-                printf("receive insert ack\n");
+//                printf("receive insert ack\n");
                 insert_set_received_ack_num.IncCount(message_epoch,message_server_id, 1);
                 break;
             }
@@ -306,21 +306,21 @@ namespace Taas {
                     backup_should_receive_txn_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id)
             ) {
                 ///send reply message
-                printf("send backup ack server_id %lu epoch %lu sharding_id %lu\n", server_reply_ack_id, backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id);
+//                printf("send backup ack server_id %lu epoch %lu sharding_id %lu\n", server_reply_ack_id, backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id);
                 MessageSendHandler::SendTaskToPackThread(ctx, backup_send_ack_epoch_num[server_reply_ack_id],
                                                         server_reply_ack_id, proto::TxnType::BackUpACK);
                 backup_send_ack_epoch_num[server_reply_ack_id] ++;
                 res = true;
             }
             if(sharding_received_abort_set_num.GetCount(backup_insert_set_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0) {
-                printf("send abort set ack\n");
+//                printf("send abort set ack\n");
                 MessageSendHandler::SendTaskToPackThread(ctx, backup_insert_set_send_ack_epoch_num[server_reply_ack_id],
                                                         server_reply_ack_id, proto::TxnType::AbortSetACK);
                 backup_insert_set_send_ack_epoch_num[server_reply_ack_id] ++;
                 res = true;
             }
             if(insert_set_received_num.GetCount(abort_set_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0) {
-                printf("send insert set ack\n");
+//                printf("send insert set ack\n");
                 MessageSendHandler::SendTaskToPackThread(ctx, abort_set_send_ack_epoch_num[server_reply_ack_id],
                                                         server_reply_ack_id, proto::TxnType::InsertSetACK);
                 abort_set_send_ack_epoch_num[server_reply_ack_id] ++;
