@@ -181,28 +181,23 @@ namespace Taas {
  */
     void OUTPUTLOG(string s, uint64_t& epoch_mod){
         epoch_mod %= EpochManager::max_length;
-        //将当前光标往上移动一行
-//    printf("\033[A");
-//    //删除光标后面的内容
-//    printf("\033[K");
-//    if (EpochManager::local_should_exec_txn_num.GetCount(epoch_mod) == 0) {
-//        printf("\rnoting to do in this epoch physical %50s %15lu logical %15lu", s.c_str(), EpochManager::GetPhysicalEpoch(), EpochManager::GetLogicalEpoch());
-//        fflush(stdout);
-//        return;
-//    }
-/**
- * LocalShouldExecTxnNum %15lu, LocalExecedTxnNum %15lu,
-        PackedTxnNum %15lu, ShouldPackTxnNum %15lu,
-        ReceivedPackNum %15lu, ShouldReceivePackNum %15lu,
-        ReceivedTxnNum %15lu, enqueued_txn_num %15lu ShouldReceiveTxnNum %15lu, \
-        */
-
-        printf("%50s physical %15lu, logical %15lu, \
-        epoch_mod %llu, %15lu, \
-        MergedTxnNum %15lu, ShouldMergeTxnNum %15lu, \
-        CommittedTxnNum %15lu, ShouldCommitTxnNum %15lu, \
-        record_commit %15lu, record_committed %15lu, \
-        merge_num %15lu, \
+        printf("%50s physical %8lu, logical %8lu, \
+        epoch_mod %8lu, disstance %8lu, \
+        MergedTxnNum %8lu, ShouldMergeTxnNum %8lu, \
+        CommittedTxnNum %8lu, ShouldCommitTxnNum %8lu, \
+        RecordCommit %8lu, RecordCommitted %8lu, \
+\
+        ShouldReceiveShardingPackNum %8lu, ReceivedShardingPackNum %8lu\
+        ShouldReceiveShardingTxnNum %8lu, ReceivedShardingTxnNum %8lu\
+\
+        ShouldReceiveBackUpPackNum %8lu, ReceivedBackUpPackNum %8lu\
+        ShouldReceiveBackUpTxnNum %8lu, ReceivedBackUpTxnNum %8lu\
+        ReceivedBackupACKNum %8lu\
+\
+        ReceivedInsertSetNum %8lu, ReceivedAbortSetNum %8lu\
+        ReceivedInsertSetACKNum %8lu, ReceivedAbortSetACKNum %8lu\
+\
+        merge_num %8lu, \
         time %lu \n",
                s.c_str(),
                EpochManager::GetPhysicalEpoch(), EpochManager::GetLogicalEpoch(),
@@ -211,6 +206,16 @@ namespace Taas {
                EpochManager::merged_txn_num.GetCount(epoch_mod), EpochManager::should_merge_txn_num.GetCount(epoch_mod),
                EpochManager::committed_txn_num.GetCount(epoch_mod), EpochManager::should_commit_txn_num.GetCount(epoch_mod),
                EpochManager::record_committed_txn_num.GetCount(epoch_mod), EpochManager::record_commit_txn_num.GetCount(epoch_mod),
+               MessageReceiveHandler::sharding_should_receive_pack_num.GetCount(epoch_mod), MessageReceiveHandler::sharding_received_pack_num.GetCount(epoch_mod),
+               MessageReceiveHandler::sharding_should_receive_txn_num.GetCount(epoch_mod), MessageReceiveHandler::sharding_received_txn_num.GetCount(epoch_mod),
+
+               MessageReceiveHandler::backup_should_receive_pack_num.GetCount(epoch_mod), MessageReceiveHandler::backup_received_pack_num.GetCount(epoch_mod),
+               MessageReceiveHandler::backup_should_receive_txn_num.GetCount(epoch_mod), MessageReceiveHandler::backup_received_txn_num.GetCount(epoch_mod),
+               MessageReceiveHandler::backup_received_ack_num.GetCount(epoch_mod),
+
+               MessageReceiveHandler::insert_set_received_num.GetCount(epoch_mod), MessageReceiveHandler::sharding_received_abort_set_num.GetCount(epoch_mod),
+               MessageReceiveHandler::insert_set_received_ack_num.GetCount(epoch_mod), MessageReceiveHandler::sharding_abort_set_received_ack_num.GetCount(epoch_mod),
+
                merge_num.load(),
                now_to_us());
         fflush(stdout);

@@ -119,14 +119,14 @@ namespace Taas {
                 if ((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==
                     ((message_epoch_mod + 55) % ctx.kCacheMaxLength))
                     assert(false);
-                sharding_received_txn_num.IncCount(message_epoch,message_sharding_id, 1);
-                sharding_cache[message_epoch_mod][message_sharding_id]->push(std::move(txn_ptr));
+                sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
+                sharding_cache[message_epoch_mod][message_server_id]->push(std::move(txn_ptr));
                 break;
             }
             case proto::TxnType::EpochEndFlag : {
-                printf("receive remote end flag\n");
-                sharding_should_receive_txn_num.IncCount(message_epoch,message_sharding_id,txn_ptr->csn());
-                sharding_received_pack_num.IncCount(message_epoch,message_sharding_id, 1);
+                printf("receive remote end flag server_id %lu epoch %lu sharding_id %lu\n", message_server_id, message_epoch, message_sharding_id);
+                sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
+                sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
                 break;
             }
             case proto::CommittedTxn:
@@ -136,27 +136,27 @@ namespace Taas {
                 if ((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==
                     ((message_epoch_mod + 55) % ctx.kCacheMaxLength))
                     assert(false);
-                backup_received_txn_num.IncCount(message_epoch,message_sharding_id, 1);
-                backup_cache[message_epoch_mod][message_sharding_id]->push(std::move(txn_ptr));
+                backup_received_txn_num.IncCount(message_epoch,message_server_id, 1);
+                backup_cache[message_epoch_mod][message_server_id]->push(std::move(txn_ptr));
                 break;
             }
             case proto::TxnType::BackUpEpochEndFlag : {
-                printf("receive remote backup end flag\n");
-                backup_should_receive_txn_num.IncCount(message_epoch,message_sharding_id,txn_ptr->csn());
-                backup_received_pack_num.IncCount(message_epoch,message_sharding_id, 1);
+                printf("receive remote backup end flag server_id %lu epoch %lu sharding_id %lu\n", message_server_id, message_epoch, message_sharding_id);
+                backup_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
+                backup_received_pack_num.IncCount(message_epoch,message_server_id, 1);
                 break;
             }
             case proto::TxnType::AbortSet : {
                 printf("receive abort\n");
                 UpdateEpochAbortSet();
-                sharding_received_abort_set_num.IncCount(message_epoch,message_sharding_id, 1);
-                abort_set_cache[message_epoch_mod][message_sharding_id]->push(std::move(txn_ptr));
+                sharding_received_abort_set_num.IncCount(message_epoch,message_server_id, 1);
+                abort_set_cache[message_epoch_mod][message_server_id]->push(std::move(txn_ptr));
                 break;
             }
             case proto::TxnType::InsertSet : {
                 printf("receive insert \n");
-                insert_set_received_num.IncCount(message_epoch,message_sharding_id, 1);
-                insert_set_cache[message_epoch_mod][message_sharding_id]->push(std::move(txn_ptr));
+                insert_set_received_num.IncCount(message_epoch,message_server_id, 1);
+                insert_set_cache[message_epoch_mod][message_server_id]->push(std::move(txn_ptr));
                 break;
             }
             case proto::TxnType::BackUpACK : {
