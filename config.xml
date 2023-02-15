@@ -26,9 +26,9 @@
     <send_client_thread_num>1</send_client_thread_num>
 
     <duration_time_us>0</duration_time_us>
-    <test_client_num>0</test_client_num>
+    <test_client_num>2</test_client_num>
     <test_key_range>10000</test_key_range>
-    <test_txn_op_num>10</test_txn_op_num>
+    <test_txn_op_num>1</test_txn_op_num>
 
     <sync_start>1</sync_start>
 
