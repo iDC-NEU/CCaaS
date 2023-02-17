@@ -2,12 +2,44 @@ cmake_minimum_required(VERSION 3.22)
 project(Taas)
 
 set(CMAKE_CXX_STANDARD 17)
+if (NOT EXISTS "${CMAKE_BINARY_DIR}/lib")
+    execute_process(
+            COMMAND mkdir lib
+            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+endif()
+if (NOT EXISTS "${CMAKE_BINARY_DIR}/include")
+    message(STATUS "generate include and lib directory")
+    execute_process(
+            COMMAND mkdir include
+            COMMAND cp -rf "${CMAKE_SOURCE_DIR}/rust/tikv_client/include/tikv_client.h" "${CMAKE_BINARY_DIR}/include"
+            COMMAND cp -rf "${CMAKE_SOURCE_DIR}/rust/tikv_client/include/tikv_client_glue.h" "${CMAKE_BINARY_DIR}/include"
+            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+endif()
+
+
+# 3rdParty library  TiKV_Client
+# Build with original makefile
+if (NOT EXISTS "${CMAKE_SOURCE_DIR}/rust/tikv_client/target/release/libtikv_client.a" AND NOT EXISTS "${CMAKE_BINARY_DIR}/lib/libtikv_client.a")
+    message(STATUS "make tikv_client")
+    execute_process(
+            COMMAND cargo install cxxbridge-cmd --force --version 1.0.18
+            COMMAND make
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/rust/tikv_client")
+    execute_process(
+            COMMAND make release
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/rust/tikv_client")
+    execute_process(
+            COMMAND mv "${CMAKE_SOURCE_DIR}/rust/tikv_client/target/release/libtikv_client.a" "${CMAKE_BINARY_DIR}/lib"
+            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+            )
+endif()
+
 
 #========================================
 #               Dependencies
 #========================================
 
-set(DEPENDENCIES_DIR "${CMAKE_SOURCE_DIR}/.deps")
+set(DEPENDENCIES_DIR "${CMAKE_BINARY_DIR}/.deps")
 
 if (EXISTS "${DEPENDENCIES_DIR}" AND IS_DIRECTORY "${DEPENDENCIES_DIR}" AND NOT ${FETCH_DEPENDENCIES})
     message(STATUS "Using dependencies from ${DEPENDENCIES_DIR}")
@@ -195,7 +227,6 @@ add_custom_target(proto_py ALL DEPENDS ${PROTO_PY_DEST_SRCS})
 #========================================
 #            Build flags
 #========================================
-
 set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG  "-g -fno-omit-frame-pointer")
@@ -209,28 +240,15 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 #            Library
 #========================================
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(include)
-#set(CORE_SRC_DIRS src/)
-#add_library(taas_core STATIC ${SOURCE_CORE})
-#foreach (DIR ${CORE_SRC_DIRS})
-#    add_subdirectory(${DIR})
-#endforeach()
-#target_include_directories(taas_core PUBLIC ${CMAKE_SOURCE_DIR})
-#target_link_libraries(taas_core
-#        PUBLIC
-#        proto
-#        glog::glog
-#        cppzmq-static
-#        rapidjson)
+
+include_directories("${CMAKE_BINARY_DIR}/include")
+include_directories("${CMAKE_SOURCE_DIR}/include")
 
 add_subdirectory("src")
 
 add_executable(Taas main.cpp)
-# add the include directory to our compile directives
+
 target_include_directories(Taas PUBLIC taas_core proto gflags cppzmq)
+target_link_directories(Taas PUBLIC "${CMAKE_BINARY_DIR}/lib")
 
-##add library path
-#target_link_directories(Taas PUBLIC ${CMAKE_SOURCE_DIR})
-
-# at the 0mq library to our link directive
-target_link_libraries(Taas taas_core proto gflags cppzmq pthread dl ssl crypto)
+target_link_libraries(Taas taas_core proto gflags cppzmq tikv_client pthread dl ssl crypto)

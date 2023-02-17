@@ -7,7 +7,7 @@
 #include "epoch/merge.h"
 #include "epoch/epoch_manager.h"
 #include "tools/utilities.h"
-//#include "tikv_client/tikv_client.h"
+#include "tikv_client.h"
 
 namespace Taas {
 
