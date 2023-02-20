@@ -69,6 +69,15 @@ namespace Taas {
         tinyxml2::XMLElement* sync_start = root->FirstChildElement("sync_start");
         is_sync_start = std::stoull(sync_start->GetText());
 
+        tinyxml2::XMLElement* tikv = root->FirstChildElement("is_tikv_enable");
+        is_tikv_enable = std::stoull(tikv->GetText());
+        tinyxml2::XMLElement *ip_port= root->FirstChildElement("tikv_ip");
+        auto tikv_ip=ip_port->GetText();
+        kTiKVIP = std::string(tikv_ip);
+        tinyxml2::XMLElement* tikv_send_thread = root->FirstChildElement("tikv_send_thread_num");
+        kTiKVSendThreadNum = std::stoull(tikv_send_thread->GetText());
+
+
         printf("Config Info:\n \tServerIp:\n");
 
         int cnt = 0;

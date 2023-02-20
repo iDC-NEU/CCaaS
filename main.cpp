@@ -51,6 +51,12 @@ namespace Taas {
             threads.push_back(std::make_unique<std::thread>(Client, i ,ctx));
         }
 
+        if(ctx.is_tikv_enable) {
+            for(int i = 0; i < (int)ctx.kTiKVSendThreadNum; i ++) {
+                threads.push_back(std::make_unique<std::thread>(SendTiKVThreadMain, i ,ctx));
+            }
+        }
+
 
         if(ctx.kDurationTime_us != 0) {
             while(!test_start.load()) usleep(10000);

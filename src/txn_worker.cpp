@@ -11,25 +11,6 @@
 
 namespace Taas {
 
-//    bool SendToTiKV(tikv_client::TransactionClient &client) {
-//        auto txn_ptr = std::make_unique<proto::Transaction>();
-//        if(redo_log_queue.try_dequeue(txn_ptr)) {
-//            auto tikv_txn = client.begin();
-//            printf("开启client的连接，开始向tikv客户端，准备向tikv中写入数据！！！\n");
-//            while(redo_log_queue.try_dequeue(txn_ptr)) {
-//                for (auto i = 0; i < txn_ptr->row_size(); i++) {
-//                    const auto& row = txn_ptr->row(i);
-//                    if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
-//                        tikv_txn.put(row.key(), row.data());
-//                        printf("put key: %s, put value: %s\n", row.key().c_str(), row.data().c_str());
-//                    }
-//                }
-//            }
-//            tikv_txn.commit();
-//        }
-//    }
-
-
 /**
  * @brief do local_merge remote_merge and commit
  *
@@ -42,8 +23,6 @@ namespace Taas {
         merger.Run(id, ctx);
         merger.Init(id, std::move(ctx));
 
-//        tikv_client::TransactionClient client({"172.19.215.168:2379"});
-
         auto sleep_flag = false;
         while(!EpochManager::IsTimerStop()) {
             sleep_flag = false;
@@ -52,11 +31,43 @@ namespace Taas {
 
             sleep_flag = sleep_flag | merger.EpochCommit_RedoLog_TxnMode();
 
-//            sleep_flag = sleep_flag | SendToTiKV(client);
-
 //            sleep_flag = sleep_flag | merger.EpochCommit_RedoLog_ShardingMode();
 
             if(!sleep_flag) usleep(200);
+        }
+    }
+
+    void SendTiKVThreadMain(uint64_t id, Context ctx) {
+        auto sleep_flag = false;
+        auto txn_ptr = std::make_unique<proto::Transaction>();
+//        tikv_client::TransactionClient client({"172.19.215.168:2379"});
+        tikv_client::TransactionClient client({ctx.kTiKVIP});
+        while(!EpochManager::IsTimerStop()) {
+            sleep_flag = false;
+            if(redo_log_queue.try_dequeue(txn_ptr) && txn_ptr != nullptr) {
+                auto tikv_txn = client.begin();
+                for (auto i = 0; i < txn_ptr->row_size(); i++) {
+                    const auto& row = txn_ptr->row(i);
+                    if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
+                        tikv_txn.put(row.key(), row.data());
+                    }
+                }
+                while(redo_log_queue.try_dequeue(txn_ptr)) {
+                    if(txn_ptr == nullptr) continue;
+                    for (auto i = 0; i < txn_ptr->row_size(); i++) {
+                        const auto& row = txn_ptr->row(i);
+                        if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
+                            tikv_txn.put(row.key(), row.data());
+//                            printf("put key: %s, put value: %s\n", row.key().c_str(), row.data().c_str());
+                        }
+                    }
+                }
+                tikv_txn.commit();
+                sleep_flag = true;
+            }
+        }
+        if(!sleep_flag) {
+            usleep(200);
         }
     }
 }

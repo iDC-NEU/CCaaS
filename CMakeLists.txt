@@ -7,31 +7,38 @@ if (NOT EXISTS "${CMAKE_BINARY_DIR}/lib")
             COMMAND mkdir lib
             WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
 endif()
-if (NOT EXISTS "${CMAKE_BINARY_DIR}/include")
-    message(STATUS "generate include and lib directory")
-    execute_process(
-            COMMAND mkdir include
-            COMMAND cp -rf "${CMAKE_SOURCE_DIR}/rust/tikv_client/include/tikv_client.h" "${CMAKE_BINARY_DIR}/include"
-            COMMAND cp -rf "${CMAKE_SOURCE_DIR}/rust/tikv_client/include/tikv_client_glue.h" "${CMAKE_BINARY_DIR}/include"
-            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
-endif()
+#if (NOT EXISTS "${CMAKE_BINARY_DIR}/include")
+#    message(STATUS "generate include and lib directory")
+#    execute_process(
+#            COMMAND mkdir include
+#            COMMAND cp -rf "${CMAKE_SOURCE_DIR}/rust/tikv_client/include/tikv_client.h" "${CMAKE_BINARY_DIR}/include"
+#            COMMAND cp -rf "${CMAKE_SOURCE_DIR}/rust/tikv_client/include/tikv_client_glue.h" "${CMAKE_BINARY_DIR}/include"
+#            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+#endif()
 
 
 # 3rdParty library  TiKV_Client
 # Build with original makefile
 if (NOT EXISTS "${CMAKE_SOURCE_DIR}/rust/tikv_client/target/release/libtikv_client.a" AND NOT EXISTS "${CMAKE_BINARY_DIR}/lib/libtikv_client.a")
-    message(STATUS "make tikv_client")
+#    message(STATUS "make tikv_client")
+#    execute_process(
+#            COMMAND make clean
+#            COMMAND cargo install cxxbridge-cmd --force --version 1.0.18
+#            COMMAND make
+#            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/rust/tikv_client")
+#    execute_process(
+#            COMMAND make release
+#            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/rust/tikv_client")
+#    execute_process(
+#            COMMAND mv "${CMAKE_SOURCE_DIR}/rust/tikv_client/target/release/libtikv_client.a" "${CMAKE_BINARY_DIR}/lib"
+#            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+#            )
+
+    message(STATUS "unzip libtikv_client.a")
     execute_process(
-            COMMAND cargo install cxxbridge-cmd --force --version 1.0.18
-            COMMAND make
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/rust/tikv_client")
-    execute_process(
-            COMMAND make release
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/rust/tikv_client")
-    execute_process(
-            COMMAND mv "${CMAKE_SOURCE_DIR}/rust/tikv_client/target/release/libtikv_client.a" "${CMAKE_BINARY_DIR}/lib"
-            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
-            )
+            COMMAND tar -xvf libtikv_client.tar.xz
+            COMMAND mv "${CMAKE_SOURCE_DIR}/libtikv_client.a" "${CMAKE_BINARY_DIR}/lib"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 endif()
 
 
@@ -239,9 +246,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 #========================================
 #            Library
 #========================================
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-
-include_directories("${CMAKE_BINARY_DIR}/include")
+include_directories("${CMAKE_SOURCE_DIR}/rust/tikv_client/include")
 include_directories("${CMAKE_SOURCE_DIR}/include")
 
 add_subdirectory("src")
@@ -249,6 +254,7 @@ add_subdirectory("src")
 add_executable(Taas main.cpp)
 
 target_include_directories(Taas PUBLIC taas_core proto gflags cppzmq)
+
 target_link_directories(Taas PUBLIC "${CMAKE_BINARY_DIR}/lib")
 
 target_link_libraries(Taas taas_core proto gflags cppzmq tikv_client pthread dl ssl crypto)

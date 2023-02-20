@@ -84,6 +84,7 @@ namespace Taas {
     extern void SendStoragePUBThreadMain(uint64_t id, Context ctx);
     extern void SendStoragePUBThreadMain2(uint64_t id, Context ctx);
 
+    extern void SendTiKVThreadMain(uint64_t id, Context ctx);
 
 
 
