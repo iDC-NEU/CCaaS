@@ -65,6 +65,8 @@ namespace Taas {
     std::vector<std::unique_ptr<concurrent_unordered_map<std::string, proto::Transaction>>>
             EpochManager::committed_txn_cache; ///committed_txn_cache[epoch][lsn]->txn 用于打包发送给mot
 
+    tikv_client::TransactionClient* EpochManager::tikv_client_ptr = nullptr;
+
 // EpochPhysicalTimerManagerThreadMain中得到的当前微秒级别的时间戳
     uint64_t start_time_ll;
     uint64_t start_physical_epoch = 1, new_start_physical_epoch = 1, new_sleep_time = 10000, start_merge_time = 0, commit_time = 0;

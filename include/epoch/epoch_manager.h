@@ -17,6 +17,7 @@
 #include "tools/blocking_concurrent_queue.hpp"
 #include "proto/message.pb.h"
 #include "zmq.hpp"
+#include "tikv_client.h"
 
 namespace Taas {
     template<typename T>
@@ -94,6 +95,7 @@ namespace Taas {
         static volatile bool merge_complete, abort_set_merge_complete, commit_complete, record_committed, is_current_epoch_abort;
         static volatile uint64_t logical_epoch, physical_epoch;
     public:
+
         static Context ctx;
         // cache_max_length
         static uint64_t max_length;
@@ -126,6 +128,8 @@ namespace Taas {
 
         ///cache server
         static std::vector<std::unique_ptr<std::atomic<uint64_t>>>  received_epoch;
+
+        static tikv_client::TransactionClient* tikv_client_ptr;
 
         static void SetTimerStop(bool value) {timerStop = value;}
         static bool IsTimerStop() {return timerStop;}

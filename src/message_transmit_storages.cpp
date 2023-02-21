@@ -4,7 +4,6 @@
 
 #include "epoch/epoch_manager.h"
 #include "tools/utilities.h"
-//#include "tikv_client/tikv_client.h"
 
 namespace Taas {
 
@@ -170,22 +169,6 @@ namespace Taas {
                 auto s = std::to_string(epoch) + ":";
                 auto epoch_mod = epoch % EpochManager::max_length;
                 auto total_num = EpochManager::epoch_log_lsn.GetCount(epoch);
-                ///todo: send to tikv
-//                auto tikv_txn = client.begin();
-//                printf("开启client的连接，开始向tikv客户端，准备向tikv中写入数据！！！\n");
-//                for (int i = 0; i < total_num; i++) {
-//                    auto key = s + std::to_string(i);
-//                    auto ptr = std::make_unique<proto::Transaction>();
-//                    assert(EpochManager::committed_txn_cache[epoch_mod]->getValue(key, (*ptr))); //copy
-//                    for (auto i = 0; i < ptr->row_size(); i++) {
-//                        const auto& row = ptr->row(i);
-//                        if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
-//                            tikv_txn.put(row.key(), row.data());
-////                            printf("put key: %s, put value: %s\n", row.key().c_str(), row.data().c_str());
-//                        }
-//                    }
-//                    tikv_txn.commit();
-//                }
                 epoch++;
             } else {
                 usleep(2000);

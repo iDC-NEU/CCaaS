@@ -40,12 +40,10 @@ namespace Taas {
     void SendTiKVThreadMain(uint64_t id, Context ctx) {
         auto sleep_flag = false;
         auto txn_ptr = std::make_unique<proto::Transaction>();
-//        tikv_client::TransactionClient client({"172.19.215.168:2379"});
-        tikv_client::TransactionClient client({ctx.kTiKVIP});
         while(!EpochManager::IsTimerStop()) {
             sleep_flag = false;
             if(redo_log_queue.try_dequeue(txn_ptr) && txn_ptr != nullptr) {
-                auto tikv_txn = client.begin();
+                auto tikv_txn = EpochManager::tikv_client_ptr->begin();
                 for (auto i = 0; i < txn_ptr->row_size(); i++) {
                     const auto& row = txn_ptr->row(i);
                     if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {

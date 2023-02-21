@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <root>
-    <txn_node_num>2</txn_node_num>
+    <txn_node_num>1</txn_node_num>
     <txn_node_ip_index>0</txn_node_ip_index><!-- 0, 1, 2, ...-->
     <txn_node_ip>
         <txn_ip>219.216.65.102</txn_ip>
@@ -27,8 +27,8 @@
 
     <!--    tikv config -->
     <is_tikv_enable>1</is_tikv_enable>
-    <tikv_ip>172.19.215.168:2379</tikv_ip>
-    <tikv_send_thread_num>2</tikv_send_thread_num>
+    <tikv_ip>47.92.250.79:2379</tikv_ip>
+    <tikv_send_thread_num>1</tikv_send_thread_num>
 
     <!--    test config-->
     <duration_time_us>0</duration_time_us>
