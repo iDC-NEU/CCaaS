@@ -16,7 +16,7 @@
 
     <client_local_ip>202.199.13.218</client_local_ip>
 
-    <epoch_size_us>10000</epoch_size_us><!-- us -->
+    <epoch_size_us>1000000</epoch_size_us><!-- us -->
     <cache_max_length>10000</cache_max_length> <!-- 10 min  600s 600000ms 60000 epochs-->
     <index_num>8</index_num><!-- for concurrency , atomic_counters' num-->
 
@@ -32,11 +32,11 @@
 
     <!--    test config-->
     <duration_time_us>0</duration_time_us>
-    <test_client_num>2</test_client_num>
+    <test_client_num>0</test_client_num>
     <test_key_range>10000</test_key_range>
     <test_txn_op_num>1</test_txn_op_num>
 
-    <sync_start>1</sync_start>
+    <sync_start>0</sync_start>
 
 
 </root>

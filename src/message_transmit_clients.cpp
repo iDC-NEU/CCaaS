@@ -94,8 +94,8 @@ namespace Taas {
                     auto socket = std::make_unique<zmq::socket_t>(context, ZMQ_PUSH);
                     socket->setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
                     socket->setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
-//                    socket->connect("tcp://" + params->ip + ":5552");
-                    socket->connect("tcp://" + params->ip);
+                    socket->connect("tcp://" + params->ip + ":5552");
+//                    socket->connect("tcp://" + params->ip);
                     socket_map[key] = std::move(socket);
                     socket_map[key]->send(*(msg));
                 }
