@@ -413,7 +413,7 @@ namespace Taas {
                 last_epoch_mod = epoch_mod;
                 epoch ++;
                 epoch_mod = epoch % EpochManager::max_length;
-                EpochManager::ClearLog(epoch); //清空next epoch的redo_log信息
+                EpochManager::ClearLog(epoch_mod); //清空next epoch的redo_log信息
                 merge_num.store(0);
                 EpochManager::AddLogicalEpoch();
                 epoch_commit_time = commit_time = now_to_us();
