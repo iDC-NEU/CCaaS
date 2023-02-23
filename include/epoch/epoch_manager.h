@@ -173,6 +173,7 @@ namespace Taas {
         }
 
         static void ClearLog(uint64_t epoch_mod) {
+            epoch_mod %= max_length;
             redo_log[epoch_mod]->clear();
             committed_txn_cache[epoch_mod]->clear();
             epoch_log_lsn.SetCount(epoch_mod, 0);

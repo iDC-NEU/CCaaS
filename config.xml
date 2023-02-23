@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <root>
-    <txn_node_num>1</txn_node_num>
+    <txn_node_num>2</txn_node_num>
     <txn_node_ip_index>0</txn_node_ip_index><!-- 0, 1, 2, ...-->
     <txn_node_ip>
         <txn_ip>219.216.65.102</txn_ip>
@@ -16,8 +16,8 @@
 
     <client_local_ip>202.199.13.218</client_local_ip>
 
-    <epoch_size_us>1000000</epoch_size_us><!-- us -->
-    <cache_max_length>10000</cache_max_length> <!-- 10 min  600s 600000ms 60000 epochs-->
+    <epoch_size_us>3000</epoch_size_us><!-- us -->
+    <cache_max_length>5000</cache_max_length> <!-- 10 min  600s 600000ms 60000 epochs-->
     <index_num>8</index_num><!-- for concurrency , atomic_counters' num-->
 
     <pack_thread_num>4</pack_thread_num>
@@ -26,17 +26,17 @@
     <send_client_thread_num>2</send_client_thread_num>
 
     <!--    tikv config -->
-    <is_tikv_enable>1</is_tikv_enable>
+    <is_tikv_enable>0</is_tikv_enable>
     <tikv_ip>47.92.250.79:2379</tikv_ip>
     <tikv_send_thread_num>1</tikv_send_thread_num>
 
     <!--    test config-->
     <duration_time_us>0</duration_time_us>
-    <test_client_num>0</test_client_num>
+    <test_client_num>4</test_client_num>
     <test_key_range>10000</test_key_range>
-    <test_txn_op_num>1</test_txn_op_num>
+    <test_txn_op_num>5</test_txn_op_num>
 
-    <sync_start>0</sync_start>
+    <sync_start>1</sync_start>
 
 
 </root>

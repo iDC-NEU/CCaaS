@@ -46,6 +46,7 @@ namespace Taas {
             if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
             msg = std::make_unique<zmq::message_t>(*(params->str));
             socket_map[params->id]->send(*msg);
+//            printf("send to server epoch %lu type %lu \n", params->epoch, params->type);
         }
         socket_map[id]->send((zmq::message_t &) "end");
     }
@@ -70,6 +71,7 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             socket_listen.recv(&(*message_ptr));//防止上次遗留消息造成message cache出现问题
+//            printf("receive from server 1\n");
             if (is_epoch_advance_started.load()) {
                 if (!listen_message_queue.enqueue(std::move(message_ptr))) assert(false);
                 if (!listen_message_queue.enqueue(std::move(std::make_unique<zmq::message_t>())))
@@ -81,6 +83,7 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             socket_listen.recv(&(*message_ptr));
+//            printf("receive from server 2\n");
             if (!listen_message_queue.enqueue(std::move(message_ptr))) assert(false);
             if (!listen_message_queue.enqueue(std::move(std::make_unique<zmq::message_t>())))
                 assert(false); //防止moodycamel取不出
