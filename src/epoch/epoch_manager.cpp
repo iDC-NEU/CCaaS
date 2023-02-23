@@ -231,27 +231,27 @@ namespace Taas {
         uint64_t should_merge_txn_num = 0, should_commit_txn_num = 0, cnt = 0,
                 epoch = 1, epoch_mod = 1, last_epoch_mod = 0,
                 cache_server_available = 1, total_commit_txn_num = 0;
-        while(!init_ok.load()) usleep(100);
+        while(!init_ok.load()) usleep(20);
         if(ctx.is_cache_server_available)
             cache_server_available = 0;
         if(ctx.kTxnNodeNum == 1) {
             while(!EpochManager::IsTimerStop()){
-                while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(100);
+                while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(20);
 
                 while(!MessageReceiveHandler::IsEpochTxnEnqueued_MergeQueue(epoch, ctx)) {
-                    cnt++;
-                    if (cnt % 100 == 0) {
-                        OUTPUTLOG("======等待txn进入merge_queue===== ", epoch_mod);
-                    }
-                    usleep(100);
+//                    cnt++;
+//                    if (cnt % 100 == 0) {
+//                        OUTPUTLOG("======等待txn进入merge_queue===== ", epoch_mod);
+//                    }
+                    usleep(20);
                 }
                 while(EpochManager::should_merge_txn_num.GetCount(epoch) >
                       EpochManager::merged_txn_num.GetCount(epoch)) {
-                    cnt++;
-                    if(cnt % 100 == 0){
-                        OUTPUTLOG("=============等待所有事务 本地和远端事务 merge完成======= " , epoch_mod);
-                    }
-                    usleep(100);
+//                    cnt++;
+//                    if(cnt % 100 == 0){
+//                        OUTPUTLOG("=============等待所有事务 本地和远端事务 merge完成======= " , epoch_mod);
+//                    }
+                    usleep(20);
                 }
 
                 EpochManager::SetMergeComplete(true);
@@ -261,20 +261,20 @@ namespace Taas {
                 EpochManager::SetAbortSetMergeComplete(true);
 
                 while(!MessageReceiveHandler::IsEpochTxnEnqueued_LocalTxnQueue(epoch, ctx)) {
-                    cnt++;
-                    if (cnt % 100 == 0) {
-                        OUTPUTLOG("======等待txn进入local_txn_queue===== ", epoch_mod);
-                    }
-                    usleep(100);
+//                    cnt++;
+//                    if (cnt % 100 == 0) {
+//                        OUTPUTLOG("======等待txn进入local_txn_queue===== ", epoch_mod);
+//                    }
+                    usleep(20);
                 }
 
                 while(EpochManager::should_commit_txn_num.GetCount(epoch) >
                       EpochManager::committed_txn_num.GetCount(epoch)) {
-                    cnt++;
-                    if(cnt % 100 == 0){
-                        OUTPUTLOG("==进行一个Epoch的合并 commit========= " , epoch_mod);
-                    }
-                    usleep(100);
+//                    cnt++;
+//                    if(cnt % 100 == 0){
+//                        OUTPUTLOG("==进行一个Epoch的合并 commit========= " , epoch_mod);
+//                    }
+                    usleep(20);
                 }
 
                 EpochManager::SetRecordCommitted(true);
@@ -287,7 +287,7 @@ namespace Taas {
                 last_epoch_mod = epoch_mod;
                 epoch ++;
                 epoch_mod = epoch % EpochManager::max_length;
-                EpochManager::ClearLog(epoch); //清空next epoch的redo_log信息
+                EpochManager::ClearLog(epoch_mod); //清空next epoch的redo_log信息
                 merge_num.store(0);
                 EpochManager::AddLogicalEpoch();
                 epoch_commit_time = commit_time = now_to_us();
@@ -296,71 +296,71 @@ namespace Taas {
         }
         else {
             while(!EpochManager::IsTimerStop()){
-                while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(100);
+                while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(20);
                 while(!MessageReceiveHandler::IsRemoteShardingPackReceiveComplete(epoch, ctx)) {
-                    cnt++;
-                    if(cnt % 100 == 0){
-                        OUTPUTLOG("============等待远端pack接收完成===== " , epoch_mod);
-                    }
-                    usleep(100);
+//                    cnt++;
+//                    if(cnt % 100 == 0){
+//                        OUTPUTLOG("============等待远端pack接收完成===== " , epoch_mod);
+//                    }
+                    usleep(20);
                 }
                 while(!MessageReceiveHandler::IsRemoteShardingTxnReceiveComplete(epoch, ctx)) {
-                    cnt++;
-                    if (cnt % 100 == 0) {
-                        OUTPUTLOG("======等待远端txn接收完成===== ", epoch_mod);
-                    }
-                    usleep(100);
+//                    cnt++;
+//                    if (cnt % 100 == 0) {
+//                        OUTPUTLOG("======等待远端txn接收完成===== ", epoch_mod);
+//                    }
+                    usleep(20);
                 }
 
                 while(!MessageReceiveHandler::IsEpochTxnEnqueued_MergeQueue(epoch, ctx)) {
-                    cnt++;
-                    if (cnt % 100 == 0) {
-                        OUTPUTLOG("======等待txn进入merge_queue===== ", epoch_mod);
-                    }
-                    usleep(100);
+//                    cnt++;
+//                    if (cnt % 100 == 0) {
+//                        OUTPUTLOG("======等待txn进入merge_queue===== ", epoch_mod);
+//                    }
+                    usleep(20);
                 }
                 while(EpochManager::should_merge_txn_num.GetCount(epoch) >
                       EpochManager::merged_txn_num.GetCount(epoch)) {
-                    cnt++;
-                    if(cnt % 100 == 0){
-                        OUTPUTLOG("=============等待所有事务 本地和远端事务 merge完成======= " , epoch_mod);
-                    }
-                    usleep(100);
+//                    cnt++;
+//                    if(cnt % 100 == 0){
+//                        OUTPUTLOG("=============等待所有事务 本地和远端事务 merge完成======= " , epoch_mod);
+//                    }
+                    usleep(20);
                 }
 
                 ///send abort set
                 MessageSendHandler::SendTaskToPackThread(ctx, epoch, 0, proto::TxnType::AbortSet);///发送abort set 任务
 
                 while(!MessageReceiveHandler::IsBackUpSendFinish(epoch, ctx)) {
-                    cnt++;
-                    if(cnt % 100 == 0){
-                        OUTPUTLOG("=============等待local server 备份send完成======= " , epoch_mod);
-                    }
-                    usleep(100);
+//                    cnt++;
+//                    if(cnt % 100 == 0){
+//                        OUTPUTLOG("=============等待local server 备份send完成======= " , epoch_mod);
+//                    }
+                    usleep(20);
                 }
 
                 while(!MessageReceiveHandler::IsBackUpACKReceiveComplete(epoch, ctx)) {
-                    cnt++;
-                    if(cnt % 100 == 0){
-                        OUTPUTLOG("=============等待remote server 备份接收完成======= " , epoch_mod); ///接收到follower的ack
-                    }
-                    usleep(100);
+//                    cnt++;
+//                    if(cnt % 100 == 0){
+//                        OUTPUTLOG("=============等待remote server 备份接收完成======= " , epoch_mod); ///接收到follower的ack
+//                    }
+                    usleep(20);
                 }
 
                 while(!MessageReceiveHandler::IsAbortSetACKReceiveComplete(epoch, ctx)) {
-                    cnt++;
-                    if(cnt % 100 == 0){
-                        OUTPUTLOG("=============等待AbortSet 发送完成======= " , epoch_mod); ///接收到follower的ack
-                    }
-                    usleep(100);
+//                    cnt++;
+//                    if(cnt % 100 == 0){
+//                        OUTPUTLOG("=============等待AbortSet 发送完成======= " , epoch_mod); ///接收到follower的ack
+//                    }
+                    usleep(20);
                 }
 
                 while(!MessageReceiveHandler::IsRemoteAbortSetReceiveComplete(epoch, ctx)) {
-                    cnt++;
-                    if(cnt % 100 == 0){
-                        OUTPUTLOG("=============等待AbortSet 接收完成======= " , epoch_mod);
-                    }
-                    usleep(100);
+//                    cnt++;
+//                    if(cnt % 100 == 0){
+//                        OUTPUTLOG("=============等待AbortSet 接收完成======= " , epoch_mod);
+//                    }
+                    usleep(20);
                 }
                 EpochManager::SetMergeComplete(true);
 //        OUTPUTLOG("==进行一个Epoch的合并 merge 完成====== " , epoch_mod);
@@ -370,11 +370,11 @@ namespace Taas {
                 EpochManager::SetAbortSetMergeComplete(true);
 
                 while(!MessageReceiveHandler::IsEpochTxnEnqueued_LocalTxnQueue(epoch, ctx)) {
-                    cnt++;
-                    if (cnt % 100 == 0) {
-                        OUTPUTLOG("======等待txn进入local_txn_queue===== ", epoch_mod);
-                    }
-                    usleep(100);
+//                    cnt++;
+//                    if (cnt % 100 == 0) {
+//                        OUTPUTLOG("======等待txn进入local_txn_queue===== ", epoch_mod);
+//                    }
+                    usleep(20);
                 }
 
                 while(EpochManager::should_commit_txn_num.GetCount(epoch) >
@@ -383,7 +383,7 @@ namespace Taas {
                     if(cnt % 100 == 0){
                         OUTPUTLOG("==进行一个Epoch的合并 commit========= " , epoch_mod);
                     }
-                    usleep(100);
+                    usleep(20);
                 }
 
                 ///send insert set
@@ -393,14 +393,14 @@ namespace Taas {
 //                if(cnt % 100 == 0){
 //                    OUTPUTLOG("=============等待InsertSet 接收完成======= " , epoch_mod); ///接收到follower的ack
 //                }
-//                usleep(100);
+//                usleep(20);
 //            }
 //            while(!MessageReceiveHandler::IsInsertSetACKReceiveComplete(epoch_mod, ctx)) {//异步
 //                cnt++;
 //                if(cnt % 100 == 0){
 //                    OUTPUTLOG("=============等待InsertSet send完成======= " , epoch_mod); ///接收到follower的ack
 //                }
-//                usleep(100);
+//                usleep(20);
 //            }
 
                 EpochManager::SetRecordCommitted(true);

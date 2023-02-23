@@ -16,7 +16,7 @@
 
     <client_local_ip>202.199.13.218</client_local_ip>
 
-    <epoch_size_us>3000</epoch_size_us><!-- us -->
+    <epoch_size_us>5000</epoch_size_us><!-- us -->
     <cache_max_length>5000</cache_max_length> <!-- 10 min  600s 600000ms 60000 epochs-->
     <index_num>8</index_num><!-- for concurrency , atomic_counters' num-->
 
