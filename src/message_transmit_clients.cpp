@@ -14,8 +14,6 @@ namespace Taas {
  * 5552 : txn node sends txn_state to client                                        client  PULL       txn PUSH
 
  */
-//    void SendClientThreadMain(uint64_t id, Context ctx);//PUSH
-//    void ListenClientThreadMain(uint64_t id, Context ctx);//PULL
 
 /**
  * @brief 监听client，并接受client发来的写集，并发到listen_message_queue中

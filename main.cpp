@@ -52,8 +52,7 @@ namespace Taas {
         }
 
         if(ctx.is_tikv_enable) {
-            tikv_client::TransactionClient client({ctx.kTiKVIP});
-            EpochManager::tikv_client_ptr = &client;
+            EpochManager::tikv_client_ptr = new tikv_client::TransactionClient({ctx.kTiKVIP});
             for(int i = 0; i < (int)ctx.kTiKVSendThreadNum; i ++) {
                 threads.push_back(std::make_unique<std::thread>(SendTiKVThreadMain, i ,ctx));
             }

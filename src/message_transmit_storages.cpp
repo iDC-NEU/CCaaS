@@ -18,10 +18,6 @@ namespace Taas {
 
  */
 
-//    void ListenStorageThreadMain(uint64_t id, Context ctx);//PUSH PULL
-//    void SendStoragePUBThreadMain(uint64_t id, Context ctx); //PUSH txn
-//    void SendStoragePUBThreadMain2(uint64_t id, Context ctx); //PUSH pack txn
-
     void ListenStorageThreadMain(uint64_t id, Context ctx) { //PULL & PUSH
         uint32_t recv_port = 5553;
         UNUSED_VALUE(id);
@@ -46,14 +42,12 @@ namespace Taas {
             assert(res);
             auto &pull_req = pull_msg->storage_pull_request();
             uint64_t epoch_id = pull_req.epoch_id();
-//        std::string endpoint = "tcp://" + pull_req.send_node().ip() + std::to_string(pull_req.send_node().port());
             auto endpoint = "tcp://" + pull_req.send_node().ip() + ":5554";
             send_socket.connect(endpoint);
 
             auto pull_msg_resp = std::make_unique<proto::Message>();
             auto pull_resp = pull_msg_resp->mutable_storage_pull_response();
 
-            // load corresponding epoch's all txns
             if (EpochManager::committed_txn_num.GetCount(epoch_id) ==
                 EpochManager::should_commit_txn_num.GetCount(epoch_id)) { // the epoch's txns all have been c committed
                 auto s = std::to_string(epoch_id) + ":";
@@ -94,7 +88,7 @@ namespace Taas {
         printf("线程开始工作 SendStoragePUBServerThread ZMQ_PUB tcp:// ip + :5556\n");
         std::unique_ptr<send_params> params;
         std::unique_ptr<zmq::message_t> msg;
-        while (init_ok.load() == false);
+        while (!init_ok.load());
         while (!EpochManager::IsTimerStop()) {
             send_to_storage_queue.wait_dequeue(params);
             if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
@@ -117,7 +111,7 @@ namespace Taas {
         std::unique_ptr<send_params> params;
         std::unique_ptr<zmq::message_t> msg;
         uint64_t epoch = 1;
-        while (init_ok.load() == false);
+        while (!init_ok.load());
         while (!EpochManager::IsTimerStop()) {
             if (epoch < EpochManager::GetLogicalEpoch()) {
                 auto push_msg = std::make_unique<proto::Message>();
@@ -162,13 +156,29 @@ namespace Taas {
         std::unique_ptr<send_params> params;
         std::unique_ptr<zmq::message_t> msg;
         uint64_t epoch = 1;
-//        tikv_client::TransactionClient client({"172.19.215.168:2379"});
-        while (init_ok.load() == false);
+        while (!init_ok.load());
         while (!EpochManager::IsTimerStop()) {
             if (epoch < EpochManager::GetLogicalEpoch()) {
                 auto s = std::to_string(epoch) + ":";
                 auto epoch_mod = epoch % EpochManager::max_length;
                 auto total_num = EpochManager::epoch_log_lsn.GetCount(epoch);
+                for (int i = 0; i < (int)total_num; i++) {
+                    auto push_msg = std::make_unique<proto::Message>();
+                    auto push_response = push_msg->mutable_storage_push_response();
+                    assert(push_response != nullptr);
+                    auto key = s + std::to_string(i);
+                    auto *ptr = push_response->add_txns();
+                    assert(ptr != nullptr);
+                    assert(EpochManager::committed_txn_cache[epoch_mod]->getValue(key, (*ptr))); //copy
+                    push_response->set_result(proto::Success);
+                    push_response->set_epoch_id(epoch);
+                    push_response->set_txn_num(total_num);
+                    auto serialized_pull_resp_str = std::make_unique<std::string>();
+                    auto res = Gzip(push_msg.get(), serialized_pull_resp_str.get());
+                    assert(res);
+                    auto send_message = std::make_unique<zmq::message_t>(*serialized_pull_resp_str);
+                    if (!socket_send.send(*send_message)) printf("send error!!!!!\n");
+                }
                 epoch++;
             } else {
                 usleep(2000);
