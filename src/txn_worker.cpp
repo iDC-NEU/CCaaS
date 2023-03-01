@@ -44,22 +44,28 @@ namespace Taas {
             sleep_flag = false;
             if(redo_log_queue.try_dequeue(txn_ptr) && txn_ptr != nullptr) {
                 auto tikv_txn = EpochManager::tikv_client_ptr->begin();
+//                std::vector<KvPair> kvs;
+//                tikv_txn.batch_put();
                 for (auto i = 0; i < txn_ptr->row_size(); i++) {
                     const auto& row = txn_ptr->row(i);
                     if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
                         tikv_txn.put(row.key(), row.data());
+//                        KvPair kvpair;
+//                        kvpair.key = row.key();
+//                        kvpair.value = row.data();
+//                        kvs.push_back();
                     }
                 }
-                while(redo_log_queue.try_dequeue(txn_ptr)) {
-                    if(txn_ptr == nullptr) continue;
-                    for (auto i = 0; i < txn_ptr->row_size(); i++) {
-                        const auto& row = txn_ptr->row(i);
-                        if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
-                            tikv_txn.put(row.key(), row.data());
-//                            printf("put key: %s, put value: %s\n", row.key().c_str(), row.data().c_str());
-                        }
-                    }
-                }
+//                while(redo_log_queue.try_dequeue(txn_ptr)) {
+//                    if(txn_ptr == nullptr) continue;
+//                    for (auto i = 0; i < txn_ptr->row_size(); i++) {
+//                        const auto& row = txn_ptr->row(i);
+//                        if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
+//                            tikv_txn.put(row.key(), row.data());
+////                            printf("put key: %s, put value: %s\n", row.key().c_str(), row.data().c_str());
+//                        }
+//                    }
+//                }
                 tikv_txn.commit();
                 sleep_flag = true;
             }

@@ -7,6 +7,13 @@ if (NOT EXISTS "${CMAKE_BINARY_DIR}/lib")
             COMMAND mkdir lib
             WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
 endif()
+if (NOT EXISTS "${CMAKE_BINARY_DIR}/lib/libtikv_client.a")
+    message(STATUS "tar -xvf ${CMAKE_SOURCE_DIR}/libtikv_client.tar.xz")
+    execute_process(
+            COMMAND tar -xvf ${CMAKE_SOURCE_DIR}/libtikv_client.tar.xz
+            COMMAND mv "${CMAKE_SOURCE_DIR}/libtikv_client.a" "${CMAKE_BINARY_DIR}/lib"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+endif()
 #if (NOT EXISTS "${CMAKE_BINARY_DIR}/include")
 #    message(STATUS "generate include and lib directory")
 #    execute_process(
@@ -19,7 +26,7 @@ endif()
 
 # 3rdParty library  TiKV_Client
 # Build with original makefile
-if (NOT EXISTS "${CMAKE_SOURCE_DIR}/rust/tikv_client/target/release/libtikv_client.a" AND NOT EXISTS "${CMAKE_BINARY_DIR}/lib/libtikv_client.a")
+#if (NOT EXISTS "${CMAKE_SOURCE_DIR}/rust/tikv_client/target/release/libtikv_client.a" AND NOT EXISTS "${CMAKE_BINARY_DIR}/lib/libtikv_client.a")
 #    message(STATUS "make tikv_client")
 #    execute_process(
 #            COMMAND make clean
@@ -33,13 +40,7 @@ if (NOT EXISTS "${CMAKE_SOURCE_DIR}/rust/tikv_client/target/release/libtikv_clie
 #            COMMAND mv "${CMAKE_SOURCE_DIR}/rust/tikv_client/target/release/libtikv_client.a" "${CMAKE_BINARY_DIR}/lib"
 #            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
 #            )
-
-    message(STATUS "unzip libtikv_client.a")
-    execute_process(
-            COMMAND tar -xvf libtikv_client.tar.xz
-            COMMAND mv "${CMAKE_SOURCE_DIR}/libtikv_client.a" "${CMAKE_BINARY_DIR}/lib"
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
-endif()
+#endif()
 
 
 #========================================
