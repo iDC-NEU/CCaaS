@@ -1,0 +1,11 @@
+# Compiled Object files
+**/.DS_Store
+
+# Clion
+**/cmake-build-*
+.idea
+
+/build*
+/.vscode
+/cpm_modules
+.DS_Store
