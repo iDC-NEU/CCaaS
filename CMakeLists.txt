@@ -4,7 +4,7 @@ project(Taas)
 # For fresh ubuntu 22.04 startup
 # zlib1g-dev is for gzip compress
 # libgoogle-perftools-dev for linking tcmalloc
-# apt install libtool make autoconf g++-11 zlib1g-dev libgoogle-perftools-dev
+# apt install libtool make autoconf g++-11 zlib1g-dev libgoogle-perftools-dev libssl-dev
 # apt install g++
 
 # Set debug and release flags
@@ -61,6 +61,13 @@ CPMAddPackage(
         OPTIONS "YAML_CPP_FORMAT_SOURCE OFF"
         GIT_SHALLOW TRUE
 )
+
+### Crypto support
+find_package(openssl_install
+        CONFIG
+        REQUIRED
+        PATHS ${PROJECT_SOURCE_DIR}/vendor
+        )
 
 ### Gflags support
 find_package(gflags_install
@@ -148,18 +155,16 @@ SET(COMMON_DEPENDENCIES
         fmt
         pthread
         zmq
-        #        braft
-        gtl
         protobuf
         tcmalloc
-        rapidjson
-        ${PROJECT_NAME}_proto proto cppzmq-static tikv_client pthread dl ssl crypto
+        ${PROJECT_NAME}_proto tikv_client dl ssl crypto
         )
 
 # Link dependencies
 # https://stackoverflow.com/questions/58997230/cmake-project-fails-to-find-shared-library
 target_link_libraries(${PROJECT_NAME}
-        PRIVATE
+#        PRIVATE
+        PUBLIC
         ${COMMON_DEPENDENCIES}
         "-Wl,--disable-new-dtags")
 
@@ -183,9 +188,10 @@ string(TOLOWER ${PROJECT_NAME}/version.h VERSION_HEADER_LOCATION)
 
 add_executable(${PROJECT_NAME}_sharding main.cpp)
 set_target_properties(${PROJECT_NAME}_sharding PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "Taas_sharding")
-target_link_libraries(${PROJECT_NAME}_sharding Taas cxxopts ${COMMON_DEPENDENCIES})
+target_link_libraries(${PROJECT_NAME}_sharding Taas
+        ${COMMON_DEPENDENCIES})
 
-
+#target_link_libraries(Taas_sharding taas_core proto gflags cppzmq tikv_client pthread dl ssl crypto)
 
 
 
