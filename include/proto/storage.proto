@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package proto;
 
-import "proto/transaction.proto";
-import "proto/node.proto";
+import "transaction.proto";
+import "node.proto";
 
 message StoragePullRequest {
   uint64 epoch_id = 1;

@@ -1,261 +1,219 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.14...3.22)
 project(Taas)
 
-set(CMAKE_CXX_STANDARD 17)
-if (NOT EXISTS "${CMAKE_BINARY_DIR}/lib")
-    execute_process(
-            COMMAND mkdir lib
-            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+# For fresh ubuntu 22.04 startup
+# zlib1g-dev is for gzip compress
+# libgoogle-perftools-dev for linking tcmalloc
+# apt install libtool make autoconf g++-11 zlib1g-dev libgoogle-perftools-dev
+# apt install g++
+
+# Set debug and release flags
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable")
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${CMAKE_CXX_FLAGS_COMMON}  -g -O0 -fprofile-arcs -ftest-coverage")
+SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${CMAKE_CXX_FLAGS_COMMON} -O2")
+
+### CHECK g++ version
+if(CMAKE_COMPILER_IS_GNUCXX)
+    execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
+    if (GCC_VERSION VERSION_GREATER 11.0 OR GCC_VERSION VERSION_EQUAL 11.0)
+        message(STATUS "Support C++20.")
+        set(CMAKE_CXX_STANDARD 20)
+    else ()
+        message(FATAL_ERROR "C++20 needed. Therefore a gcc compiler with a version higher than 11.0 is needed.")
+    endif()
+endif(CMAKE_COMPILER_IS_GNUCXX)
+
+# ---- Include guards ----
+
+if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
+    message(
+            FATAL_ERROR
+            "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there."
+    )
 endif()
+
+# ---- Add dependencies via CPM ----
+# see https://github.com/TheLartians/CPM.cmake for more info
+
+include(vendor/CPM.cmake)
+
+### Thread support
+include(FindThreads)
+
+# PackageProject.cmake will be used to make our target installable
+
+CPMAddPackage("gh:TheLartians/PackageProject.cmake@1.8.0")
+
+#standard input & output
+CPMAddPackage(
+        NAME fmt
+        GITHUB_REPOSITORY fmtlib/fmt
+        GIT_TAG 8.1.1
+        OPTIONS "FMT_INSTALL YES" # create an installable target
+        GIT_SHALLOW TRUE
+)
+
+CPMAddPackage(
+        NAME yaml-cpp
+        GITHUB_REPOSITORY jbeder/yaml-cpp
+        VERSION 0.7.0
+        GIT_TAG yaml-cpp-0.7.0
+        OPTIONS "YAML_CPP_FORMAT_SOURCE OFF"
+        GIT_SHALLOW TRUE
+)
+
+### Gflags support
+find_package(gflags_install
+        CONFIG
+        REQUIRED
+        PATHS ${PROJECT_SOURCE_DIR}/vendor
+        )
+
+### Glog support
+find_package(glog_install
+        CONFIG
+        REQUIRED
+        PATHS ${PROJECT_SOURCE_DIR}/vendor
+        )
+
+### Add zmq support
+find_package(zeromq_install
+        CONFIG
+        REQUIRED
+        PATHS ${PROJECT_SOURCE_DIR}/vendor
+        )
+
+### Protobuf support
+find_package(protobuf_install
+        CONFIG
+        REQUIRED
+        PATHS ${PROJECT_SOURCE_DIR}/vendor
+        )
+
+### Gtest support
+find_package(gtest_install
+        CONFIG
+        REQUIRED
+        PATHS ${PROJECT_SOURCE_DIR}/vendor
+        )
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/vendor/tools.cmake)
+
+### compile protobuf
+file(GLOB PROTO_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/proto/*.proto")
+# https://stackoverflow.com/questions/26147454/how-to-automatically-move-pb-h-and-pb-h-under-include-and-src-directories
+my_protobuf_generate_cpp(include/proto PROTO_SRCS PROTO_HDRS ${PROTO_FILES}) # this func is in tools.cmake
+ADD_LIBRARY(${PROJECT_NAME}_proto ${PROTO_HDRS} ${PROTO_SRCS})
+
+#add library tivk_client.a
 if (NOT EXISTS "${CMAKE_BINARY_DIR}/lib/libtikv_client.a")
     message(STATUS "tar -xvf ${CMAKE_SOURCE_DIR}/libtikv_client.tar.xz")
     execute_process(
             COMMAND tar -xvf ${CMAKE_SOURCE_DIR}/libtikv_client.tar.xz
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+    execute_process(
             COMMAND mv "${CMAKE_SOURCE_DIR}/libtikv_client.a" "${CMAKE_BINARY_DIR}/lib"
             WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 endif()
-#if (NOT EXISTS "${CMAKE_BINARY_DIR}/include")
-#    message(STATUS "generate include and lib directory")
-#    execute_process(
-#            COMMAND mkdir include
-#            COMMAND cp -rf "${CMAKE_SOURCE_DIR}/rust/tikv_client/include/tikv_client.h" "${CMAKE_BINARY_DIR}/include"
-#            COMMAND cp -rf "${CMAKE_SOURCE_DIR}/rust/tikv_client/include/tikv_client_glue.h" "${CMAKE_BINARY_DIR}/include"
-#            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
-#endif()
 
+# for linking tcmalloc_minimal
+# apt-get install libgoogle-perftools-dev
+find_library(gflags gflags PATHS ${PROJECT_BINARY_DIR}/lib)
+#find_library(leveldb leveldb PATHS ${PROJECT_BINARY_DIR}/lib)
 
-# 3rdParty library  TiKV_Client
-# Build with original makefile
-#if (NOT EXISTS "${CMAKE_SOURCE_DIR}/rust/tikv_client/target/release/libtikv_client.a" AND NOT EXISTS "${CMAKE_BINARY_DIR}/lib/libtikv_client.a")
-#    message(STATUS "make tikv_client")
-#    execute_process(
-#            COMMAND make clean
-#            COMMAND cargo install cxxbridge-cmd --force --version 1.0.18
-#            COMMAND make
-#            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/rust/tikv_client")
-#    execute_process(
-#            COMMAND make release
-#            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/rust/tikv_client")
-#    execute_process(
-#            COMMAND mv "${CMAKE_SOURCE_DIR}/rust/tikv_client/target/release/libtikv_client.a" "${CMAKE_BINARY_DIR}/lib"
-#            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
-#            )
-#endif()
+#include
+include_directories(SYSTEM ${CMAKE_BINARY_DIR}/include)
+LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/lib)
 
-
-#========================================
-#               Dependencies
-#========================================
-
-set(DEPENDENCIES_DIR "${CMAKE_BINARY_DIR}/.deps")
-
-if (EXISTS "${DEPENDENCIES_DIR}" AND IS_DIRECTORY "${DEPENDENCIES_DIR}" AND NOT ${FETCH_DEPENDENCIES})
-    message(STATUS "Using dependencies from ${DEPENDENCIES_DIR}")
-
-    list(APPEND CMAKE_PREFIX_PATH ${DEPENDENCIES_DIR})
-    # gflags does not include this in its target so need to add manually
-    link_directories("${DEPENDENCIES_DIR}/lib")
-
-    set(GFLAGS_USE_TARGET_NAMESPACE TRUE)
-    find_package(gflags REQUIRED)
-    find_package(glog REQUIRED)
-
-    find_package(cppzmq REQUIRED)
-
-    find_package(RapidJSON REQUIRED)
-
-    add_library(rapidjson INTERFACE)
-    target_include_directories(rapidjson INTERFACE "${RAPIDJSON_INCLUDE_DIRS}")
-
-else()
-    message(STATUS "Fetching dependencies")
-
-    include(FetchContent)
-
-    FetchContent_Declare(libzmq
-            GIT_REPOSITORY  https://github.com/zeromq/libzmq.git
-            GIT_TAG         v4.3.3
-            )
-    FetchContent_GetProperties(libzmq)
-    if(NOT libzmq_POPULATED)
-        message("Populating: ZeroMQ")
-        FetchContent_Populate(libzmq)
-        set(ZMQ_BUILD_TESTS OFF CACHE INTERNAL "Build tests for ZeroMQ" FORCE)
-        add_subdirectory(${libzmq_SOURCE_DIR} ${libzmq_BINARY_DIR})
-    endif()
-
-    FetchContent_Declare(cppzmq
-            GIT_REPOSITORY  https://github.com/zeromq/cppzmq.git
-            GIT_TAG         v4.7.1
-            )
-    FetchContent_GetProperties(cppzmq)
-    if(NOT cppzmq_POPULATED)
-        message("Populating: cppzmq")
-        FetchContent_Populate(cppzmq)
-        set(CPPZMQ_BUILD_TESTS OFF CACHE INTERNAL "Build tests for cppzmq" FORCE)
-        add_subdirectory(${cppzmq_SOURCE_DIR} ${cppzmq_BINARY_DIR})
-    endif()
-
-    FetchContent_Declare(gflags
-            GIT_REPOSITORY  https://github.com/gflags/gflags.git
-            GIT_TAG         v2.2.2
-            )
-    FetchContent_GetProperties(gflags)
-    if(NOT gflags_POPULATED)
-        message("Populating: gflags")
-        FetchContent_Populate(gflags)
-        set(GFLAGS_BUILD_TESTING OFF CACHE INTERNAL "Build tests")
-        # Needed to work with glog
-        set(GFLAGS_NAMESPACE "google" CACHE INTERNAL "Set namespace for gflags")
-        add_subdirectory(${gflags_SOURCE_DIR} ${gflags_BINARY_DIR})
-    endif()
-
-    FetchContent_Declare(glog
-            GIT_REPOSITORY  https://github.com/google/glog.git
-            GIT_TAG         v0.4.0
-            )
-    FetchContent_GetProperties(glog)
-    if(NOT glog_POPULATED)
-        message("Populating: glog")
-        FetchContent_Populate(glog)
-        set(WITH_GFLAGS FALSE CACHE INTERNAL "Build glog with gflags")
-        set(BUILD_TESTING FALSE CACHE INTERNAL "Build tests")
-        add_subdirectory(${glog_SOURCE_DIR} ${glog_BINARY_DIR})
-    endif()
-
-    FetchContent_Declare(rapidjson
-            GIT_REPOSITORY  https://github.com/Tencent/rapidjson
-            GIT_TAG         v1.1.0
-            GIT_SHALLOW     TRUE
-            )
-    FetchContent_GetProperties(rapidjson)
-    if (NOT rapidjson_POPULATED)
-        message("Populating: rapidjson")
-        FetchContent_Populate(rapidjson)
-        add_library(rapidjson INTERFACE)
-        target_include_directories(rapidjson INTERFACE "${rapidjson_SOURCE_DIR}/include")
-    endif()
-
-    FetchContent_Declare(protobuf
-            GIT_REPOSITORY  https://github.com/protocolbuffers/protobuf.git
-            GIT_TAG         v3.20.1
-            )
-    FetchContent_GetProperties(protobuf)
-    if (NOT protobuf_POPULATED)
-        message("Populating: protobuf")
-        FetchContent_Populate(protobuf)
-        set(protobuf_BUILD_TESTS OFF CACHE INTERNAL "Build protobuf tests" FORCE)
-        add_subdirectory(${protobuf_SOURCE_DIR}/cmake ${protobuf_BINARY_DIR})
-    endif()
-endif()
-
-
-#========================================
-#               Protobuf
-#========================================
-
-# Call this so that we can use protobuf_generate_cpp and protobuf_generate_python
-# Other results are discarded
-set(Protobuf_USE_STATIC_LIBS ON)
-set(Protobuf_PREFIX_PATH
-    "/usr/local/include"
-    "/usr/local/lib"
-    "/usr/local/bin"
-)
-list(APPEND CMAKE_PREFIX_PATH "${Protobuf_PREFIX_PATH}")
-find_package(Protobuf REQUIRED)
-
-# Generating code from protobuf files is done here instead of in a CMakeLists.txt
-# in the 'proto' directory because, otherwise, we cannot do absolute import in the
-# .proto files as well as in Python.
-
-# Turn this off so that "protobuf_generate_cpp" won't append directory
-# of each .proto file to the protobuf include path, which should contain only
-# the project root directory. The reason is that protoc uses the longest path
-# to match with the prefix of each file name, generating relative import instead
-# of absolute import. For example, if the include path has:
-#   "./something/proto" and "./"
-# The path "./something/proto/messageA.proto" will become "messageA.proto",
-# because it is matched with "./something/proto". On the other hand, if only
-# "./" is present, we get "something/proto/messageA.proto", which is absolute
-# with respect to the project root "./"
-set(PROTOBUF_GENERATE_CPP_APPEND_PATH OFF)
-set(PROTO_PREFIX proto)
-
-protobuf_generate_cpp(PROTO_CPP_SRCS PROTO_CPP_HEADERS
-        ${PROTO_PREFIX}/client.proto
-        ${PROTO_PREFIX}/message.proto
-        ${PROTO_PREFIX}/server.proto
-        ${PROTO_PREFIX}/storage.proto
-        ${PROTO_PREFIX}/transaction.proto
-        ${PROTO_PREFIX}/node.proto
-        )
-
-message("${PROTO_PREFIX}/message.proto")
-message ("PROTO_SRCS = ${PROTO_CPP_SRCS}")
-message ("PROTO_HDRS = ${PROTO_CPP_HEADERS}")
-
-add_library(proto ${PROTO_CPP_SRCS} ${PROTO_CPP_HEADERS} include/test/test.h)
-target_include_directories(proto PUBLIC ${CMAKE_BINARY_DIR})
-target_link_libraries(proto PUBLIC protobuf::libprotobuf)
-
-# Generate python code
-protobuf_generate_python(PROTO_PY_SRCS
-        ${PROTO_PREFIX}/client.proto
-        ${PROTO_PREFIX}/server.proto
-        ${PROTO_PREFIX}/storage.proto
-        ${PROTO_PREFIX}/transaction.proto
-        ${PROTO_PREFIX}/message.proto
-        )
-# Copy generated python code to the "tools" directory
-set(PROTO_PY_DEST_DIR ${CMAKE_SOURCE_DIR}/tools)
-set(PROTO_PY_DEST_SRCS "")
-foreach(FULL_PATH ${PROTO_PY_SRCS})
-    # /base/path/relative/path/file_name.py => relative/path/file_name.py
-    file(
-            RELATIVE_PATH
-            RELATIVE_DIR_AND_FILE_NAME
-            ${CMAKE_BINARY_DIR}
-            ${FULL_PATH})
-
-    # relative/path/file_name.py => relative/path
-    get_filename_component(RELATIVE_DIR ${RELATIVE_DIR_AND_FILE_NAME} DIRECTORY)
-
-    set(PROTO_PY_DEST_SRC ${PROTO_PY_DEST_DIR}/${RELATIVE_DIR_AND_FILE_NAME})
-    add_custom_command(
-            OUTPUT ${PROTO_PY_DEST_SRC}
-            COMMAND mkdir -p ${PROTO_PY_DEST_DIR}/${RELATIVE_DIR} && cp ${FULL_PATH} ${PROTO_PY_DEST_SRC}
-            DEPENDS ${FULL_PATH}
-    )
-    list(APPEND PROTO_PY_DEST_SRCS ${PROTO_PY_DEST_SRC})
-endforeach(FULL_PATH)
-# Trigger the python code generation and copy commands
-add_custom_target(proto_py ALL DEPENDS ${PROTO_PY_DEST_SRCS})
-
-#========================================
-#            Build flags
-#========================================
-set(CMAKE_CXX_FLAGS "-Wall -Wextra")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
-set(CMAKE_CXX_FLAGS_DEBUG  "-g -fno-omit-frame-pointer")
-set(CMAKE_CXX_FLAGS_ASAN "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
-set(CMAKE_CXX_FLAGS_UBSAN "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=undefined")
-set(CMAKE_CXX_FLAGS_TSAN "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=thread")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} ${CMAKE_CXX_FLAGS_DEBUG} -DNDEBUG")
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-#========================================
-#            Library
-#========================================
 include_directories("${CMAKE_SOURCE_DIR}/rust/tikv_client/include")
-include_directories("${CMAKE_SOURCE_DIR}/include")
 
-add_subdirectory("src")
+## ---- Add source files and Create project library----
+## Note: globbing sources is considered bad practice as CMake's generators may not detect new files
+## automatically. Keep that in mind when changing files, or explicitly mention them here.
+file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
+file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+# Note: for header-only libraries change all PUBLIC flags to INTERFACE and create an interface
+# target: add_library(${PROJECT_NAME} INTERFACE)
+add_library(${PROJECT_NAME} ${headers} ${sources})
+set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 
-add_executable(Taas main.cpp)
 
-target_include_directories(Taas PUBLIC taas_core proto gflags cppzmq)
+# being a cross-platform target, we enforce standards conformance on MSVC
+target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
 
-target_link_directories(Taas PUBLIC "${CMAKE_BINARY_DIR}/lib")
+# NOTE: DO NOT LINK BRPC.SO AND BRAFT.SO TOGETHER
+SET(COMMON_DEPENDENCIES
+        glog
+        yaml-cpp
+        fmt
+        pthread
+        zmq
+        #        braft
+        gtl
+        protobuf
+        tcmalloc
+        rapidjson
+        ${PROJECT_NAME}_proto proto cppzmq-static tikv_client pthread dl ssl crypto
+        )
 
-target_link_libraries(Taas taas_core proto gflags cppzmq tikv_client pthread dl ssl crypto)
+# Link dependencies
+# https://stackoverflow.com/questions/58997230/cmake-project-fails-to-find-shared-library
+target_link_libraries(${PROJECT_NAME}
+        PRIVATE
+        ${COMMON_DEPENDENCIES}
+        "-Wl,--disable-new-dtags")
+
+target_include_directories(
+        ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
+)
+
+# ---- Create an installable target ----
+# this allows users to install and find the library via `find_package()`.
+# the location where the project's version header will be placed should match the project's regular
+# header paths
+string(TOLOWER ${PROJECT_NAME}/version.h VERSION_HEADER_LOCATION)
+#add_subdirectory(Taas-Sharding)
+#include_directories("${CMAKE_SOURCE_DIR}/rust/tikv_client/include")
+#include_directories("${CMAKE_SOURCE_DIR}/include")
+#add_subdirectory("src")
+
+
+# ---- Create sharding executable ----
+
+add_executable(${PROJECT_NAME}_sharding main.cpp)
+set_target_properties(${PROJECT_NAME}_sharding PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "Taas_sharding")
+target_link_libraries(${PROJECT_NAME}_sharding Taas cxxopts ${COMMON_DEPENDENCIES})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##========================================
+##            Library
+##========================================
+#include_directories("${CMAKE_SOURCE_DIR}/rust/tikv_client/include")
+#include_directories("${CMAKE_SOURCE_DIR}/include")
+#
+#add_subdirectory("src")
+#
+#add_executable(Taas main.cpp)
+#
+#target_include_directories(Taas PUBLIC taas_core proto gflags cppzmq)
+#
+#target_link_directories(Taas PUBLIC "${CMAKE_BINARY_DIR}/lib")
+#
+#target_link_libraries(Taas taas_core proto gflags cppzmq tikv_client pthread dl ssl crypto)
