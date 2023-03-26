@@ -11,20 +11,26 @@ namespace Taas {
     class MessageSendHandler {
     public:
         static bool SendTxnCommitResultToClient(Context& ctx, proto::Transaction& txn, proto::TxnState txn_state);
-        static bool SendTaskToPackThread(Context& ctx, uint64_t &epoch, uint64_t to_whom, proto::TxnType txn_type);
-        static bool SendTxnToPackThread(Context& ctx, proto::Transaction& txn, proto::TxnType txn_type);
+        static bool SendTxnToServer(Context& ctx, uint64_t &epoch, uint64_t& to_whom, proto::Transaction &txn, proto::TxnType txn_type);
+        static bool SendRemoteServerTxn(Context& ctx, uint64_t &epoch, uint64_t& to_whom, proto::Transaction &txn, proto::TxnType& txn_type);
+        static bool SendBackUpTxn(Context& ctx, uint64_t &epoch, uint64_t& to_whom, proto::Transaction &txn, proto::TxnType& txn_type);
+        static bool SendACK(Context& ctx, uint64_t &epoch, uint64_t& to_whom, proto::Transaction &txn, proto::TxnType& txn_type);
 
-        static bool HandlerSendTask(uint64_t& id, Context& ctx);
+        void Init(uint64_t &id, Context& ctx);
 
-        static bool SendEpochEndMessage(uint64_t& id, Context& ctx, std::vector<uint64_t>& send_epoch);
-        static bool SendBackUpEpochEndMessage(uint64_t& id, Context& ctx, uint64_t& send_epoch);
-        static bool SendAbortSet(uint64_t& id, Context& ctx, uint64_t& send_epoch);
-        static bool SendInsertSet(uint64_t& id, Context& ctx, uint64_t& send_epoch);
-        static bool SendACK(uint64_t &id, Context &ctx, uint64_t &send_epoch, uint64_t to_whom, proto::TxnType txn_type);
+        ///一下函数都由0号线程执行
+        bool SendEpochEndMessage(uint64_t& id, Context& ctx);
+        bool SendBackUpEpochEndMessage(uint64_t& id, Context& ctx);
+        bool SendAbortSet(uint64_t& id, Context& ctx);
+        bool SendInsertSet(uint64_t& id, Context& ctx);
+
 
     private:
-//        static AtomicCounters_Cache ///epoch, server_id, num
-//            sharding_send_txn_num, backup_send_txn_num;
+        uint64_t backup_send_epoch = 1, abort_set_send_epoch = 1, insert_set_send_epoch = 1;
+        std::vector<uint64_t> sharding_send_epoch;
+        bool sleep_flag = false;
+        std::unique_ptr<pack_params> pack_param;
+
 
     };
 }

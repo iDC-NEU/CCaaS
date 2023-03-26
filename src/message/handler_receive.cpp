@@ -73,13 +73,15 @@ namespace Taas {
                 }
                 else {
                     sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
-                    MessageSendHandler::SendTxnToPackThread(ctx, *(sharding_row_vector[i]), proto::TxnType::RemoteServerTxn);
+                    MessageSendHandler::SendTxnToServer(ctx, message_epoch,
+                                                        i, *(sharding_row_vector[i]), proto::TxnType::RemoteServerTxn);
                 }
             }
         }
         {///backup sending full txn
             backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-            MessageSendHandler::SendTxnToPackThread(ctx, *(txn_ptr), proto::TxnType::BackUpTxn);
+            MessageSendHandler::SendTxnToServer(ctx, message_epoch,
+                                                message_server_id, *(txn_ptr), proto::TxnType::BackUpTxn);
         }
         sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
         return true;
@@ -111,7 +113,10 @@ namespace Taas {
                 message_sharding_id = txn_ptr->sharding_id();
                 Sharding();
                 assert(txn_ptr != nullptr);
-                local_txn_cache[message_epoch_mod][message_server_id]->push(std::move(txn_ptr));
+                epoch_lical_txn_queue[epoch_mod]->enqueue(std::move(txn_ptr));
+                epoch_lical_txn_queue[epoch_mod]->enqueue(nullptr);
+                EpochManager::should_commit_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
+                enqueued_local_txn_queue_txn_num.IncCount(epoch_mod, ctx.txn_node_ip_index, 1);
                 break;
             }
             case proto::TxnType::RemoteServerTxn : {
@@ -218,70 +223,53 @@ namespace Taas {
  * @return false
  */
     bool MessageReceiveHandler::HandleTxnCache() {
-        epoch_mod = EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength;
-        sleep_flag = false;
-        if (epoch != epoch_mod) {
-            clear_epoch = epoch;
-            epoch = epoch_mod;
-        }
 
+        epoch_mod = epoch % ctx.kCacheMaxLength;
         ///收集一个epoch的完整的写集后才能放到merge_queue中
         ///将远端发送过来的当前epoch的（分片）事务进行合并，生成abort set
-        if (server_dequeue_id != ctx.txn_node_ip_index &&
-            MessageReceiveHandler::CheckTxnReceiveComplete()) {
-            while (!sharding_cache[epoch_mod][server_dequeue_id]->empty()) {
-                auto txn_ptr_tmp = std::move(sharding_cache[epoch_mod][server_dequeue_id]->front());
-                sharding_cache[epoch_mod][server_dequeue_id]->pop();
-                sharding_should_enqueue_merge_queue_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
-                if (!merge_queue.enqueue(std::move(txn_ptr_tmp))) {
-                    assert(false);
+        if(!EpochManager::IsShardingMergeComplete(epoch_mod)) {
+            if (server_dequeue_id != ctx.txn_node_ip_index &&
+                MessageReceiveHandler::CheckTxnReceiveComplete()) {
+                while (!sharding_cache[epoch_mod][server_dequeue_id]->empty()) {
+                    auto txn_ptr_tmp = std::move(sharding_cache[epoch_mod][server_dequeue_id]->front());
+                    sharding_cache[epoch_mod][server_dequeue_id]->pop();
+                    sharding_should_enqueue_merge_queue_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
+                    epoch_merge_queue[epoch_mod]->enqueue(std::move(txn_ptr_tmp));
+                    epoch_merge_queue[epoch_mod]->enqueue(nullptr);
+                    EpochManager::should_merge_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
+                    sharding_enqueued_merge_queue_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
                 }
-                if (!merge_queue.enqueue(nullptr)) {
-                    assert(false);
-                }
+                sleep_flag = true;
+            }
+            server_dequeue_id = (server_dequeue_id + 1) % ctx.kTxnNodeNum;
+
+            ///local txn -> merge_queue 将本地的当前epoch的分片事务进行合并，生成abort set
+            while (!sharding_cache[epoch_mod][ctx.txn_node_ip_index]->empty()) {
+                auto txn_ptr_tmp = std::move(sharding_cache[epoch_mod][ctx.txn_node_ip_index]->front());
+                sharding_cache[epoch_mod][ctx.txn_node_ip_index]->pop();
+                epoch_merge_queue[epoch_mod]->enqueue(std::move(txn_ptr_tmp));
+                epoch_merge_queue[epoch_mod]->enqueue(nullptr);
                 EpochManager::should_merge_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
-                sharding_enqueued_merge_queue_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
+                sharding_enqueued_merge_queue_txn_num.IncCount(epoch_mod, ctx.txn_node_ip_index, 1);
+                sleep_flag = true;
             }
-            while (!sharding_cache[clear_epoch][server_dequeue_id]->empty())
-                sharding_cache[clear_epoch][server_dequeue_id]->pop();
-            sleep_flag = true;
-        }
-        server_dequeue_id = (server_dequeue_id + 1) % ctx.kTxnNodeNum;
 
-        ///local txn -> merge_queue 将本地的当前epoch的分片事务进行合并，生成abort set
-        while (!sharding_cache[epoch_mod][ctx.txn_node_ip_index]->empty()) {
-            auto txn_ptr_tmp = std::move(sharding_cache[epoch_mod][ctx.txn_node_ip_index]->front());
-            sharding_cache[epoch_mod][ctx.txn_node_ip_index]->pop();
-            if (!merge_queue.enqueue(std::move(txn_ptr_tmp))) {
-                assert(false);
+
+            ///local txn -> local_txn_queue 做redo log时，使用整个事务，而不是当前分片的自事务
+            ///如果使用分片事务做redo log，则使用commit_queue
+            while (!local_txn_cache[epoch_mod][ctx.txn_node_ip_index]->empty()) {
+                auto txn_ptr_tmp = std::move(local_txn_cache[epoch_mod][ctx.txn_node_ip_index]->front());
+                local_txn_cache[epoch_mod][ctx.txn_node_ip_index]->pop();
+                epoch_lical_txn_queue[epoch_mod]->enqueue(std::move(txn_ptr_tmp));
+                epoch_lical_txn_queue[epoch_mod]->enqueue(nullptr);
+                EpochManager::should_commit_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
+                enqueued_local_txn_queue_txn_num.IncCount(epoch_mod, ctx.txn_node_ip_index, 1);
+                sleep_flag = true;
             }
-            if (!merge_queue.enqueue(nullptr)) {
-                assert(false);
-            }
-            EpochManager::should_merge_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
-            sharding_enqueued_merge_queue_txn_num.IncCount(epoch_mod, ctx.txn_node_ip_index, 1);
-            sleep_flag = true;
+            sleep_flag = sleep_flag | ClearCache();
         }
 
-        ///local txn -> local_txn_queue 做redo log时，使用整个事务，而不是当前分片的自事务
-        ///如果使用分片事务做redo log，则使用commit_queue
-        while (!local_txn_cache[epoch_mod][ctx.txn_node_ip_index]->empty()) {
-            assert(local_txn_cache[epoch_mod][ctx.txn_node_ip_index]->front() != NULL);
-            auto txn_ptr_tmp = std::move(local_txn_cache[epoch_mod][ctx.txn_node_ip_index]->front());
-            local_txn_cache[epoch_mod][ctx.txn_node_ip_index]->pop();
-            assert(txn_ptr_tmp != nullptr);
-            if (!local_txn_queue.enqueue(std::move(txn_ptr_tmp))) {
-                assert(false);
-            }
-            if (!local_txn_queue.enqueue(nullptr)) {
-                assert(false);
-            }
-            EpochManager::should_commit_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
-            enqueued_local_txn_queue_txn_num.IncCount(epoch_mod, ctx.txn_node_ip_index, 1);
-            sleep_flag = true;
-        }
 
-        sleep_flag = sleep_flag | ClearCache();
 
         return sleep_flag;
     }
@@ -295,20 +283,20 @@ namespace Taas {
                     backup_should_receive_txn_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id)
             ) {
                 ///send reply message
-                MessageSendHandler::SendTaskToPackThread(ctx, backup_send_ack_epoch_num[server_reply_ack_id],
-                                                        server_reply_ack_id, proto::TxnType::BackUpACK);
+                MessageSendHandler::SendTxnToServer(ctx, backup_send_ack_epoch_num[server_reply_ack_id],
+                                                        server_reply_ack_id, empty_txn, proto::TxnType::BackUpACK);
                 backup_send_ack_epoch_num[server_reply_ack_id] ++;
                 res = true;
             }
             if(sharding_received_abort_set_num.GetCount(backup_insert_set_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0) {
-                MessageSendHandler::SendTaskToPackThread(ctx, backup_insert_set_send_ack_epoch_num[server_reply_ack_id],
-                                                        server_reply_ack_id, proto::TxnType::AbortSetACK);
+                MessageSendHandler::SendTxnToServer(ctx, backup_insert_set_send_ack_epoch_num[server_reply_ack_id],
+                                                        server_reply_ack_id, empty_txn, proto::TxnType::AbortSetACK);
                 backup_insert_set_send_ack_epoch_num[server_reply_ack_id] ++;
                 res = true;
             }
             if(insert_set_received_num.GetCount(abort_set_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0) {
-                MessageSendHandler::SendTaskToPackThread(ctx, abort_set_send_ack_epoch_num[server_reply_ack_id],
-                                                        server_reply_ack_id, proto::TxnType::InsertSetACK);
+                MessageSendHandler::SendTxnToServer(ctx, abort_set_send_ack_epoch_num[server_reply_ack_id],
+                                                        server_reply_ack_id, empty_txn, proto::TxnType::InsertSetACK);
                 abort_set_send_ack_epoch_num[server_reply_ack_id] ++;
                 res = true;
             }
@@ -330,7 +318,7 @@ namespace Taas {
         message_ptr = nullptr;
         txn_ptr = nullptr;
         pack_param = nullptr;
-        server_dequeue_id = 0, epoch_mod = 0, epoch = 0, clear_epoch = 0, max_length = 0;
+        server_dequeue_id = 0, epoch_mod = 0, epoch = 0, max_length = 0;
         res = false, sleep_flag = false;
         thread_id = id;
         ctx = std::move(context);

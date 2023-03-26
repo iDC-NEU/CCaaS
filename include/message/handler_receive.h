@@ -38,7 +38,7 @@ namespace Taas {
         std::unique_ptr<pack_params> pack_param;
         std::string csn_temp, key_temp, key_str, table_name, csn_result;
         uint64_t thread_id = 0,
-                server_dequeue_id = 0, epoch_mod = 0, epoch = 0, clear_epoch = 0,max_length = 0,sharding_num = 0,///cache check
+                server_dequeue_id = 0, epoch_mod = 0, epoch = 0, max_length = 0,sharding_num = 0,///cache check
                 message_epoch = 0, message_epoch_mod = 0, message_sharding_id = 0, message_server_id = 0, ///message epoch info
                 server_reply_ack_id = 0,
                 cache_clear_epoch_num = 0, cache_clear_epoch_num_mod = 0,
@@ -48,7 +48,7 @@ namespace Taas {
         bool res, sleep_flag;
 
         Context ctx;
-
+        proto::Transaction empty_txn;
         std::hash<std::string> _hash;
 
     public:

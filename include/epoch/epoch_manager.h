@@ -59,6 +59,10 @@ namespace Taas {
     ///local_txn_queue 本地接收到的完整的事务
     ///merge_queue 当前epoch的涉及当前分片的子事务
     ///commit_queue 当前epoch的能提交的涉及当前分片的子事务
+    extern std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>> epoch_lical_txn_queue, ///stroe whole txn receive from client (used to push log down to storage)
+            epoch_merge_queue, /// store sharding transactions receive from servers, wait to update row header
+            epoch_commit_queue,///store sharding transactions receive from servers, wait to validate
+            epoch_redo_log_queue; ///store transactions receive from clients, wait to push down
     extern BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>> local_txn_queue, merge_queue, commit_queue, redo_log_queue;
     extern BlockingConcurrentQueue<std::unique_ptr<pack_params>> pack_txn_queue;
     extern BlockingConcurrentQueue<std::unique_ptr<proto::Message>> request_queue, raft_message_queue;
@@ -92,30 +96,30 @@ namespace Taas {
     class EpochManager {
     private:
         static bool timerStop;
-        static volatile bool merge_complete, abort_set_merge_complete, commit_complete, record_committed, is_current_epoch_abort;
         static volatile uint64_t logical_epoch, physical_epoch;
     public:
 
         static Context ctx;
-        // cache_max_length
         static uint64_t max_length;
-        // for concurrency , atomic_counters' num
         static uint64_t pack_num;
+        static std::vector<std::unique_ptr<std::atomic<bool>>>
+                    merge_complete, abort_set_merge_complete,
+                    commit_complete, record_committed,
+                    is_current_epoch_abort;
         static AtomicCounters_Cache ///epoch, index, value
         ///epoch事务合并状态
         should_merge_txn_num, merged_txn_num,
         ///epoch事务提交状态
         should_commit_txn_num, committed_txn_num,
         ///epoch日志写入状态
-        record_commit_txn_num, record_committed_txn_num
-        ///debug用
-        ;
+        record_commit_txn_num, record_committed_txn_num;
+        static AtomicCounters ///epoch, value        for epoch log (each epoch has single one counter)
+        epoch_log_lsn;
 
-        static AtomicCounters ///index, value
-        /// 集群状态
-        server_state, epoch_log_lsn; /// epoch, csn(atomic increase)
+        static AtomicCounters_Cache ///epoch, index, value  for 集群状态
+        server_state; /// epoch, csn(atomic increase)
 
-        static std::unique_ptr<std::atomic<uint64_t>> should_receive_pack_num, online_server_num;
+        static  std::vector<std::unique_ptr<std::atomic<uint64_t>>> should_receive_pack_num, online_server_num;
 
         static std::vector<std::unique_ptr<concurrent_crdt_unordered_map<std::string, std::string, std::string>>> epoch_merge_map,
                 local_epoch_abort_txn_set, epoch_abort_txn_set;
@@ -126,7 +130,7 @@ namespace Taas {
         static std::vector<std::unique_ptr<std::vector<proto::Transaction>>> redo_log; // [epoch_no]<no, serialize(PB::txn)>
         static std::vector<std::unique_ptr<concurrent_unordered_map<std::string, proto::Transaction>>> committed_txn_cache;
 
-        ///cache server
+        ///fault tolerance cache server mod
         static std::vector<std::unique_ptr<std::atomic<uint64_t>>>  received_epoch;
 
         static tikv_client::TransactionClient* tikv_client_ptr;
@@ -134,20 +138,20 @@ namespace Taas {
         static void SetTimerStop(bool value) {timerStop = value;}
         static bool IsTimerStop() {return timerStop;}
 
-        static bool IsMergeComplete() {return merge_complete;}
-        static void SetMergeComplete(bool value) {merge_complete = value;}
+        static bool IsShardingMergeComplete(uint64_t epoch) {return merge_complete[epoch % max_length]->load();}
+        static void SetShardingMergeComplete(uint64_t epoch, bool value) {merge_complete[epoch % max_length]->store(value);}
 
-        static bool IsAbortSetMergeComplete() {return abort_set_merge_complete;}
-        static void SetAbortSetMergeComplete(bool value) {abort_set_merge_complete = value;}
+        static bool IsAbortSetMergeComplete(uint64_t epoch) {return abort_set_merge_complete[epoch % max_length]->load();}
+        static void SetAbortSetMergeComplete(uint64_t epoch, bool value) {abort_set_merge_complete[epoch % max_length]->store(value);}
 
-        static bool IsCommitComplete() {return commit_complete;}
-        static void SetCommitComplete(bool value) {commit_complete = value;}
+        static bool IsCommitComplete(uint64_t epoch) {return commit_complete[epoch % max_length]->load();}
+        static void SetCommitComplete(uint64_t epoch, bool value) {commit_complete[epoch % max_length]->store(value);}
 
-        static bool IsRecordCommitted(){ return record_committed;}
-        static void SetRecordCommitted(bool value){ record_committed = value;}
+        static bool IsRecordCommitted(uint64_t epoch){ return record_committed[epoch % max_length]->load();}
+        static void SetRecordCommitted(uint64_t epoch, bool value){ record_committed[epoch % max_length]->store(value);}
 
-        static bool IsCurrentEpochAbort(){ return is_current_epoch_abort;}
-        static void SetCurrentEpochAbort(bool value){ is_current_epoch_abort = value;}
+        static bool IsCurrentEpochAbort(uint64_t epoch){ return is_current_epoch_abort[epoch % max_length]->load();}
+        static void SetCurrentEpochAbort(uint64_t epoch, bool value){ is_current_epoch_abort[epoch % max_length]->store(value);}
 
         static void SetPhysicalEpoch(int value){ physical_epoch = value;}
         static uint64_t AddPhysicalEpoch(){ return ++ physical_epoch;}
@@ -162,6 +166,13 @@ namespace Taas {
             merge_complete = commit_complete = record_committed = false;
 
             epoch_mod %= max_length;
+
+            merge_complete[epoch_mod]->store(false);
+            abort_set_merge_complete[epoch_mod]->store(false);
+            commit_complete[epoch_mod]->store(false);
+            record_committed[epoch_mod]->store(false);
+            is_current_epoch_abort[epoch_mod]->store(false);
+
             epoch_merge_map[epoch_mod]->clear();
             epoch_insert_set[epoch_mod]->clear();
             epoch_abort_txn_set[epoch_mod]->clear();
@@ -179,31 +190,39 @@ namespace Taas {
             epoch_log_lsn.SetCount(epoch_mod, 0);
         }
 
-
-        static uint64_t AddShouldReceivePackNum(uint64_t value) {
-            return should_receive_pack_num->fetch_add(value);
-        }
-        static uint64_t SubShouldReceivePackNum(uint64_t value) {
-            return should_receive_pack_num->fetch_sub(value);
-        }
-        static void StoreShouldReceivePackNum(uint64_t value) {
-            should_receive_pack_num->store(value);
-        }
-        static uint64_t GetShouldReceivePackNum() {
-            return should_receive_pack_num->load();
+        static void EpochCacheSafeCheck() {
+            if((GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength) ) {
+                printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                printf("+++++++++++++++Fata : Cache Size exceeded!!! +++++++++++++++++++++\n");
+                printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                assert(false);
+            }
         }
 
-        static uint64_t AddOnLineServerNum(uint64_t value) {
-            return online_server_num->fetch_add(value);
+        static uint64_t AddShouldReceivePackNum(uint64_t epoch, uint64_t value) {
+            return should_receive_pack_num[epoch % max_length]->fetch_add(value);
         }
-        static uint64_t SubOnLineServerNum(uint64_t value) {
-            return online_server_num->fetch_sub(value);
+        static uint64_t SubShouldReceivePackNum(uint64_t epoch, uint64_t value) {
+            return should_receive_pack_num[epoch % max_length]->fetch_sub(value);
         }
-        static void StoreOnLineServerNum(uint64_t value) {
-            online_server_num->store(value);
+        static void StoreShouldReceivePackNum(uint64_t epoch, uint64_t value) {
+            should_receive_pack_num[epoch % max_length]->store(value);
         }
-        static uint64_t GetOnLineServerNum() {
-            return online_server_num->load();
+        static uint64_t GetShouldReceivePackNum(uint64_t epoch) {
+            return should_receive_pack_num[epoch % max_length]->load();
+        }
+
+        static uint64_t AddOnLineServerNum(uint64_t epoch, uint64_t value) {
+            return online_server_num[epoch % max_length]->fetch_add(value);
+        }
+        static uint64_t SubOnLineServerNum(uint64_t epoch, uint64_t value) {
+            return online_server_num[epoch % max_length]->fetch_sub(value);
+        }
+        static void StoreOnLineServerNum(uint64_t epoch, uint64_t value) {
+            online_server_num[epoch % max_length]->store(value);
+        }
+        static uint64_t GetOnLineServerNum(uint64_t epoch) {
+            return online_server_num[epoch % max_length]->load();
         }
 
         static void SetServerOnLine(std::string ip) {
