@@ -18,42 +18,52 @@ namespace Taas {
  * @return true
  * @return false
  */
-    void Run(uint64_t id, Context ctx) {
+
+    void StateChecker(uint64_t id, Context ctx) {
         Merger merger;
         merger.Init(id, std::move(ctx));
 
         auto sleep_flag = false;
         std::unique_ptr<pack_params> pack_param;
-
+        std::unique_ptr<proto::Transaction> txn_ptr;
         MessageReceiveHandler receiveHandler;
         MessageSendHandler sendHandler;
-        sendHandler.Init(id, ctx);
+        sendHandler.Init(ctx);
         receiveHandler.Init(id, ctx);
+        uint64_t redo_log_epoch = 1, merge_epoch = 1;
         while (!init_ok.load()) usleep(100);
+
+        while (!EpochManager::IsTimerStop()) {
+            sleep_flag = sleep_flag | receiveHandler.StaticClear();///clear receive handler cache
+            sleep_flag = sleep_flag | receiveHandler.CheckReceivedStatesAndReply();/// check and send ack
+
+            sleep_flag = sleep_flag | sendHandler.SendEpochEndMessage(ctx);///send epoch end flag
+            sleep_flag = sleep_flag | sendHandler.SendBackUpEpochEndMessage(ctx);///send epoch backup end message
+            sleep_flag = sleep_flag | sendHandler.SendAbortSet(ctx); ///send abort set
+            if(!sleep_flag) usleep(50);
+        }
+    }
+
+    void WorkerThreadMain(uint64_t id, Context ctx) {
+        Merger merger;
+        merger.Init(id, std::move(ctx));
+
+        auto sleep_flag = false;
+        std::unique_ptr<pack_params> pack_param;
+        std::unique_ptr<proto::Transaction> txn_ptr;
+        MessageReceiveHandler receiveHandler;
+        MessageSendHandler sendHandler;
+        sendHandler.Init(ctx);
+        receiveHandler.Init(id, ctx);
+        uint64_t redo_log_epoch = 1, merge_epoch = 1;
+        while (!init_ok.load()) usleep(100);
+
         while(!EpochManager::IsTimerStop()) {
             EpochManager::EpochCacheSafeCheck();
-
-            sleep_flag = sleep_flag | sendHandler.HandlerSendTask(id, ctx);
-
             sleep_flag = sleep_flag | receiveHandler.HandleReceivedMessage();
-            sleep_flag = sleep_flag | receiveHandler.HandleTxnCache();
-
             sleep_flag = sleep_flag | merger.EpochMerge();
             sleep_flag = sleep_flag | merger.EpochCommit_RedoLog_TxnMode();
-
-
-            if(id == 0) {
-                sleep_flag = sleep_flag | receiveHandler.CheckReceivedStatesAndReply();
-                sleep_flag = sleep_flag | receiveHandler.ClearStaticCounters();
-
-                sleep_flag = sleep_flag | sendHandler.SendEpochEndMessage(id, ctx);
-                sleep_flag = sleep_flag | sendHandler.SendBackUpEpochEndMessage(id, ctx);
-                sleep_flag = sleep_flag | sendHandler.SendAbortSet(id, ctx); ///send abort set
-//            sleep_flag = sleep_flag | sendHandler.SendInsertSet(id, ctx, isnert_set_send_epoch);///send abort set
-            }
-
-            sleep_flag = sleep_flag | sendTransactionToTiKV();
-
+            sleep_flag = sleep_flag | sendTransactionToTiKV(EpochManager::GetPushDownEpoch() % ctx.kCacheMaxLength, txn_ptr);
             if(!sleep_flag) usleep(50);
         }
 

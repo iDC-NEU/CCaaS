@@ -1,5 +1,9 @@
 # Taas
 
-install rust to build tikv_client
+ubuntu:
 
-cmakelist has some problems, you need to install zmq and protobuf(3.20.1) first.
+apt install libtool make autoconf g++-11 zlib1g-dev libgoogle-perftools-dev libssl-dev
+
+apt install g++
+
+versions: protobuf(v3.20.1), zmq(v3/v4)

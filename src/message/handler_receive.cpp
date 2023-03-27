@@ -9,41 +9,197 @@
 #include "tools/utilities.h"
 
 namespace Taas {
+    std::vector<uint64_t>
+            MessageReceiveHandler::sharding_send_ack_epoch_num,
+            MessageReceiveHandler::backup_send_ack_epoch_num,
+            MessageReceiveHandler::backup_insert_set_send_ack_epoch_num,
+            MessageReceiveHandler::abort_set_send_ack_epoch_num; /// check and reply ack
 
-    AtomicCounters_Cache ///epoch, index, value
+    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
+        MessageReceiveHandler::epoch_remote_sharding_txn,
+        MessageReceiveHandler::epoch_local_sharding_txn,
+        MessageReceiveHandler::epoch_local_txn,
+        MessageReceiveHandler::epoch_backup_txn,
+        MessageReceiveHandler::epoch_insert_set,
+        MessageReceiveHandler::epoch_abort_set;
+    ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
+    AtomicCounters_Cache ///epoch, server_id, value
+        ///local txn counters
         MessageReceiveHandler::sharding_should_handle_local_txn_num(10, 2),
         MessageReceiveHandler::sharding_handled_local_txn_num(10, 2),
         MessageReceiveHandler::sharding_should_send_txn_num(10, 2),
-        MessageReceiveHandler::sharding_send_txn_num(10, 2);
-
-    AtomicCounters_Cache ///epoch, index, value
+        MessageReceiveHandler::sharding_send_txn_num(10, 2),
+        ///remote sharding txn counters
         MessageReceiveHandler::sharding_should_receive_pack_num(10, 2),
         MessageReceiveHandler::sharding_received_pack_num(10, 2),
         MessageReceiveHandler::sharding_should_receive_txn_num(10, 2),
         MessageReceiveHandler::sharding_received_txn_num(10, 2),
+        ///local sharding txn counters
         MessageReceiveHandler::sharding_should_enqueue_merge_queue_txn_num(10, 2),
         MessageReceiveHandler::sharding_enqueued_merge_queue_txn_num(10, 2),
         MessageReceiveHandler::should_enqueue_local_txn_queue_txn_num(10, 2),
-        MessageReceiveHandler::enqueued_local_txn_queue_txn_num(10, 2);
-
-    AtomicCounters_Cache ///epoch, index, value
+        MessageReceiveHandler::enqueued_local_txn_queue_txn_num(10, 2),
+        ///sharding ack
+        MessageReceiveHandler::sharding_received_ack_num(10, 2),
+        ///backup txn counters
         MessageReceiveHandler::backup_should_send_txn_num(10, 2),
         MessageReceiveHandler::backup_send_txn_num(10, 2),
         MessageReceiveHandler::backup_should_receive_pack_num(10, 2),
         MessageReceiveHandler::backup_received_pack_num(10, 2),
         MessageReceiveHandler::backup_should_receive_txn_num(10, 2),
         MessageReceiveHandler::backup_received_txn_num(10, 2),
-        MessageReceiveHandler::backup_received_ack_num(10, 2);
-
-    AtomicCounters_Cache ///epoch, index, value
+        MessageReceiveHandler::backup_received_ack_num(10, 2),
+        ///insert set counters
         MessageReceiveHandler::insert_set_should_receive_num(10, 2),
         MessageReceiveHandler::insert_set_received_num(10, 2),
-        MessageReceiveHandler::insert_set_received_ack_num(10, 2);
-
-    AtomicCounters_Cache ///epoch, index, value
+        MessageReceiveHandler::insert_set_received_ack_num(10, 2),
+        ///abort set counters
         MessageReceiveHandler::sharding_should_receive_abort_set_num(10, 2),
         MessageReceiveHandler::sharding_received_abort_set_num(10, 2),
-        MessageReceiveHandler::sharding_abort_set_received_ack_num(10, 2);
+        MessageReceiveHandler::sharding_abort_set_received_ack_num(10, 2),
+        MessageReceiveHandler::redo_log_push_down_ack_num(10, 2),
+        MessageReceiveHandler::redo_log_push_down_local_epoch(10, 2);
+
+    bool MessageReceiveHandler::Init(uint64_t id, Context context) {
+        message_ptr = nullptr;
+        txn_ptr = nullptr;
+//        pack_param = nullptr;
+        server_dequeue_id = 0, epoch_mod = 0;
+//        epoch = 0, max_length = 0;
+//        res = false, sleep_flag = false;
+        thread_id = id;
+        ctx = std::move(context);
+        max_length = ctx.kCacheMaxLength;
+        sharding_num = ctx.kTxnNodeNum;
+
+        return true;
+    }
+
+    bool MessageReceiveHandler::StaticInit(const Context& context) {
+        auto max_length = context.kCacheMaxLength;
+        auto sharding_num = context.kTxnNodeNum;
+
+        sharding_send_ack_epoch_num.reserve(sharding_num + 1);
+        backup_send_ack_epoch_num.reserve(sharding_num + 1);
+        backup_insert_set_send_ack_epoch_num.reserve(sharding_num + 1);
+        abort_set_send_ack_epoch_num.reserve(sharding_num + 1);
+        for(int i = 0; i <= (int) sharding_num; i ++ ) { /// start at 1, not 0
+            sharding_send_ack_epoch_num.emplace_back(1);
+            backup_send_ack_epoch_num.emplace_back(1);
+            backup_insert_set_send_ack_epoch_num.emplace_back(1);
+            abort_set_send_ack_epoch_num.emplace_back(1);
+        }
+
+        epoch_remote_sharding_txn.resize(EpochManager::max_length);
+        epoch_local_sharding_txn.resize(EpochManager::max_length);
+        epoch_local_txn.resize(EpochManager::max_length);
+        epoch_backup_txn.resize(EpochManager::max_length);
+        epoch_insert_set.resize(EpochManager::max_length);
+        epoch_abort_set.resize(EpochManager::max_length);
+
+        for(int i = 0; i < static_cast<int>(EpochManager::max_length); i ++) {
+            epoch_remote_sharding_txn[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+            epoch_local_sharding_txn[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+            epoch_local_txn[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+            epoch_backup_txn[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+            epoch_insert_set[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+            epoch_abort_set[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+        }
+
+        sharding_should_receive_pack_num.Init(max_length, sharding_num),
+        sharding_received_pack_num.Init(max_length, sharding_num),
+        sharding_should_receive_txn_num.Init(max_length, sharding_num),
+        sharding_received_txn_num.Init(max_length, sharding_num),
+
+        sharding_should_enqueue_merge_queue_txn_num.Init(max_length, sharding_num),
+        sharding_enqueued_merge_queue_txn_num.Init(max_length, sharding_num),
+        should_enqueue_local_txn_queue_txn_num.Init(max_length, sharding_num),
+        enqueued_local_txn_queue_txn_num.Init(max_length, sharding_num),
+
+        sharding_should_handle_local_txn_num.Init(max_length, sharding_num),
+        sharding_handled_local_txn_num.Init(max_length, sharding_num),
+        sharding_should_send_txn_num.Init(max_length, sharding_num),
+        sharding_send_txn_num.Init(max_length, sharding_num),
+
+        sharding_received_ack_num.Init(max_length, sharding_num),
+
+        backup_should_send_txn_num.Init(max_length, sharding_num),
+        backup_send_txn_num.Init(max_length, sharding_num),
+        backup_should_receive_pack_num.Init(max_length, sharding_num),
+        backup_received_pack_num.Init(max_length, sharding_num),
+        backup_should_receive_txn_num.Init(max_length, sharding_num),
+        backup_received_txn_num.Init(max_length, sharding_num),
+        backup_received_ack_num.Init(max_length, sharding_num),
+
+
+        insert_set_should_receive_num.Init(max_length, sharding_num),
+        insert_set_received_num.Init(max_length, sharding_num),
+        insert_set_received_ack_num.Init(max_length, sharding_num),
+
+        sharding_should_receive_abort_set_num.Init(max_length, sharding_num),
+        sharding_received_abort_set_num.Init(max_length, sharding_num);
+        sharding_abort_set_received_ack_num.Init(max_length, sharding_num);
+
+        redo_log_push_down_ack_num.Init(max_length, sharding_num);
+        redo_log_push_down_local_epoch.Init(max_length, sharding_num);
+
+        return true;
+    }
+
+    bool MessageReceiveHandler::StaticClear() {
+        res = false;
+        while(cache_clear_epoch_num + 50 < EpochManager::GetLogicalEpoch()) {
+            cache_clear_epoch_num_mod = cache_clear_epoch_num % ctx.kCacheMaxLength;
+            sharding_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 0),
+            sharding_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
+            sharding_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+            sharding_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+
+            sharding_should_enqueue_merge_queue_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+            sharding_enqueued_merge_queue_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+            should_enqueue_local_txn_queue_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+            enqueued_local_txn_queue_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+
+            sharding_should_handle_local_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+            sharding_handled_local_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+            sharding_should_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+            sharding_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+
+            sharding_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
+
+            backup_should_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+            backup_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+            backup_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 0),
+            backup_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
+            backup_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+            backup_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+            backup_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
+
+            insert_set_should_receive_num.Clear(cache_clear_epoch_num_mod, 0),
+            insert_set_received_num.Clear(cache_clear_epoch_num_mod, 0),
+            insert_set_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
+
+            sharding_should_receive_abort_set_num.Clear(cache_clear_epoch_num_mod, 0),
+            sharding_received_abort_set_num.Clear(cache_clear_epoch_num_mod, 0);
+            sharding_abort_set_received_ack_num.Clear(cache_clear_epoch_num_mod, 0);
+
+            redo_log_push_down_ack_num.Clear(cache_clear_epoch_num_mod, 0);
+            redo_log_push_down_local_epoch.Clear(cache_clear_epoch_num_mod, 0);
+
+
+            while (!epoch_remote_sharding_txn[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
+            while (!epoch_local_txn[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
+            while (!epoch_backup_txn[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
+            while (!epoch_insert_set[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
+            while (!epoch_abort_set[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
+
+            cache_clear_epoch_num ++;
+            res = true;
+        }
+        return res;
+    }
+
+
 
 
 
@@ -69,12 +225,17 @@ namespace Taas {
                 ///sharding sending
                 if(i == ctx.txn_node_ip_index) {
                     sharding_should_enqueue_merge_queue_txn_num.IncCount(message_epoch, i, 1);
-                    sharding_cache[message_epoch_mod][ctx.txn_node_ip_index]->push(std::move(sharding_row_vector[i]));
+                    EpochManager::should_merge_txn_num.IncCount(message_epoch, i, 1);
+                    merge_queue.enqueue(std::move(sharding_row_vector[i]));
+                    merge_queue.enqueue(nullptr);
+                    sharding_enqueued_merge_queue_txn_num.IncCount(message_epoch, i, 1);
                 }
                 else {
                     sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
                     MessageSendHandler::SendTxnToServer(ctx, message_epoch,
                                                         i, *(sharding_row_vector[i]), proto::TxnType::RemoteServerTxn);
+                    MessageReceiveHandler::sharding_send_txn_num.IncCount(message_epoch, i, 1);
+                    sharding_send_txn_num.IncCount(message_epoch, i, 1);
                 }
             }
         }
@@ -82,6 +243,12 @@ namespace Taas {
             backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
             MessageSendHandler::SendTxnToServer(ctx, message_epoch,
                                                 message_server_id, *(txn_ptr), proto::TxnType::BackUpTxn);
+            backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+
+            should_enqueue_local_txn_queue_txn_num.IncCount(epoch_mod, ctx.txn_node_ip_index, 1);
+            epoch_backup_txn[message_epoch_mod]->enqueue(std::make_unique<proto::Transaction>(*txn_ptr));
+            epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
+            enqueued_local_txn_queue_txn_num.IncCount(epoch_mod, ctx.txn_node_ip_index, 1);
         }
         sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
         return true;
@@ -93,13 +260,19 @@ namespace Taas {
         for(int i = 0; i < txn_ptr->row_size(); i ++) {
             EpochManager::epoch_insert_set[message_epoch_mod]->insert(txn_ptr->row(i).key(), txn_ptr->row(i).data());
         }
+        return true;
     }
 
-    bool MessageReceiveHandler::HandleReceivedTxn() {
+    bool MessageReceiveHandler::SetMessageRelatedCountersInfo() {
         message_epoch = txn_ptr->commit_epoch();
         message_epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
         message_server_id = txn_ptr->server_id();
         message_sharding_id = txn_ptr->sharding_id();
+        return true;
+    }
+
+    bool MessageReceiveHandler::HandleReceivedTxn() {
+        SetMessageRelatedCountersInfo();
         ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
 
         switch (txn_ptr->txn_type()) {
@@ -107,24 +280,27 @@ namespace Taas {
                 txn_ptr->set_commit_epoch(EpochManager::GetPhysicalEpoch());
                 txn_ptr->set_csn(now_to_us());
                 txn_ptr->set_server_id(ctx.txn_node_ip_index);
-                message_epoch = txn_ptr->commit_epoch();
-                message_epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
-                message_server_id = txn_ptr->server_id();
-                message_sharding_id = txn_ptr->sharding_id();
+                SetMessageRelatedCountersInfo();
+                should_enqueue_local_txn_queue_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+                EpochManager::should_commit_txn_num.IncCount(message_epoch, server_dequeue_id, 1);
                 Sharding();
                 assert(txn_ptr != nullptr);
-                epoch_lical_txn_queue[epoch_mod]->enqueue(std::move(txn_ptr));
-                epoch_lical_txn_queue[epoch_mod]->enqueue(nullptr);
-                EpochManager::should_commit_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
-                enqueued_local_txn_queue_txn_num.IncCount(epoch_mod, ctx.txn_node_ip_index, 1);
+                epoch_local_txn_queue[message_epoch_mod]->enqueue(std::move(txn_ptr));
+                epoch_local_txn_queue[message_epoch_mod]->enqueue(nullptr);
+                enqueued_local_txn_queue_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+
                 break;
             }
             case proto::TxnType::RemoteServerTxn : {
                 if ((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==
                     ((message_epoch_mod + 55) % ctx.kCacheMaxLength))
                     assert(false);
+                sharding_should_enqueue_merge_queue_txn_num.IncCount(message_epoch, message_server_id, 1);
+                EpochManager::should_merge_txn_num.IncCount(message_epoch, message_server_id, 1);
+                merge_queue.enqueue(std::move(txn_ptr));
+                merge_queue.enqueue(nullptr);
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
-                sharding_cache[message_epoch_mod][message_server_id]->push(std::move(txn_ptr));
+                sharding_should_enqueue_merge_queue_txn_num.IncCount(message_epoch, message_server_id, 1);
                 break;
             }
             case proto::TxnType::EpochEndFlag : {
@@ -132,14 +308,13 @@ namespace Taas {
                 sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
                 break;
             }
-            case proto::CommittedTxn:
-                break;
             case proto::TxnType::BackUpTxn : {
                 if ((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==
                     ((message_epoch_mod + 55) % ctx.kCacheMaxLength))
                     assert(false);
+                epoch_backup_txn[message_epoch_mod]->enqueue(std::move(txn_ptr));
+                epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
                 backup_received_txn_num.IncCount(message_epoch,message_server_id, 1);
-                backup_cache[message_epoch_mod][message_server_id]->push(std::move(txn_ptr));
                 break;
             }
             case proto::TxnType::BackUpEpochEndFlag : {
@@ -149,13 +324,19 @@ namespace Taas {
             }
             case proto::TxnType::AbortSet : {
                 UpdateEpochAbortSet();
+                epoch_abort_set[message_epoch_mod]->enqueue(std::move(txn_ptr));
+                epoch_abort_set[message_epoch_mod]->enqueue(nullptr);
                 sharding_received_abort_set_num.IncCount(message_epoch,message_server_id, 1);
-                abort_set_cache[message_epoch_mod][message_server_id]->push(std::move(txn_ptr));
                 break;
             }
             case proto::TxnType::InsertSet : {
+                epoch_insert_set[message_epoch_mod]->enqueue(std::move(txn_ptr));
+                epoch_insert_set[message_epoch_mod]->enqueue(nullptr);
                 insert_set_received_num.IncCount(message_epoch,message_server_id, 1);
-                insert_set_cache[message_epoch_mod][message_server_id]->push(std::move(txn_ptr));
+                break;
+            }
+            case proto::TxnType::EpochShardingACK : {
+                sharding_received_ack_num.IncCount(message_epoch,message_server_id, 1);
                 break;
             }
             case proto::TxnType::BackUpACK : {
@@ -170,11 +351,17 @@ namespace Taas {
                 insert_set_received_ack_num.IncCount(message_epoch,message_server_id, 1);
                 break;
             }
+            case proto::TxnType::EpochLogPushDownComplete : {
+                redo_log_push_down_ack_num.IncCount(message_epoch,message_server_id, 1);
+                break;
+            }
             case proto::NullMark:
                 break;
             case proto::TxnType_INT_MIN_SENTINEL_DO_NOT_USE_:
                 break;
             case proto::TxnType_INT_MAX_SENTINEL_DO_NOT_USE_:
+                break;
+            case proto::CommittedTxn:
                 break;
         }
 
@@ -194,6 +381,7 @@ namespace Taas {
             assert(res);
             if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
                 txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
+                SetMessageRelatedCountersInfo();
                 HandleReceivedTxn();
             } else {
                 request_queue.enqueue(std::move(msg_ptr));
@@ -204,84 +392,31 @@ namespace Taas {
         return sleep_flag;
     }
 
+    bool MessageReceiveHandler::CheckReceivedStatesAndReply() {
+        res = false;
+        ///to all server
 
-    bool MessageReceiveHandler::CheckTxnReceiveComplete() const {
-        return
-                EpochManager::server_state.GetCount(server_dequeue_id) <=
-                sharding_received_pack_num.GetCount(epoch_mod, server_dequeue_id) &&
-
-                sharding_should_receive_txn_num.GetCount(epoch_mod, server_dequeue_id) >=
-                sharding_received_txn_num.GetCount(epoch_mod, server_dequeue_id);
-    }
-
-
-/**
- * @brief check cache
- *
- * @param ctx XML中的配置相关信息
- * @return true
- * @return false
- */
-    bool MessageReceiveHandler::HandleTxnCache() {
-
-        epoch_mod = epoch % ctx.kCacheMaxLength;
-        ///收集一个epoch的完整的写集后才能放到merge_queue中
-        ///将远端发送过来的当前epoch的（分片）事务进行合并，生成abort set
-        if(!EpochManager::IsShardingMergeComplete(epoch_mod)) {
-            if (server_dequeue_id != ctx.txn_node_ip_index &&
-                MessageReceiveHandler::CheckTxnReceiveComplete()) {
-                while (!sharding_cache[epoch_mod][server_dequeue_id]->empty()) {
-                    auto txn_ptr_tmp = std::move(sharding_cache[epoch_mod][server_dequeue_id]->front());
-                    sharding_cache[epoch_mod][server_dequeue_id]->pop();
-                    sharding_should_enqueue_merge_queue_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
-                    epoch_merge_queue[epoch_mod]->enqueue(std::move(txn_ptr_tmp));
-                    epoch_merge_queue[epoch_mod]->enqueue(nullptr);
-                    EpochManager::should_merge_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
-                    sharding_enqueued_merge_queue_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
-                }
-                sleep_flag = true;
-            }
-            server_dequeue_id = (server_dequeue_id + 1) % ctx.kTxnNodeNum;
-
-            ///local txn -> merge_queue 将本地的当前epoch的分片事务进行合并，生成abort set
-            while (!sharding_cache[epoch_mod][ctx.txn_node_ip_index]->empty()) {
-                auto txn_ptr_tmp = std::move(sharding_cache[epoch_mod][ctx.txn_node_ip_index]->front());
-                sharding_cache[epoch_mod][ctx.txn_node_ip_index]->pop();
-                epoch_merge_queue[epoch_mod]->enqueue(std::move(txn_ptr_tmp));
-                epoch_merge_queue[epoch_mod]->enqueue(nullptr);
-                EpochManager::should_merge_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
-                sharding_enqueued_merge_queue_txn_num.IncCount(epoch_mod, ctx.txn_node_ip_index, 1);
-                sleep_flag = true;
-            }
-
-
-            ///local txn -> local_txn_queue 做redo log时，使用整个事务，而不是当前分片的自事务
-            ///如果使用分片事务做redo log，则使用commit_queue
-            while (!local_txn_cache[epoch_mod][ctx.txn_node_ip_index]->empty()) {
-                auto txn_ptr_tmp = std::move(local_txn_cache[epoch_mod][ctx.txn_node_ip_index]->front());
-                local_txn_cache[epoch_mod][ctx.txn_node_ip_index]->pop();
-                epoch_lical_txn_queue[epoch_mod]->enqueue(std::move(txn_ptr_tmp));
-                epoch_lical_txn_queue[epoch_mod]->enqueue(nullptr);
-                EpochManager::should_commit_txn_num.IncCount(epoch_mod, server_dequeue_id, 1);
-                enqueued_local_txn_queue_txn_num.IncCount(epoch_mod, ctx.txn_node_ip_index, 1);
-                sleep_flag = true;
-            }
-            sleep_flag = sleep_flag | ClearCache();
+        while(EpochManager::record_committed_txn_num.GetCount(redo_log_push_down_reply) >=
+                EpochManager::record_commit_txn_num.GetCount(redo_log_push_down_reply)) {
+            MessageSendHandler::SendTxnToServer(ctx, redo_log_push_down_reply,
+                                                server_reply_ack_id, empty_txn, proto::TxnType::EpochLogPushDownComplete);
+            redo_log_push_down_reply ++;
         }
 
-
-
-        return sleep_flag;
-    }
-
-
-    bool MessageReceiveHandler::CheckReceivedStatesAndReply() { /// 该函数只由handler的第一个线程调用，防止多次发送
-        res = false;
+        ///to single server
         if(server_reply_ack_id != ctx.txn_node_ip_index) {
+            if(sharding_received_pack_num.GetCount(sharding_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0 &&
+                    sharding_received_txn_num.GetCount(sharding_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) >=
+                    sharding_should_receive_txn_num.GetCount(sharding_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) ) {
+                MessageSendHandler::SendTxnToServer(ctx, sharding_send_ack_epoch_num[server_reply_ack_id],
+                                                    server_reply_ack_id, empty_txn, proto::TxnType::EpochShardingACK);
+                sharding_send_ack_epoch_num[server_reply_ack_id] ++;
+                res = true;
+            }
+
             if(backup_received_pack_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0 &&
                     backup_received_txn_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) >=
-                    backup_should_receive_txn_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id)
-            ) {
+                    backup_should_receive_txn_num.GetCount(backup_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) ) {
                 ///send reply message
                 MessageSendHandler::SendTxnToServer(ctx, backup_send_ack_epoch_num[server_reply_ack_id],
                                                         server_reply_ack_id, empty_txn, proto::TxnType::BackUpACK);
@@ -307,226 +442,5 @@ namespace Taas {
 
 
 
-
-
-
-
-
-
-
-    bool MessageReceiveHandler::Init(uint64_t id, Context context) {
-        message_ptr = nullptr;
-        txn_ptr = nullptr;
-        pack_param = nullptr;
-        server_dequeue_id = 0, epoch_mod = 0, epoch = 0, max_length = 0;
-        res = false, sleep_flag = false;
-        thread_id = id;
-        ctx = std::move(context);
-        max_length = ctx.kCacheMaxLength;
-        sharding_num = ctx.kTxnNodeNum;
-        backup_send_ack_epoch_num.reserve(sharding_num + 1);
-        backup_insert_set_send_ack_epoch_num.reserve(sharding_num + 1);
-        abort_set_send_ack_epoch_num.reserve(sharding_num + 1);
-        for(int i = 0; i <= (int) sharding_num; i ++ ) { /// start at 1, not 0
-            backup_send_ack_epoch_num.emplace_back(1);
-            backup_insert_set_send_ack_epoch_num.emplace_back(1);
-            abort_set_send_ack_epoch_num.emplace_back(1);
-        }
-        sharding_cache.reserve(max_length + 1);
-        local_txn_cache.reserve(max_length + 1);
-        backup_cache.reserve(max_length + 1);
-        insert_set_cache.reserve(max_length+ 1);
-        abort_set_cache.reserve(max_length + 1);
-        for(int i = 0; i < (int)max_length; i ++) {
-            sharding_cache.emplace_back(std::vector<std::unique_ptr<std::queue<std::unique_ptr<proto::Transaction>>>>());
-            local_txn_cache.emplace_back(std::vector<std::unique_ptr<std::queue<std::unique_ptr<proto::Transaction>>>>());
-            backup_cache.emplace_back(std::vector<std::unique_ptr<std::queue<std::unique_ptr<proto::Transaction>>>>());
-            insert_set_cache.emplace_back(std::vector<std::unique_ptr<std::queue<std::unique_ptr<proto::Transaction>>>>());
-            abort_set_cache.emplace_back(std::vector<std::unique_ptr<std::queue<std::unique_ptr<proto::Transaction>>>>());
-            for(int j = 0; j <= (int)ctx.kTxnNodeNum; j++){
-                sharding_cache[i].push_back(std::make_unique<std::queue<std::unique_ptr<proto::Transaction>>>());
-                local_txn_cache[i].push_back(std::make_unique<std::queue<std::unique_ptr<proto::Transaction>>>());
-                backup_cache[i].push_back(std::make_unique<std::queue<std::unique_ptr<proto::Transaction>>>());
-                insert_set_cache[i].push_back(std::make_unique<std::queue<std::unique_ptr<proto::Transaction>>>());
-                abort_set_cache[i].push_back(std::make_unique<std::queue<std::unique_ptr<proto::Transaction>>>());
-            }
-        }
-        return true;
-    }
-
-    bool MessageReceiveHandler::StaticInit(const Context& context) {
-        auto max_length = context.kCacheMaxLength;
-        auto sharding_num = context.kTxnNodeNum;
-        MessageReceiveHandler::sharding_should_receive_pack_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::sharding_received_pack_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::sharding_should_receive_txn_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::sharding_received_txn_num.Init(max_length, sharding_num),
-
-        MessageReceiveHandler::sharding_should_enqueue_merge_queue_txn_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::sharding_enqueued_merge_queue_txn_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::should_enqueue_local_txn_queue_txn_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::enqueued_local_txn_queue_txn_num.Init(max_length, sharding_num),
-
-        MessageReceiveHandler::sharding_should_handle_local_txn_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::sharding_handled_local_txn_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::sharding_should_send_txn_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::sharding_send_txn_num.Init(max_length, sharding_num),
-
-        MessageReceiveHandler::backup_should_send_txn_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::backup_send_txn_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::backup_should_receive_pack_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::backup_received_pack_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::backup_should_receive_txn_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::backup_received_txn_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::backup_received_ack_num.Init(max_length, sharding_num),
-
-
-        MessageReceiveHandler::insert_set_should_receive_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::insert_set_received_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::insert_set_received_ack_num.Init(max_length, sharding_num),
-
-        MessageReceiveHandler::sharding_should_receive_abort_set_num.Init(max_length, sharding_num),
-        MessageReceiveHandler::sharding_received_abort_set_num.Init(max_length, sharding_num);
-        MessageReceiveHandler::sharding_abort_set_received_ack_num.Init(max_length, sharding_num);
-
-        return true;
-    }
-
-    bool MessageReceiveHandler::Clear() {
-        MessageReceiveHandler::sharding_should_receive_pack_num.Clear(),
-        MessageReceiveHandler::sharding_received_pack_num.Clear(),
-        MessageReceiveHandler::sharding_should_receive_txn_num.Clear(),
-        MessageReceiveHandler::sharding_received_txn_num.Clear(),
-
-        MessageReceiveHandler::sharding_should_enqueue_merge_queue_txn_num.Clear(),
-        MessageReceiveHandler::sharding_enqueued_merge_queue_txn_num.Clear(),
-        MessageReceiveHandler::should_enqueue_local_txn_queue_txn_num.Clear(),
-        MessageReceiveHandler::enqueued_local_txn_queue_txn_num.Clear(),
-
-        MessageReceiveHandler::sharding_should_handle_local_txn_num.Clear(),
-        MessageReceiveHandler::sharding_handled_local_txn_num.Clear(),
-        MessageReceiveHandler::sharding_should_send_txn_num.Clear(),
-        MessageReceiveHandler::sharding_send_txn_num.Clear(),
-
-        MessageReceiveHandler::backup_should_send_txn_num.Clear(),
-        MessageReceiveHandler::backup_send_txn_num.Clear(),
-        MessageReceiveHandler::backup_should_receive_pack_num.Clear(),
-        MessageReceiveHandler::backup_received_pack_num.Clear(),
-        MessageReceiveHandler::backup_should_receive_txn_num.Clear(),
-        MessageReceiveHandler::backup_received_txn_num.Clear(),
-        MessageReceiveHandler::backup_received_ack_num.Clear(),
-
-        MessageReceiveHandler::insert_set_should_receive_num.Clear(),
-        MessageReceiveHandler::insert_set_received_num.Clear(),
-        MessageReceiveHandler::insert_set_received_ack_num.Clear(),
-
-        MessageReceiveHandler::sharding_should_receive_abort_set_num.Clear(),
-        MessageReceiveHandler::sharding_received_abort_set_num.Clear(),
-        MessageReceiveHandler::sharding_abort_set_received_ack_num.Clear();
-        return true;
-    }
-
-    bool MessageReceiveHandler::Clear(uint64_t epoch) {
-        MessageReceiveHandler::sharding_should_receive_pack_num.Clear(epoch, 0),
-        MessageReceiveHandler::sharding_received_pack_num.Clear(epoch, 0),
-        MessageReceiveHandler::sharding_should_receive_txn_num.Clear(epoch, 0),
-        MessageReceiveHandler::sharding_received_txn_num.Clear(epoch, 0),
-
-        MessageReceiveHandler::sharding_should_enqueue_merge_queue_txn_num.Clear(epoch, 0),
-        MessageReceiveHandler::sharding_enqueued_merge_queue_txn_num.Clear(epoch, 0),
-        MessageReceiveHandler::should_enqueue_local_txn_queue_txn_num.Clear(epoch, 0),
-        MessageReceiveHandler::enqueued_local_txn_queue_txn_num.Clear(epoch, 0),
-
-        MessageReceiveHandler::sharding_should_handle_local_txn_num.Clear(epoch, 0),
-        MessageReceiveHandler::sharding_handled_local_txn_num.Clear(epoch, 0),
-        MessageReceiveHandler::sharding_should_send_txn_num.Clear(epoch, 0),
-        MessageReceiveHandler::sharding_send_txn_num.Clear(epoch, 0),
-
-        MessageReceiveHandler::backup_should_send_txn_num.Clear(epoch, 0),
-        MessageReceiveHandler::backup_send_txn_num.Clear(epoch, 0),
-        MessageReceiveHandler::backup_should_receive_pack_num.Clear(epoch, 0),
-        MessageReceiveHandler::backup_received_pack_num.Clear(epoch, 0),
-        MessageReceiveHandler::backup_should_receive_txn_num.Clear(epoch, 0),
-        MessageReceiveHandler::backup_received_txn_num.Clear(epoch, 0),
-        MessageReceiveHandler::backup_received_ack_num.Clear(epoch, 0),
-
-        MessageReceiveHandler::insert_set_should_receive_num.Clear(epoch, 0),
-        MessageReceiveHandler::insert_set_received_num.Clear(epoch, 0),
-        MessageReceiveHandler::insert_set_received_ack_num.Clear(epoch, 0),
-
-        MessageReceiveHandler::sharding_should_receive_abort_set_num.Clear(epoch, 0),
-        MessageReceiveHandler::sharding_received_abort_set_num.Clear(epoch, 0);
-        MessageReceiveHandler::sharding_abort_set_received_ack_num.Clear(epoch, 0);
-
-        return true;
-    }
-
-    bool MessageReceiveHandler::ClearCache() {
-        res = false;
-        while(cache_clear_epoch_num + 50 < EpochManager::GetLogicalEpoch()) {
-            cache_clear_epoch_num_mod = cache_clear_epoch_num % ctx.kCacheMaxLength;
-            for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
-                while (!sharding_cache[cache_clear_epoch_num_mod][i]->empty()) {
-                    sharding_cache[cache_clear_epoch_num_mod][i]->pop();
-                }
-                while (!local_txn_cache[cache_clear_epoch_num_mod][i]->empty()) {
-                    local_txn_cache[cache_clear_epoch_num_mod][i]->pop();
-                }
-                while (!backup_cache[cache_clear_epoch_num_mod][i]->empty()) {
-                    backup_cache[cache_clear_epoch_num_mod][i]->pop();
-                }
-                while (!insert_set_cache[cache_clear_epoch_num_mod][i]->empty()) {
-                    insert_set_cache[cache_clear_epoch_num_mod][i]->pop();
-                }
-                while (!abort_set_cache[cache_clear_epoch_num_mod][i]->empty()) {
-                    abort_set_cache[cache_clear_epoch_num_mod][i]->pop();
-                }
-            }
-            cache_clear_epoch_num ++;
-            res = true;
-        }
-        return res;
-    }
-
-    bool MessageReceiveHandler::ClearStaticCounters() {
-        res = false;
-        while(counters_clear_epoch_num + 50 < EpochManager::GetLogicalEpoch()) {
-            counters_clear_epoch_num_mod = counters_clear_epoch_num % ctx.kCacheMaxLength;
-            MessageReceiveHandler::sharding_should_receive_pack_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::sharding_received_pack_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::sharding_should_receive_txn_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::sharding_received_txn_num.Clear(counters_clear_epoch_num_mod, 0),
-
-            MessageReceiveHandler::sharding_should_enqueue_merge_queue_txn_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::sharding_enqueued_merge_queue_txn_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::should_enqueue_local_txn_queue_txn_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::enqueued_local_txn_queue_txn_num.Clear(counters_clear_epoch_num_mod, 0),
-
-            MessageReceiveHandler::sharding_should_handle_local_txn_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::sharding_handled_local_txn_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::sharding_should_send_txn_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::sharding_send_txn_num.Clear(counters_clear_epoch_num_mod, 0),
-
-            MessageReceiveHandler::backup_should_send_txn_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::backup_send_txn_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::backup_should_receive_pack_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::backup_received_pack_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::backup_should_receive_txn_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::backup_received_txn_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::backup_received_ack_num.Clear(counters_clear_epoch_num_mod, 0),
-
-            MessageReceiveHandler::insert_set_should_receive_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::insert_set_received_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::insert_set_received_ack_num.Clear(counters_clear_epoch_num_mod, 0),
-
-            MessageReceiveHandler::sharding_should_receive_abort_set_num.Clear(counters_clear_epoch_num_mod, 0),
-            MessageReceiveHandler::sharding_received_abort_set_num.Clear(counters_clear_epoch_num_mod, 0);
-            MessageReceiveHandler::sharding_abort_set_received_ack_num.Clear(counters_clear_epoch_num_mod, 0);
-
-            counters_clear_epoch_num ++;
-            res = true;
-        }
-        return res;
-    }
 
 }

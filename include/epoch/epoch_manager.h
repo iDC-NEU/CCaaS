@@ -59,7 +59,7 @@ namespace Taas {
     ///local_txn_queue 本地接收到的完整的事务
     ///merge_queue 当前epoch的涉及当前分片的子事务
     ///commit_queue 当前epoch的能提交的涉及当前分片的子事务
-    extern std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>> epoch_lical_txn_queue, ///stroe whole txn receive from client (used to push log down to storage)
+    extern std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>> epoch_local_txn_queue, ///stroe whole txn receive from client (used to push log down to storage)
             epoch_merge_queue, /// store sharding transactions receive from servers, wait to update row header
             epoch_commit_queue,///store sharding transactions receive from servers, wait to validate
             epoch_redo_log_queue; ///store transactions receive from clients, wait to push down
@@ -70,33 +70,29 @@ namespace Taas {
 
     extern uint64_t now_to_us();
     extern void InitEpochTimerManager(Context& ctx);
+
+    //epoch work threads
     extern void EpochLogicalTimerManagerThreadMain(uint64_t id, Context ctx);
     extern void EpochPhysicalTimerManagerThreadMain(uint64_t id, Context ctx);
-    extern void MergeWorkerThreadMain(uint64_t id, Context ctx);
+    extern void StateChecker(uint64_t id, Context ctx);
+    extern void WorkerThreadMain(uint64_t id, Context ctx);
 
-    extern void PackThreadMain(uint64_t id, Context ctx);
-
-    extern void MessageCacheThreadMain(uint64_t id, Context ctx);
-
+    //message transport threads
     extern void SendServerThreadMain(uint64_t id, Context ctx);
     extern void ListenServerThreadMain(uint64_t id, Context ctx);
-
     extern void SendClientThreadMain(uint64_t id, Context ctx);
     extern void ListenClientThreadMain(uint64_t id, const Context& ctx);
-
     extern void ListenStorageThreadMain(uint64_t id, Context ctx);
-
     extern void SendStoragePUBThreadMain(uint64_t id, Context ctx);
     extern void SendStoragePUBThreadMain2(uint64_t id, Context ctx);
 
-    extern void SendTiKVThreadMain(uint64_t id, Context ctx);
 
 
 
     class EpochManager {
     private:
         static bool timerStop;
-        static volatile uint64_t logical_epoch, physical_epoch;
+        static volatile uint64_t logical_epoch, physical_epoch, push_down_epoch;
     public:
 
         static Context ctx;
@@ -154,17 +150,25 @@ namespace Taas {
         static void SetCurrentEpochAbort(uint64_t epoch, bool value){ is_current_epoch_abort[epoch % max_length]->store(value);}
 
         static void SetPhysicalEpoch(int value){ physical_epoch = value;}
-        static uint64_t AddPhysicalEpoch(){ return ++ physical_epoch;}
+        static uint64_t AddPhysicalEpoch(){
+            return ++physical_epoch;
+        }
         static uint64_t GetPhysicalEpoch(){ return physical_epoch;}
 
         static void SetLogicalEpoch(int value){ logical_epoch = value;}
-        static uint64_t AddLogicalEpoch(){ return ++ logical_epoch;}
+        static uint64_t AddLogicalEpoch(){
+            return ++ logical_epoch;
+        }
         static uint64_t GetLogicalEpoch(){ return logical_epoch;}
+
+        static void SetPushDownEpoch(int value){ push_down_epoch = value;}
+        static uint64_t AddPushDownEpoch(){
+            return ++ push_down_epoch;
+        }
+        static uint64_t GetPushDownEpoch(){ return push_down_epoch;}
 
 
         static void ClearMergeEpochState(uint64_t epoch_mod) {
-            merge_complete = commit_complete = record_committed = false;
-
             epoch_mod %= max_length;
 
             merge_complete[epoch_mod]->store(false);
@@ -225,7 +229,7 @@ namespace Taas {
             return online_server_num[epoch % max_length]->load();
         }
 
-        static void SetServerOnLine(std::string ip) {
+        static void SetServerOnLine(const std::string& ip) {
             for(int i = 0; i < (int)ctx.kServerIp.size(); i++) {
                 if(ip == ctx.kServerIp[i]) {
                     server_state.SetCount(i, 1);
@@ -233,7 +237,7 @@ namespace Taas {
             }
         }
 
-        static void SetServerOffLine(std::string ip) {
+        static void SetServerOffLine(const std::string& ip) {
             for(int i = 0; i < (int)ctx.kServerIp.size(); i++) {
                 if(ip == ctx.kServerIp[i]) {
                     server_state.SetCount(i, 0);

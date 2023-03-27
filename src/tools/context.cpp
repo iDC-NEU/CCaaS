@@ -42,12 +42,6 @@ namespace Taas {
         tinyxml2::XMLElement* package_num = root->FirstChildElement("index_num");
         kIndexNum = std::stoull(package_num->GetText());
 
-        tinyxml2::XMLElement* pack_thread_num = root->FirstChildElement("pack_thread_num");
-        kPackThreadNum = std::stoull(pack_thread_num->GetText());
-
-        tinyxml2::XMLElement* commit_thread_num = root->FirstChildElement("cache_thread_num");
-        kMessageCacheThreadNum = std::stoull(commit_thread_num->GetText());
-
         tinyxml2::XMLElement* merge_thread_num = root->FirstChildElement("worker_thread_num");
         kWorkerThreadNum = std::stoull(merge_thread_num->GetText());
 

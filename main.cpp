@@ -19,33 +19,28 @@ namespace Taas {
 
         threads.push_back(std::make_unique<std::thread>(EpochPhysicalTimerManagerThreadMain, 0,ctx));
         threads.push_back(std::make_unique<std::thread>(EpochLogicalTimerManagerThreadMain,  0,ctx));
+        threads.push_back(std::make_unique<std::thread>(StateChecker, 0 ,ctx));
+        for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
+            threads.push_back(std::make_unique<std::thread>(WorkerThreadMain, i ,ctx));
+        }
+
+
 
         if(ctx.kTxnNodeNum > 1) {
             threads.push_back(std::make_unique<std::thread>(SendServerThreadMain,  0,ctx));
             threads.push_back(std::make_unique<std::thread>(ListenServerThreadMain,  0,ctx));
         }
-
         for(int i = 0; i < (int)ctx.kSendClientThreadNum; i ++) {
             threads.push_back(std::make_unique<std::thread>(SendClientThreadMain, i ,ctx));
         }
         threads.push_back(std::make_unique<std::thread>(ListenClientThreadMain,  0,ctx));
-
 //    threads.push_back(std::make_unique<std::thread>(ListenStorageThreadMain,  0,ctx));
-
 //    threads.push_back(std::make_unique<std::thread>(SendStoragePUBThreadMain,  0,ctx));
         threads.push_back(std::make_unique<std::thread>(SendStoragePUBThreadMain2,  0,ctx));
 
-        for(int i = 0; i < (int)ctx.kPackThreadNum; i ++) {
-            threads.push_back(std::make_unique<std::thread>(PackThreadMain, i ,ctx));
-        }
 
-        for(int i = 0; i < (int)ctx.kMessageCacheThreadNum; i ++) {
-            threads.push_back(std::make_unique<std::thread>(MessageCacheThreadMain, i ,ctx));
-        }
 
-        for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
-            threads.push_back(std::make_unique<std::thread>(MergeWorkerThreadMain, i ,ctx));
-        }
+
 
         for(int i = 0; i < (int)ctx.kTestClientNum; i ++) {
             threads.push_back(std::make_unique<std::thread>(Client, i ,ctx));
@@ -53,9 +48,6 @@ namespace Taas {
 
         if(ctx.is_tikv_enable) {
             EpochManager::tikv_client_ptr = new tikv_client::TransactionClient({ctx.kTiKVIP});
-            for(int i = 0; i < (int)ctx.kTiKVSendThreadNum; i ++) {
-                threads.push_back(std::make_unique<std::thread>(SendTiKVThreadMain, i ,ctx));
-            }
         }
 
 

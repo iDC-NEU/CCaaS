@@ -17,10 +17,12 @@ enum TxnType {
   BackUpEpochEndFlag = 5; // txn sends to txn, transactions backup info
   AbortSet = 6; // epoch abort set
   InsertSet = 7; // epoch insert set backup
-  BackUpACK = 8;
-  AbortSetACK = 9;
-  InsertSetACK = 10;
-  NullMark = 11;
+  EpochShardingACK = 8;
+  BackUpACK = 9;
+  AbortSetACK = 10;
+  InsertSetACK = 11;
+  EpochLogPushDownComplete = 12;
+  NullMark = 13;
 }
 
 enum TxnState {

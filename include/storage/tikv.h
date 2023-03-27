@@ -10,7 +10,7 @@ class tikv {
 
 };
 
-bool sendTransactionToTiKV();
+bool sendTransactionToTiKV(uint64_t epoch_mod, std::unique_ptr<proto::Transaction> &txn_ptr);
 
 
 #endif //TAAS_TIKV_H

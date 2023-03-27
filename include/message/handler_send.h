@@ -15,14 +15,15 @@ namespace Taas {
         static bool SendRemoteServerTxn(Context& ctx, uint64_t &epoch, uint64_t& to_whom, proto::Transaction &txn, proto::TxnType& txn_type);
         static bool SendBackUpTxn(Context& ctx, uint64_t &epoch, uint64_t& to_whom, proto::Transaction &txn, proto::TxnType& txn_type);
         static bool SendACK(Context& ctx, uint64_t &epoch, uint64_t& to_whom, proto::Transaction &txn, proto::TxnType& txn_type);
+        static bool SendMessageToAll(Context &ctx, uint64_t &epoch, uint64_t &to_whom, proto::TxnType &txn_type);
 
-        void Init(uint64_t &id, Context& ctx);
+        void Init(Context &ctx);
 
         ///一下函数都由0号线程执行
-        bool SendEpochEndMessage(uint64_t& id, Context& ctx);
-        bool SendBackUpEpochEndMessage(uint64_t& id, Context& ctx);
-        bool SendAbortSet(uint64_t& id, Context& ctx);
-        bool SendInsertSet(uint64_t& id, Context& ctx);
+        bool SendEpochEndMessage(Context &ctx);
+        bool SendBackUpEpochEndMessage(Context &ctx);
+        bool SendAbortSet(Context &ctx);
+        bool SendInsertSet(Context &ctx);
 
 
     private:
@@ -30,6 +31,7 @@ namespace Taas {
         std::vector<uint64_t> sharding_send_epoch;
         bool sleep_flag = false;
         std::unique_ptr<pack_params> pack_param;
+
 
 
     };

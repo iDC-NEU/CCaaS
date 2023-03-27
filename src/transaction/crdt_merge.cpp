@@ -7,23 +7,22 @@
 
 namespace Taas {
     bool Taas::CRDTMerge::ValidateReadSet(Taas::Context &ctx, proto::Transaction &txn) {
-        UNUSED_VALUE(ctx);
+        ///RC
         return true;
-        std::string key, version;
-        for(auto i = 0; i < txn.row_size(); i ++) {
-            const auto& row = txn.row(i);
-            if(row.op_type() != proto::OpType::Read) {
-                continue;
-            }
-            if (!EpochManager::read_version_map.getValue(row.key(), version) || version != row.data()) {
-                return false;
-            }
-        }
-        return true;
+//        std::string key, version;
+//        for(auto i = 0; i < txn.row_size(); i ++) {
+//            const auto& row = txn.row(i);
+//            if(row.op_type() != proto::OpType::Read) {
+//                continue;
+//            }
+//            if (!EpochManager::read_version_map.getValue(row.key(), version) || version != row.data()) {
+//                return false;
+//            }
+//        }
+//        return true;
     }
 
     bool Taas::CRDTMerge::ValidateWriteSet(Taas::Context &ctx, proto::Transaction &txn) {
-        UNUSED_VALUE(ctx);
         auto epoch_mod = txn.commit_epoch() % ctx.kCacheMaxLength;
         auto csn_temp = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
         if(EpochManager::epoch_abort_txn_set[epoch_mod]->contain(csn_temp, csn_temp)) {
@@ -33,7 +32,6 @@ namespace Taas {
     }
 
     bool Taas::CRDTMerge::MultiMasterCRDTMerge(Taas::Context &ctx, proto::Transaction &txn) {
-        UNUSED_VALUE(ctx);
         auto epoch_mod = txn.commit_epoch() % ctx.kCacheMaxLength;
         auto csn_temp = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
         std::string csn_result;
@@ -68,7 +66,7 @@ namespace Taas {
                 EpochManager::insert_set.remove(row.key(), csn_temp);
             }
             else {
-                //todo: update timestamp
+                //nothing to do
             }
             EpochManager::read_version_map.insert(row.key(), csn_temp);
         }
@@ -77,11 +75,12 @@ namespace Taas {
 
     void CRDTMerge::RedoLog(Context &ctx, proto::Transaction &txn) {
         uint64_t epoch_id = txn.commit_epoch();
+        auto epoch_mod = epoch_id % ctx.kCacheMaxLength;
         auto lsn = EpochManager::epoch_log_lsn.IncCount(epoch_id, 1);
         auto key = std::to_string(epoch_id) + ":" + std::to_string(lsn);
         if(ctx.is_tikv_enable) {
-            redo_log_queue.enqueue(std::make_unique<proto::Transaction>(txn));
-            redo_log_queue.enqueue(nullptr);
+            epoch_redo_log_queue[epoch_mod]->enqueue(std::make_unique<proto::Transaction>(txn));
+            epoch_redo_log_queue[epoch_mod]->enqueue(nullptr);
         }
         EpochManager::committed_txn_cache[epoch_id % EpochManager::max_length]->insert(key, txn);
     }
