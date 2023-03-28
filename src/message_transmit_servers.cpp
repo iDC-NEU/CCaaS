@@ -44,6 +44,7 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             send_to_server_queue.wait_dequeue(params);
             if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
+            if(params->id == ctx.txn_node_ip_index) assert(false);
             msg = std::make_unique<zmq::message_t>(*(params->str));
             socket_map[params->id]->send(*msg);
 //            printf("send to server epoch %lu type %lu \n", params->epoch, params->type);

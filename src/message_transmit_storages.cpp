@@ -120,15 +120,15 @@ namespace Taas {
                 auto s = std::to_string(epoch) + ":";
                 auto epoch_mod = epoch % EpochManager::max_length;
                 auto total_num = EpochManager::epoch_log_lsn.GetCount(epoch);
-                printf("storage send start epoch %lu\n", epoch);
+//                printf("storage send start epoch %lu\n", epoch);
                 for (int i = 0; i < total_num; i++) {
                     auto key = s + std::to_string(i);
                     auto *ptr = push_response->add_txns();
                     assert(ptr != nullptr);
                     assert(EpochManager::committed_txn_cache[epoch_mod]->getValue(key, (*ptr))); //copy
-                    printf("send to storage ptr row_size %d\n", ptr->row_size());
+//                    printf("send to storage ptr row_size %d\n", ptr->row_size());
                 }
-                printf("storage send end epoch %lu\n", epoch);
+//                printf("storage send end epoch %lu\n", epoch);
                 push_response->set_result(proto::Success);
                 push_response->set_epoch_id(epoch);
                 push_response->set_txn_num(total_num);

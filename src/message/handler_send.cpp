@@ -118,9 +118,8 @@ namespace Taas {
         for (uint64_t i = 0; i < ctx.kBackUpNum; i++) {
             to_id = (to_id + i) % ctx.kTxnNodeNum;
             if (to_id == ctx.txn_node_ip_index) continue;
-            send_to_server_queue.enqueue(std::make_unique<send_params>(to_whom, 0, "",epoch, txn_type,std::make_unique<std::string>(*serialized_txn_str_ptr), nullptr));
-            send_to_server_queue.enqueue(std::make_unique<send_params>(to_whom, 0, "",epoch, proto::TxnType::NullMark,nullptr, nullptr));
-
+            send_to_server_queue.enqueue(std::make_unique<send_params>(to_id, 0, "",epoch, txn_type,std::make_unique<std::string>(*serialized_txn_str_ptr), nullptr));
+            send_to_server_queue.enqueue(std::make_unique<send_params>(to_id, 0, "",epoch, proto::TxnType::NullMark,nullptr, nullptr));
         }
         return true;
     }
@@ -153,11 +152,13 @@ namespace Taas {
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         auto res = Gzip(msg.get(), serialized_txn_str_ptr.get());
         assert(res);
-        for(to_whom = 0; to_whom < ctx.kTxnNodeNum; to_whom ++) { /// send to everyone
-            if(to_whom == ctx.txn_node_ip_index) continue;
-            send_to_server_queue.enqueue(std::make_unique<send_params>(to_whom, 0, "", epoch, proto::TxnType::InsertSet, std::move(serialized_txn_str_ptr), nullptr));
+        auto to_id = ctx.txn_node_ip_index + 1;
+        for (uint64_t i = 0; i < ctx.kBackUpNum; i++) {
+            to_id = (to_id + i) % ctx.kTxnNodeNum;
+            if (to_id == ctx.txn_node_ip_index) continue;/// send to everyone
+            send_to_server_queue.enqueue(std::make_unique<send_params>(to_id, 0, "", epoch, proto::TxnType::InsertSet, std::move(serialized_txn_str_ptr), nullptr));
         }
-        send_to_server_queue.enqueue(std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
+        send_to_server_queue.enqueue(std::make_unique<send_params>(to_id, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
         return true;
     }
 
@@ -244,11 +245,9 @@ namespace Taas {
                 for (uint64_t i = 0; i < ctx.kTxnNodeNum; i++) { /// send to everyone
                     if (i == ctx.txn_node_ip_index) continue;
                     auto str_copy = std::make_unique<std::string>(*serialized_txn_str_ptr);
-                    send_to_server_queue.enqueue( std::make_unique<send_params>(i, 0, "", abort_set_send_epoch, proto::TxnType::AbortSet,
-                                                          std::move(str_copy), nullptr));
+                    send_to_server_queue.enqueue( std::make_unique<send_params>(i, 0, "", abort_set_send_epoch, proto::TxnType::AbortSet,std::move(str_copy), nullptr));
                 }
-                send_to_server_queue.enqueue( std::make_unique<send_params>(0, 0, "", abort_set_send_epoch, proto::TxnType::NullMark, nullptr,
-                                                      nullptr));
+                send_to_server_queue.enqueue( std::make_unique<send_params>(0, 0, "", abort_set_send_epoch, proto::TxnType::NullMark, nullptr, nullptr));
                 EpochManager::SetShardingMergeComplete(abort_set_send_epoch, true);
             }
         }
@@ -291,8 +290,5 @@ namespace Taas {
             sharding_send_epoch.push_back(1);
         }
     }
-
-
-
 
 }
