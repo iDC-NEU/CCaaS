@@ -3,8 +3,6 @@
 //
 
 #include <queue>
-#include <utility>
-#include "epoch/merge.h"
 #include "epoch/epoch_manager.h"
 #include "storage/tikv.h"
 #include "tools/utilities.h"

@@ -22,10 +22,11 @@ namespace Taas {
  * @param id 暂未使用
  * @param ctx 暂未使用
  */
-    void SendServerThreadMain(uint64_t id, Context ctx) {
+    void SendServerThreadMain(Context ctx) {
         SetCPU();
         zmq::context_t context(1);
         zmq::message_t reply(5);
+        zmq::send_flags sendFlags = zmq::send_flags::none;
         int queue_length = 0;
         std::unordered_map<std::uint64_t, std::unique_ptr<zmq::socket_t>> socket_map;
         std::unique_ptr<send_params> params;
@@ -33,8 +34,8 @@ namespace Taas {
         for (int i = 0; i < (int) ctx.kServerIp.size(); i++) {
             if (i == (int) ctx.txn_node_ip_index) continue;
             auto socket = std::make_unique<zmq::socket_t>(context, ZMQ_PUSH);
-            socket->setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
-            socket->setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
+            socket->set(zmq::sockopt::sndhwm, queue_length);
+            socket->set(zmq::sockopt::rcvhwm, queue_length);
             socket->connect("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(20000+i));
             socket_map[i] = std::move(socket);
             printf("Send Server connect ZMQ_PUSH %s", ("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(20000+i) + "\n").c_str());
@@ -42,14 +43,13 @@ namespace Taas {
         printf("线程开始工作 SendServerThread\n");
         while (!init_ok.load());
         while (!EpochManager::IsTimerStop()) {
-            send_to_server_queue.wait_dequeue(params);
+            send_to_server_queue->wait_dequeue(params);
             if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
             if(params->id == ctx.txn_node_ip_index) assert(false);
             msg = std::make_unique<zmq::message_t>(*(params->str));
-            socket_map[params->id]->send(*msg);
-//            printf("send to server epoch %lu type %lu \n", params->epoch, params->type);
+            socket_map[params->id]->send(*msg, sendFlags);
         }
-        socket_map[id]->send((zmq::message_t &) "end");
+        socket_map[0]->send((zmq::message_t &) "end", sendFlags);
     }
 
 /**
@@ -58,24 +58,26 @@ namespace Taas {
  * @param id 暂时未使用
  * @param ctx XML的配置信息
  */
-    void ListenServerThreadMain(uint64_t id, Context ctx) {///监听远端txn node写集
+    void ListenServerThreadMain(Context ctx) {///监听远端txn node写集
         SetCPU();
         // 设置ZeroMQ的相关变量，监听其他txn node是否有写集发来
         zmq::context_t listen_context(1);
         zmq::socket_t socket_listen(listen_context, ZMQ_PULL);
+        zmq::recv_flags recvFlags = zmq::recv_flags::none;
+        zmq::recv_result_t  recvResult;
         int queue_length = 0;
         socket_listen.bind("tcp://*:" + std::to_string(20000+ctx.txn_node_ip_index));//to server
-        socket_listen.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
-        socket_listen.setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
+        socket_listen.set(zmq::sockopt::sndhwm, queue_length);
+        socket_listen.set(zmq::sockopt::rcvhwm, queue_length);
         printf("线程开始工作 ListenServerThread ZMQ_PULL tcp://*:%s\n", std::to_string(20000+ctx.txn_node_ip_index).c_str());
 
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
-            socket_listen.recv(&(*message_ptr));//防止上次遗留消息造成message cache出现问题
-//            printf("receive from server 1\n");
+            recvResult = socket_listen.recv((*message_ptr), recvFlags);//防止上次遗留消息造成message cache出现问题
+            if(recvResult < 0) assert(false);
             if (is_epoch_advance_started.load()) {
-                if (!listen_message_queue.enqueue(std::move(message_ptr))) assert(false);
-                if (!listen_message_queue.enqueue(std::move(std::make_unique<zmq::message_t>())))
+                if (!listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
+                if (!listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
                     assert(false); //防止moodycamel取不出
                 break;
             }
@@ -83,10 +85,10 @@ namespace Taas {
 
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
-            socket_listen.recv(&(*message_ptr));
-//            printf("receive from server 2\n");
-            if (!listen_message_queue.enqueue(std::move(message_ptr))) assert(false);
-            if (!listen_message_queue.enqueue(std::move(std::make_unique<zmq::message_t>())))
+            recvResult = socket_listen.recv((*message_ptr), recvFlags);
+            if(recvResult < 0) assert(false);
+            if (!listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
+            if (!listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
                 assert(false); //防止moodycamel取不出
         }
     }

@@ -13,33 +13,27 @@ namespace Taas {
         Context ctx;
         ctx.GetServerInfo();
         EpochManager epochManager;
-        epochManager.ctx = ctx;
+        Taas::EpochManager::ctx = ctx;
         printf("System Start\n");
         std::vector<std::unique_ptr<std::thread>> threads;
 
-        threads.push_back(std::make_unique<std::thread>(EpochPhysicalTimerManagerThreadMain, 0,ctx));
-        threads.push_back(std::make_unique<std::thread>(EpochLogicalTimerManagerThreadMain,  0,ctx));
-        threads.push_back(std::make_unique<std::thread>(StateChecker, 0 ,ctx));
+        threads.push_back(std::make_unique<std::thread>(EpochPhysicalTimerManagerThreadMain, ctx));
+        threads.push_back(std::make_unique<std::thread>(EpochLogicalTimerManagerThreadMain, ctx));
+        threads.push_back(std::make_unique<std::thread>(StateChecker, ctx));
         for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
-            threads.push_back(std::make_unique<std::thread>(WorkerThreadMain, i ,ctx));
+            threads.push_back(std::make_unique<std::thread>(WorkerThreadMain, i, ctx));
         }
-
-
 
         if(ctx.kTxnNodeNum > 1) {
-            threads.push_back(std::make_unique<std::thread>(SendServerThreadMain,  0,ctx));
-            threads.push_back(std::make_unique<std::thread>(ListenServerThreadMain,  0,ctx));
+            threads.push_back(std::make_unique<std::thread>(SendServerThreadMain, ctx));
+            threads.push_back(std::make_unique<std::thread>(ListenServerThreadMain, ctx));
         }
         for(int i = 0; i < (int)ctx.kSendClientThreadNum; i ++) {
-            threads.push_back(std::make_unique<std::thread>(SendClientThreadMain, i ,ctx));
+            threads.push_back(std::make_unique<std::thread>(SendClientThreadMain, ctx));
         }
-        threads.push_back(std::make_unique<std::thread>(ListenClientThreadMain,  0,ctx));
-//    threads.push_back(std::make_unique<std::thread>(ListenStorageThreadMain,  0,ctx));
-//    threads.push_back(std::make_unique<std::thread>(SendStoragePUBThreadMain,  0,ctx));
-        threads.push_back(std::make_unique<std::thread>(SendStoragePUBThreadMain2,  0,ctx));
+        threads.push_back(std::make_unique<std::thread>(ListenClientThreadMain, ctx));
 
-
-
+        threads.push_back(std::make_unique<std::thread>(SendStoragePUBThreadMain2, ctx));
 
 
         for(int i = 0; i < (int)ctx.kTestClientNum; i ++) {
@@ -55,13 +49,14 @@ namespace Taas {
             while(!test_start.load()) usleep(10000);
             usleep(ctx.kDurationTime_us);
             EpochManager::SetTimerStop(true);
-            send_to_client_queue.enqueue(nullptr);
-            send_to_server_queue.enqueue(nullptr);
+            send_to_client_queue->enqueue(nullptr);
+            send_to_server_queue->enqueue(nullptr);
 
             zmq::context_t context(1);
             zmq::socket_t socket_send(context, ZMQ_PUSH);
+            zmq::send_flags sendFlags = zmq::send_flags::none;
             socket_send.bind("tcp://localhost:5554");
-            socket_send.send((zmq::message_t &) "end");
+            socket_send.send((zmq::message_t &) "end", sendFlags);
         }
 
         for(auto &i : threads) {

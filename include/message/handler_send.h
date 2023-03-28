@@ -13,9 +13,9 @@ namespace Taas {
         static bool SendTxnCommitResultToClient(Context& ctx, proto::Transaction& txn, proto::TxnState txn_state);
         static bool SendTxnToServer(Context& ctx, uint64_t &epoch, uint64_t& to_whom, proto::Transaction &txn, proto::TxnType txn_type);
         static bool SendRemoteServerTxn(Context& ctx, uint64_t &epoch, uint64_t& to_whom, proto::Transaction &txn, proto::TxnType& txn_type);
-        static bool SendBackUpTxn(Context& ctx, uint64_t &epoch, uint64_t& to_whom, proto::Transaction &txn, proto::TxnType& txn_type);
+        static bool SendBackUpTxn(Context &ctx, uint64_t &epoch, proto::Transaction &txn, proto::TxnType &txn_type);
         static bool SendACK(Context& ctx, uint64_t &epoch, uint64_t& to_whom, proto::Transaction &txn, proto::TxnType& txn_type);
-        static bool SendMessageToAll(Context &ctx, uint64_t &epoch, uint64_t &to_whom, proto::TxnType &txn_type);
+        static bool SendMessageToAll(Context &ctx, uint64_t &epoch, proto::TxnType &txn_type);
 
         void Init(Context &ctx);
 

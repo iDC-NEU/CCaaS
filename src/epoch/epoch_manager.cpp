@@ -2,13 +2,11 @@
 // Created by 周慰星 on 11/8/22.
 //
 
-#include <ctime>
 #include "sys/time.h"
 #include "string"
 #include "tools/utilities.h"
 #include "epoch/epoch_manager.h"
 #include "message/handler_receive.h"
-#include "message/handler_send.h"
 
 namespace Taas {
 
@@ -16,7 +14,7 @@ namespace Taas {
 
     bool EpochManager::timerStop = false;
     Context EpochManager::ctx;
-    volatile uint64_t EpochManager::logical_epoch = 1, EpochManager::physical_epoch = 0, EpochManager::push_down_epoch = 1;
+    std::atomic<uint64_t> EpochManager::logical_epoch(1), EpochManager::physical_epoch(0), EpochManager::push_down_epoch(1);
     uint64_t EpochManager::max_length = ctx.kCacheMaxLength, EpochManager::pack_num = ctx.kIndexNum;
 
     std::vector<std::unique_ptr<std::atomic<bool>>> EpochManager::merge_complete, EpochManager::abort_set_merge_complete,
@@ -73,12 +71,11 @@ namespace Taas {
     std::atomic<bool> is_epoch_advance_started(false), test_start(false);
 
 // 接受client和peer txn node发来的写集，都放在listen_message_queue中
-    BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>> listen_message_queue;
-    BlockingConcurrentQueue<std::unique_ptr<send_params>> send_to_server_queue, send_to_client_queue, send_to_storage_queue;
-    BlockingConcurrentQueue<std::unique_ptr<proto::Message>> request_queue, raft_message_queue;
-
+    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>> listen_message_queue;
+    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<send_params>>> send_to_server_queue, send_to_client_queue, send_to_storage_queue;
+    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Message>>> request_queue, raft_message_queue;
 // client发来的写集会放到local_txn_queue中
-    BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>> merge_queue;///存放要进行merge的事务，分片
+    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> merge_queue;///存放要进行merge的事务，分片
     std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
         epoch_local_txn_queue,///存放epoch由client发送过来的事务，存放每个epoch要进行写日志的事务，整个事务写日志
         epoch_commit_queue,///存放每个epoch要进行写日志的事务，分片写日志
@@ -91,8 +88,15 @@ namespace Taas {
         if(txns.result() == proto::Result::Fail)
             merge_num.store(0);
         // txn_queue.init(3000000);
-        //==========Cache===============
+        listen_message_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>>();
+        send_to_server_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<send_params>>>();
+        send_to_client_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<send_params>>>();
+        send_to_storage_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<send_params>>>();
+        request_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Message>>>();
+        raft_message_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Message>>>();
 
+        merge_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+        //==========Cache===============
         EpochManager::max_length = ctx.kCacheMaxLength;
         EpochManager::pack_num = ctx.kIndexNum;
         //==========Logical Epoch Merge State=============
@@ -295,11 +299,11 @@ namespace Taas {
         return false;
     }
 
-    void EpochLogicalTimerManagerThreadMain(uint64_t id, Context ctx){
+    void EpochLogicalTimerManagerThreadMain(Context ctx) {
         SetCPU();
         uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0,
                 merge_epoch = 1, abort_set_epoch = 1, commit_epoch = 1, redo_log_epoch = 1, clear_epoch = 1;
-        bool sleep_flag = false;
+        bool sleep_flag;
         while(!init_ok.load()) usleep(20);
         if(ctx.is_cache_server_available) {
             cache_server_available = 0;
@@ -337,7 +341,7 @@ namespace Taas {
  *
  * @param ctx
  */
-    void EpochPhysicalTimerManagerThreadMain(uint64_t id, Context ctx) {
+    void EpochPhysicalTimerManagerThreadMain(Context ctx) {
         SetCPU();
         InitEpochTimerManager(ctx);
         //==========同步============

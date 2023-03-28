@@ -11,6 +11,6 @@
 #include <cstdlib>
 
 namespace Taas {
-    void Client(uint64_t id, Context ctx);
+    void Client(uint64_t id, const Context& ctx);
 }
 #endif //TAAS_TEST_H

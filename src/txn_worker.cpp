@@ -19,9 +19,9 @@ namespace Taas {
  * @return false
  */
 
-    void StateChecker(uint64_t id, Context ctx) {
+    void StateChecker(Context ctx) {
         Merger merger;
-        merger.Init(id, std::move(ctx));
+        merger.Init(0, std::move(ctx));
 
         auto sleep_flag = false;
         std::unique_ptr<pack_params> pack_param;
@@ -29,7 +29,7 @@ namespace Taas {
         MessageReceiveHandler receiveHandler;
         MessageSendHandler sendHandler;
         sendHandler.Init(ctx);
-        receiveHandler.Init(id, ctx);
+        receiveHandler.Init(0, ctx);
         uint64_t redo_log_epoch = 1, merge_epoch = 1;
         while (!init_ok.load()) usleep(100);
 

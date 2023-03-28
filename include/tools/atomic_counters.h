@@ -74,7 +74,7 @@ namespace Taas {
     class AtomicCounters_Cache {
     private:
         std::vector<std::shared_ptr<std::vector<std::shared_ptr<std::atomic<uint64_t>>>>> vec;
-        uint64_t _size, epoch_mod, _length;
+        uint64_t _size, epoch_mod{}, _length;
     public:
 
         AtomicCounters_Cache() {}

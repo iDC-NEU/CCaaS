@@ -2,7 +2,6 @@
 // Created by 周慰星 on 11/15/22.
 //
 
-#include <queue>
 #include <utility>
 #include "epoch/merge.h"
 #include "epoch/epoch_manager.h"
@@ -11,21 +10,21 @@
 namespace Taas {
 
     void Merger::Init(uint64_t id_, Context ctx_) {
-        message_ptr = nullptr;
-        txn_ptr = nullptr;
-        pack_param = nullptr;
-        thread_id = 0, epoch = 0;
-        res = false, sleep_flag = false;
+//        message_ptr = nullptr;
+//        pack_param = nullptr;
+//        thread_id = 0;
+//        epoch = 0;
+//        res = false, sleep_flag = false;
 
+        txn_ptr = nullptr;
         thread_id = id_;
         ctx = std::move(ctx_);
-
         message_handler.Init(thread_id, ctx);
     }
 
     bool Merger::EpochMerge() {
         sleep_flag = false;
-        while (merge_queue.try_dequeue(txn_ptr) && txn_ptr != nullptr) {
+        while (merge_queue->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
             res = true;
             epoch = txn_ptr->commit_epoch();
             if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))){

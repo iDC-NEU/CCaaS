@@ -226,8 +226,8 @@ namespace Taas {
                 if(i == ctx.txn_node_ip_index) {
                     sharding_should_enqueue_merge_queue_txn_num.IncCount(message_epoch, i, 1);
                     EpochManager::should_merge_txn_num.IncCount(message_epoch, i, 1);
-                    merge_queue.enqueue(std::move(sharding_row_vector[i]));
-                    merge_queue.enqueue(nullptr);
+                    merge_queue->enqueue(std::move(sharding_row_vector[i]));
+                    merge_queue->enqueue(nullptr);
                     sharding_enqueued_merge_queue_txn_num.IncCount(message_epoch, i, 1);
                 }
                 else {
@@ -297,8 +297,8 @@ namespace Taas {
                     assert(false);
                 sharding_should_enqueue_merge_queue_txn_num.IncCount(message_epoch, message_server_id, 1);
                 EpochManager::should_merge_txn_num.IncCount(message_epoch, message_server_id, 1);
-                merge_queue.enqueue(std::move(txn_ptr));
-                merge_queue.enqueue(nullptr);
+                merge_queue->enqueue(std::move(txn_ptr));
+                merge_queue->enqueue(nullptr);
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
                 sharding_should_enqueue_merge_queue_txn_num.IncCount(message_epoch, message_server_id, 1);
                 break;
@@ -356,11 +356,8 @@ namespace Taas {
                 break;
             }
             case proto::NullMark:
-                break;
             case proto::TxnType_INT_MIN_SENTINEL_DO_NOT_USE_:
-                break;
             case proto::TxnType_INT_MAX_SENTINEL_DO_NOT_USE_:
-                break;
             case proto::CommittedTxn:
                 break;
         }
@@ -372,7 +369,7 @@ namespace Taas {
 
     bool MessageReceiveHandler::HandleReceivedMessage() {
         sleep_flag = false;
-        while (listen_message_queue.try_dequeue(message_ptr)) {
+        while (listen_message_queue->try_dequeue(message_ptr)) {
             if (message_ptr->empty()) continue;
             message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
                                                                     message_ptr->size());
@@ -384,8 +381,8 @@ namespace Taas {
                 SetMessageRelatedCountersInfo();
                 HandleReceivedTxn();
             } else {
-                request_queue.enqueue(std::move(msg_ptr));
-                request_queue.enqueue(nullptr);
+                request_queue->enqueue(std::move(msg_ptr));
+                request_queue->enqueue(nullptr);
             }
             sleep_flag = true;
         }

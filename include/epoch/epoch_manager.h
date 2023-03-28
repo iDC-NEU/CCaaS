@@ -28,7 +28,7 @@ namespace Taas {
         uint64_t time{};
         std::string ip; /// send to whom
         uint64_t epoch{};
-        proto::TxnType type;
+        proto::TxnType type{};
         std::unique_ptr<std::string> str;
         std::unique_ptr<proto::Transaction> txn;
         explicit pack_params(uint64_t id_, uint64_t time_, std::string ip_, uint64_t e = 0, proto::TxnType ty = proto::TxnType::NullMark,
@@ -42,7 +42,7 @@ namespace Taas {
         uint64_t time{};
         std::string ip; /// send to whom
         uint64_t epoch{};
-        proto::TxnType type;
+        proto::TxnType type{};
         std::unique_ptr<std::string> str;
         std::unique_ptr<proto::Transaction> txn;
         send_params(uint64_t id_, uint64_t time_, std::string ip_, uint64_t e = 0, proto::TxnType ty = proto::TxnType::NullMark,
@@ -53,38 +53,36 @@ namespace Taas {
 
     // 原子变量
     static std::atomic<uint64_t> merge_num;
-
-    extern BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>> listen_message_queue;
-    extern BlockingConcurrentQueue<std::unique_ptr<send_params>> send_to_server_queue, send_to_client_queue, send_to_storage_queue;
-    ///local_txn_queue 本地接收到的完整的事务
-    ///merge_queue 当前epoch的涉及当前分片的子事务
-    ///commit_queue 当前epoch的能提交的涉及当前分片的子事务
+    ///message transmit
+    extern std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>> listen_message_queue;
+    extern std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<send_params>>> send_to_server_queue, send_to_client_queue, send_to_storage_queue;
+    extern std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Message>>> request_queue, raft_message_queue;
+    ///merge_queue 存放需要进行merge的子事务 不区分epoch
+    extern std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> merge_queue;
+    ///epoch_local_txn_queue 本地接收到的完整的事务
+    ///epoch_commit_queue 当前epoch的涉及当前分片的要进行validate和commit的子事务
     extern std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>> epoch_local_txn_queue, ///stroe whole txn receive from client (used to push log down to storage)
-            epoch_merge_queue, /// store sharding transactions receive from servers, wait to update row header
             epoch_commit_queue,///store sharding transactions receive from servers, wait to validate
             epoch_redo_log_queue; ///store transactions receive from clients, wait to push down
-    extern BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>> local_txn_queue, merge_queue, commit_queue, redo_log_queue;
-    extern BlockingConcurrentQueue<std::unique_ptr<pack_params>> pack_txn_queue;
-    extern BlockingConcurrentQueue<std::unique_ptr<proto::Message>> request_queue, raft_message_queue;
+
     extern std::atomic<bool> init_ok, is_epoch_advance_started, test_start;
 
-    extern uint64_t now_to_us();
     extern void InitEpochTimerManager(Context& ctx);
 
     //epoch work threads
-    extern void EpochLogicalTimerManagerThreadMain(uint64_t id, Context ctx);
-    extern void EpochPhysicalTimerManagerThreadMain(uint64_t id, Context ctx);
-    extern void StateChecker(uint64_t id, Context ctx);
+    extern void EpochLogicalTimerManagerThreadMain(Context ctx);
+    extern void EpochPhysicalTimerManagerThreadMain(Context ctx);
+    extern void StateChecker(Context ctx);
     extern void WorkerThreadMain(uint64_t id, Context ctx);
 
     //message transport threads
-    extern void SendServerThreadMain(uint64_t id, Context ctx);
-    extern void ListenServerThreadMain(uint64_t id, Context ctx);
-    extern void SendClientThreadMain(uint64_t id, Context ctx);
-    extern void ListenClientThreadMain(uint64_t id, const Context& ctx);
-    extern void ListenStorageThreadMain(uint64_t id, Context ctx);
-    extern void SendStoragePUBThreadMain(uint64_t id, Context ctx);
-    extern void SendStoragePUBThreadMain2(uint64_t id, Context ctx);
+    extern void SendServerThreadMain(Context ctx);
+    extern void ListenServerThreadMain(Context ctx);
+    extern void SendClientThreadMain(Context ctx);
+    extern void ListenClientThreadMain(Context ctx);
+    extern void ListenStorageThreadMain(Context ctx);
+    extern void SendStoragePUBThreadMain(Context ctx);
+    extern void SendStoragePUBThreadMain2(Context ctx);
 
 
 
@@ -92,7 +90,7 @@ namespace Taas {
     class EpochManager {
     private:
         static bool timerStop;
-        static volatile uint64_t logical_epoch, physical_epoch, push_down_epoch;
+        static std::atomic<uint64_t> logical_epoch, physical_epoch, push_down_epoch;
     public:
 
         static Context ctx;
@@ -149,23 +147,23 @@ namespace Taas {
         static bool IsCurrentEpochAbort(uint64_t epoch){ return is_current_epoch_abort[epoch % max_length]->load();}
         static void SetCurrentEpochAbort(uint64_t epoch, bool value){ is_current_epoch_abort[epoch % max_length]->store(value);}
 
-        static void SetPhysicalEpoch(int value){ physical_epoch = value;}
+        static void SetPhysicalEpoch(uint64_t value){ physical_epoch.store(value);}
         static uint64_t AddPhysicalEpoch(){
-            return ++physical_epoch;
+            return physical_epoch.fetch_add(1);
         }
-        static uint64_t GetPhysicalEpoch(){ return physical_epoch;}
+        static uint64_t GetPhysicalEpoch(){ return physical_epoch.load();}
 
-        static void SetLogicalEpoch(int value){ logical_epoch = value;}
+        static void SetLogicalEpoch(uint64_t value){ logical_epoch.store(value);}
         static uint64_t AddLogicalEpoch(){
-            return ++ logical_epoch;
+            return logical_epoch.fetch_add(1);
         }
-        static uint64_t GetLogicalEpoch(){ return logical_epoch;}
+        static uint64_t GetLogicalEpoch(){ return logical_epoch.load();}
 
-        static void SetPushDownEpoch(int value){ push_down_epoch = value;}
+        static void SetPushDownEpoch(uint64_t value){ push_down_epoch.store(value);}
         static uint64_t AddPushDownEpoch(){
-            return ++ push_down_epoch;
+            return push_down_epoch.fetch_add(1);
         }
-        static uint64_t GetPushDownEpoch(){ return push_down_epoch;}
+        static uint64_t GetPushDownEpoch(){ return push_down_epoch.load();}
 
 
         static void ClearMergeEpochState(uint64_t epoch_mod) {

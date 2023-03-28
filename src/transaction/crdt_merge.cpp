@@ -3,7 +3,6 @@
 //
 #include "transaction/crdt_merge.h"
 #include "epoch/epoch_manager.h"
-#include "tools/utilities.h"
 
 namespace Taas {
     bool Taas::CRDTMerge::ValidateReadSet(Taas::Context &ctx, proto::Transaction &txn) {

@@ -12,7 +12,6 @@ namespace Taas {
         doc.LoadFile("../config.xml");
         tinyxml2::XMLElement *root=doc.RootElement();
         tinyxml2::XMLElement *index_element=root->FirstChildElement("txn_node_ip");
-        int symbol_local_or_remote=0;
         while (index_element){
             tinyxml2::XMLElement *ip_port=index_element->FirstChildElement("txn_ip");
             const char* content;
@@ -24,7 +23,6 @@ namespace Taas {
 
             }
             index_element=index_element->NextSiblingElement();
-            symbol_local_or_remote++;
         }
 
         tinyxml2::XMLElement* server_num = root->FirstChildElement("txn_node_num");
@@ -75,7 +73,7 @@ namespace Taas {
         printf("Config Info:\n \tServerIp:\n");
 
         int cnt = 0;
-        for(auto i : kServerIp) {
+        for(const auto& i : kServerIp) {
             printf("\t \t ID: %d, IP: %s\n", cnt++, i.c_str());
         }
 

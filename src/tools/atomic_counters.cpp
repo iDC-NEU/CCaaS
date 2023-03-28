@@ -8,7 +8,7 @@ namespace Taas{
     AtomicCounters::AtomicCounters(uint64_t size){
         _size = size;
         for(int i = 0; i < (int)size; i ++) {
-            vec.emplace_back(std::move(std::make_unique<std::atomic<uint64_t>>(0)));
+            vec.emplace_back(std::make_unique<std::atomic<uint64_t>>(0));
         }
     }
 
@@ -17,7 +17,7 @@ namespace Taas{
         _size = size;
         vec.reserve(size);
         for(int i = 0; i < (int)size; i ++) {
-            vec.emplace_back(std::move(std::make_unique<std::atomic<uint64_t>>(0)));
+            vec.emplace_back(std::make_unique<std::atomic<uint64_t>>(0));
         }
     }
 

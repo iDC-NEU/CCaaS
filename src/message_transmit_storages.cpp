@@ -17,24 +17,34 @@ namespace Taas {
  * 5556 : txn nodes sends log to storage nodes                                      txn PUSH            storage PULL
 
  */
+/// set cache size
+//        recv_socket.set(zmq::sockopt::sndhwm, queue_length);
+//        recv_socket.set(zmq::sockopt::rcvhwm, queue_length);
 
-    void ListenStorageThreadMain(uint64_t id, Context ctx) { //PULL & PUSH
+//        recv_socket.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
+//        recv_socket.setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
+
+    void ListenStorageThreadMain(Context ctx) { //PULL & PUSH
         uint32_t recv_port = 5553;
-        UNUSED_VALUE(id);
-        UNUSED_VALUE(ctx);
         int queue_length = 0;
         zmq::context_t context(1);
         zmq::socket_t recv_socket(context, ZMQ_PULL);
-        recv_socket.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
-        recv_socket.setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
+        zmq::send_flags sendFlags = zmq::send_flags::none;
+        zmq::recv_flags recvFlags = zmq::recv_flags::none;
+        zmq::recv_result_t recvResult;
+
+        recv_socket.set(zmq::sockopt::sndhwm, queue_length);
+        recv_socket.set(zmq::sockopt::rcvhwm, queue_length);
+
         zmq::socket_t send_socket(context, ZMQ_PUSH);
-        send_socket.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
-        send_socket.setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
+        send_socket.set(zmq::sockopt::sndhwm, queue_length);
+        send_socket.set(zmq::sockopt::rcvhwm, queue_length);
         recv_socket.bind("tcp://*:" + std::to_string(recv_port));
 
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> recv_message = std::make_unique<zmq::message_t>();
-            recv_socket.recv(&(*recv_message));
+            recvResult = recv_socket.recv((*recv_message), recvFlags);
+            if(recvResult < 0) assert(false);
             auto message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(recv_message->data()),
                                                                     recv_message->size());
             auto pull_msg = std::make_unique<proto::Message>();
@@ -53,7 +63,7 @@ namespace Taas {
                 auto s = std::to_string(epoch_id) + ":";
                 auto epoch_mod = epoch_id % EpochManager::max_length;
                 auto total_num = EpochManager::epoch_log_lsn.GetCount(epoch_id);
-                for (int i = 0; i < total_num; i++) {
+                for (uint64_t i = 0; i < total_num; i++) {
                     auto key = s + std::to_string(i);
                     auto *ptr = pull_resp->add_txns();
                     EpochManager::committed_txn_cache[epoch_mod]->getValue(key, (*ptr)); //copy
@@ -69,43 +79,45 @@ namespace Taas {
             }
 
             auto serialized_pull_resp = std::make_unique<std::string>();
-            res = Gzip(pull_msg_resp.get(), serialized_pull_resp.get());
+            Gzip(pull_msg_resp.get(), serialized_pull_resp.get());
             std::unique_ptr<zmq::message_t> send_message = std::make_unique<zmq::message_t>(*serialized_pull_resp);
-            send_socket.send(*send_message);
+            send_socket.send(*send_message, sendFlags);
             send_socket.disconnect(endpoint);
         }
 
     }
 
-    void SendStoragePUBThreadMain(uint64_t id, Context ctx) { //PUB Txn
+    void SendStoragePUBThreadMain(Context ctx) { //PUB Txn
         int queue_length = 0;
         zmq::context_t context(1);
         zmq::message_t reply(5);
+        zmq::send_flags sendFlags = zmq::send_flags::none;
         zmq::socket_t socket_send(context, ZMQ_PUB);
-        socket_send.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
-        socket_send.setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
+        socket_send.set(zmq::sockopt::sndhwm, queue_length);
+        socket_send.set(zmq::sockopt::rcvhwm, queue_length);
         socket_send.bind("tcp://*:5556");//to server
         printf("线程开始工作 SendStoragePUBServerThread ZMQ_PUB tcp:// ip + :5556\n");
         std::unique_ptr<send_params> params;
         std::unique_ptr<zmq::message_t> msg;
         while (!init_ok.load());
         while (!EpochManager::IsTimerStop()) {
-            send_to_storage_queue.wait_dequeue(params);
+            send_to_storage_queue->wait_dequeue(params);
             if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
             msg = std::make_unique<zmq::message_t>(*(params->str));
-            socket_send.send(*msg);
+            socket_send.send(*msg, sendFlags);
         }
-        socket_send.send((zmq::message_t &) "end");
+        socket_send.send((zmq::message_t &) "end", sendFlags);
     }
 
-    void SendStoragePUBThreadMain2(uint64_t id, Context ctx) {//PUB PACK
+    void SendStoragePUBThreadMain2(Context ctx) {//PUB PACK
         SetCPU();
         int queue_length = 0;
         zmq::context_t context(1);
         zmq::message_t reply(5);
+        zmq::send_flags sendFlags = zmq::send_flags::none;
         zmq::socket_t socket_send(context, ZMQ_PUB);
-        socket_send.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
-        socket_send.setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
+        socket_send.set(zmq::sockopt::sndhwm, queue_length);
+        socket_send.set(zmq::sockopt::rcvhwm, queue_length);
         socket_send.bind("tcp://*:5556");//to server
         printf("线程开始工作 SendStorage PUBServerThread ZMQ_PUB tcp:// ip + :5556\n");
         std::unique_ptr<send_params> params;
@@ -120,15 +132,12 @@ namespace Taas {
                 auto s = std::to_string(epoch) + ":";
                 auto epoch_mod = epoch % EpochManager::max_length;
                 auto total_num = EpochManager::epoch_log_lsn.GetCount(epoch);
-//                printf("storage send start epoch %lu\n", epoch);
-                for (int i = 0; i < total_num; i++) {
+                for (uint64_t i = 0; i < total_num; i++) {
                     auto key = s + std::to_string(i);
                     auto *ptr = push_response->add_txns();
                     assert(ptr != nullptr);
                     assert(EpochManager::committed_txn_cache[epoch_mod]->getValue(key, (*ptr))); //copy
-//                    printf("send to storage ptr row_size %d\n", ptr->row_size());
                 }
-//                printf("storage send end epoch %lu\n", epoch);
                 push_response->set_result(proto::Success);
                 push_response->set_epoch_id(epoch);
                 push_response->set_txn_num(total_num);
@@ -136,24 +145,26 @@ namespace Taas {
                 auto res = Gzip(push_msg.get(), serialized_pull_resp_str.get());
                 assert(res);
                 auto send_message = std::make_unique<zmq::message_t>(*serialized_pull_resp_str);
-                if (!socket_send.send(*send_message)) printf("send error!!!!!\n");
+                socket_send.send((*send_message), sendFlags);
 
                 epoch++;
             } else {
                 usleep(2000);
             }
         }
-        socket_send.send((zmq::message_t &) "end");
+        socket_send.send((zmq::message_t &) "end", sendFlags);
     }
 
-    void SendStorageTiKVThreadMain(uint64_t id, Context ctx) { //PUB Txn
+    void SendStorageTiKVThreadMain(Context ctx) { //PUB Txn
         SetCPU();
         int queue_length = 0;
         zmq::context_t context(1);
         zmq::message_t reply(5);
+        zmq::send_flags sendFlags = zmq::send_flags::none;
         zmq::socket_t socket_send(context, ZMQ_PUB);
-        socket_send.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
-        socket_send.setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
+        socket_send.set(zmq::sockopt::sndhwm, queue_length);
+        socket_send.set(zmq::sockopt::rcvhwm, queue_length);
+
         socket_send.bind("tcp://*:5556");//to server
         printf("线程开始工作 SendStorage PUBServerThread ZMQ_PUB tcp:// ip + :5556\n");
         std::unique_ptr<send_params> params;
@@ -180,7 +191,7 @@ namespace Taas {
                     auto res = Gzip(push_msg.get(), serialized_pull_resp_str.get());
                     assert(res);
                     auto send_message = std::make_unique<zmq::message_t>(*serialized_pull_resp_str);
-                    if (!socket_send.send(*send_message)) printf("send error!!!!!\n");
+                    socket_send.send((*send_message), sendFlags);
                 }
                 epoch++;
             } else {
