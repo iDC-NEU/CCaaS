@@ -308,6 +308,7 @@ namespace Taas {
         if(ctx.is_cache_server_available) {
             cache_server_available = 0;
         }
+        OUTPUTLOG("=============start Epoch的合并===== ", epoch);
         while(!EpochManager::IsTimerStop()){
             while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(20);
             sleep_flag = false;
@@ -358,7 +359,7 @@ namespace Taas {
             gettimeofday(&start_time, nullptr);
             start_time_ll = start_time.tv_sec * 1000000 + start_time.tv_usec;
         }
-
+        auto epoch = EpochManager::GetPhysicalEpoch();
         test_start.store(true);
         is_epoch_advance_started.store(true);
 
@@ -366,6 +367,8 @@ namespace Taas {
         while(!EpochManager::IsTimerStop()){
             usleep(GetSleeptime(ctx));
             EpochManager::AddPhysicalEpoch();
+            epoch = EpochManager::GetPhysicalEpoch();
+            OUTPUTLOG("=============start Epoch ", epoch);
             if((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((EpochManager::GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength) ) {
                 printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
                 printf("+++++++++++++++Fata : Cache Size exceeded!!! +++++++++++++++++++++\n");

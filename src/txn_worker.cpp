@@ -30,6 +30,7 @@ namespace Taas {
         MessageSendHandler sendHandler;
         sendHandler.Init(ctx);
         receiveHandler.Init(0, ctx);
+        MessageReceiveHandler::StaticInit(ctx);
         uint64_t redo_log_epoch = 1, merge_epoch = 1;
         while (!init_ok.load()) usleep(100);
 

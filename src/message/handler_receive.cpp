@@ -150,12 +150,12 @@ namespace Taas {
         res = false;
         while(cache_clear_epoch_num + 50 < EpochManager::GetLogicalEpoch()) {
             cache_clear_epoch_num_mod = cache_clear_epoch_num % ctx.kCacheMaxLength;
-            sharding_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 0),
+            sharding_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),
             sharding_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
             sharding_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
             sharding_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
 
-            sharding_should_enqueue_merge_queue_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+            sharding_should_enqueue_merge_queue_txn_num.Clear(cache_clear_epoch_num_mod, 1),
             sharding_enqueued_merge_queue_txn_num.Clear(cache_clear_epoch_num_mod, 0),
             should_enqueue_local_txn_queue_txn_num.Clear(cache_clear_epoch_num_mod, 0),
             enqueued_local_txn_queue_txn_num.Clear(cache_clear_epoch_num_mod, 0),
@@ -169,17 +169,17 @@ namespace Taas {
 
             backup_should_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
             backup_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-            backup_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 0),
+            backup_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),
             backup_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
             backup_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
             backup_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
             backup_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
 
-            insert_set_should_receive_num.Clear(cache_clear_epoch_num_mod, 0),
+            insert_set_should_receive_num.Clear(cache_clear_epoch_num_mod, 1),
             insert_set_received_num.Clear(cache_clear_epoch_num_mod, 0),
             insert_set_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
 
-            sharding_should_receive_abort_set_num.Clear(cache_clear_epoch_num_mod, 0),
+            sharding_should_receive_abort_set_num.Clear(cache_clear_epoch_num_mod, 1),
             sharding_received_abort_set_num.Clear(cache_clear_epoch_num_mod, 0);
             sharding_abort_set_received_ack_num.Clear(cache_clear_epoch_num_mod, 0);
 
@@ -401,6 +401,7 @@ namespace Taas {
         }
 
         ///to single server
+        ///todo check if condition
         if(server_reply_ack_id != ctx.txn_node_ip_index) {
             if(sharding_received_pack_num.GetCount(sharding_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) > 0 &&
                     sharding_received_txn_num.GetCount(sharding_send_ack_epoch_num[server_reply_ack_id], server_reply_ack_id) >=
