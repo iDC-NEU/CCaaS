@@ -42,14 +42,21 @@ namespace Taas {
         auto sleep_flag = false;
 
         while(!EpochManager::IsInitOK()) usleep(1000);
-
+        printf("State Checker\n");
         while (!EpochManager::IsTimerStop()) {
+            sleep_flag = false;
+//            printf("State Checker 48\n");
             sleep_flag = sleep_flag | receiveHandler.StaticClear();///clear receive handler cache
+//            printf("State Checker 50\n");
             sleep_flag = sleep_flag | receiveHandler.CheckReceivedStatesAndReply();/// check and send ack
+//            printf("State Checker 52\n");
 
             sleep_flag = sleep_flag | sendHandler.SendEpochEndMessage(ctx);///send epoch end flag
+//            printf("State Checker 55\n");
             sleep_flag = sleep_flag | sendHandler.SendBackUpEpochEndMessage(ctx);///send epoch backup end message
+//            printf("State Checker 57\n");
             sleep_flag = sleep_flag | sendHandler.SendAbortSet(ctx); ///send abort set
+//            printf("State Checker 59\n");
             if(!sleep_flag) usleep(50);
         }
     }

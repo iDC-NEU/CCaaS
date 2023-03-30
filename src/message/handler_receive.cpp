@@ -398,13 +398,13 @@ namespace Taas {
         auto& id = server_reply_ack_id;
         ///to all server
         /// change epoch_record_committed_txn_num to tikv check
-        while(Merger::epoch_record_committed_txn_num.GetCount(redo_log_push_down_reply) >=
-                Merger::epoch_record_commit_txn_num.GetCount(redo_log_push_down_reply)) {
+        if(Merger::epoch_record_committed_txn_num.GetCount(redo_log_push_down_reply) >=
+                Merger::epoch_record_commit_txn_num.GetCount(redo_log_push_down_reply) &&
+                redo_log_push_down_reply < EpochManager::GetLogicalEpoch()) {
             MessageSendHandler::SendTxnToServer(ctx, redo_log_push_down_reply,
                                                 server_reply_ack_id, empty_txn, proto::TxnType::EpochLogPushDownComplete);
             redo_log_push_down_reply ++;
         }
-
         ///to single server  send ack
         if(id != ctx.txn_node_ip_index) {
             auto &sharding_epoch = sharding_send_ack_epoch_num[id];

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <root>
-    <txn_node_num>1</txn_node_num>
+    <txn_node_num>2</txn_node_num>
     <txn_node_ip_index>0</txn_node_ip_index><!-- 0, 1, 2, ...-->
     <txn_node_ip>
         <txn_ip>202.199.6.49</txn_ip>
