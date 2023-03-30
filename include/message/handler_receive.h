@@ -18,7 +18,6 @@ namespace Taas {
         bool HandleReceivedTxn();
         bool Sharding();
         bool UpdateEpochAbortSet();
-        bool CheckTxnReceiveComplete() const;
         bool CheckReceivedStatesAndReply();
 
         uint64_t GetHashValue(const std::string& key) const {
@@ -113,8 +112,8 @@ namespace Taas {
 
         static bool IsShardingReceiveComplete(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
-                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
-                if(sharding_received_pack_num.GetCount(epoch, i) < EpochManager::server_state.GetCount(i) ||
+                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
+                if(sharding_received_pack_num.GetCount(epoch, i) < sharding_received_txn_num.GetCount(epoch, i)||
                         sharding_received_txn_num.GetCount(epoch, i) < sharding_received_txn_num.GetCount(epoch, i)) return false;
             }
             return true;
@@ -124,95 +123,98 @@ namespace Taas {
             if( backup_send_txn_num.GetCount(epoch) < backup_should_send_txn_num.GetCount(epoch)
                 || epoch > EpochManager::GetPhysicalEpoch()) return false;
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
-                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
-                if(backup_received_ack_num.GetCount(epoch, i) <
-                   1) return false;
+                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
+                if(backup_received_ack_num.GetCount(epoch, i) < backup_should_receive_pack_num.GetCount(epoch, i)) return false;
             }
             return true;
         }
 
         static bool IsRemoteShardingPackReceiveComplete(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
-                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
-                if(sharding_received_pack_num.GetCount(epoch, i) < EpochManager::server_state.GetCount(i)) return false;
+                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
+                if(sharding_received_pack_num.GetCount(epoch, i) < sharding_should_receive_pack_num.GetCount(epoch, i)) return false;
             }
             return true;
         }
 
         static bool IsRemoteShardingTxnReceiveComplete(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
-                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
-                if(sharding_received_txn_num.GetCount(epoch, i) < sharding_should_receive_txn_num.GetCount(epoch, i)) return false;
+                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
+                if(sharding_received_txn_num.GetCount(epoch, i) < sharding_received_txn_num.GetCount(epoch, i)) return false;
             }
             return true;
         }
 
         static bool IsRemoteAbortSetReceiveComplete(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
-                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
-                if(sharding_received_abort_set_num.GetCount(epoch, i) < EpochManager::server_state.GetCount(i)) return false;
+                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
+                if(sharding_received_abort_set_num.GetCount(epoch, i) < sharding_should_receive_abort_set_num.GetCount(epoch, i)) return false;
             }
             return true;
         }
 
         static bool IsRemoteInsertSetReceiveComplete(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
-                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
-                if(insert_set_received_num.GetCount(epoch, i) < EpochManager::server_state.GetCount(i)) return false;
+                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
+                if(insert_set_received_num.GetCount(epoch, i) < insert_set_should_receive_num.GetCount(epoch, i)) return false;
             }
             return true;
         }
 
         static bool IsEpochTxnEnqueued_MergeQueue(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
-                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
-                if(sharding_enqueued_merge_queue_txn_num.GetCount(epoch, i) <
-                        sharding_should_enqueue_merge_queue_txn_num.GetCount(epoch, i)) return false;
+                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
+                if(sharding_should_enqueue_merge_queue_txn_num.GetCount(epoch, i) >
+                    sharding_enqueued_merge_queue_txn_num.GetCount(epoch, i)) return false;
             }
             return true;
         }
 
         static bool IsEpochTxnEnqueued_LocalTxnQueue(uint64_t epoch, Context &ctx) {
-            return should_enqueue_local_txn_queue_txn_num.GetCount(epoch, ctx.txn_node_ip_index ) <
-                   enqueued_local_txn_queue_txn_num.GetCount(epoch, ctx.txn_node_ip_index );
+            for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
+                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
+                if(should_enqueue_local_txn_queue_txn_num.GetCount(epoch, i) >
+                   enqueued_local_txn_queue_txn_num.GetCount(epoch, i)) return false;
+            }
+            return true;
         }
 
         static bool IsShardingACKReceiveComplete(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
-                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
-                if(sharding_received_ack_num.GetCount(epoch, i) < 1) return false;
+                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
+                if(sharding_received_ack_num.GetCount(epoch, i) < sharding_should_receive_pack_num.GetCount(epoch, i)) return false;
             }
             return true;
         }
 
         static bool IsBackUpACKReceiveComplete(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
-                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
-                if(backup_received_ack_num.GetCount(epoch, i) < 1) return false;
+                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
+                if(backup_received_ack_num.GetCount(epoch, i) < backup_should_receive_pack_num.GetCount(epoch, i)) return false;
             }
             return true;
         }
 
         static bool IsAbortSetACKReceiveComplete(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
-                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
-                if(sharding_abort_set_received_ack_num.GetCount(epoch, i) < 1) return false;
+                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
+                if(sharding_abort_set_received_ack_num.GetCount(epoch, i) < sharding_should_receive_abort_set_num.GetCount(epoch, i)) return false;
             }
             return true;
         }
 
         static bool IsInsertSetACKReceiveComplete(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
-                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
-                if(insert_set_received_ack_num.GetCount(epoch, i) < 1) return false;
+                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
+                if(insert_set_received_ack_num.GetCount(epoch, i) < insert_set_should_receive_num.GetCount(epoch, i)) return false;
             }
             return true;
         }
 
         static bool IsRedoLogPushDownACKReceiveComplete(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
-                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(i) == 0) continue;
-                if(redo_log_push_down_ack_num.GetCount(epoch, i) < EpochManager::server_state.GetCount(i)) return false;
+                if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
+                if(redo_log_push_down_ack_num.GetCount(epoch, i) < EpochManager::server_state.GetCount(epoch, i)) return false;
             }
             return true;
         }

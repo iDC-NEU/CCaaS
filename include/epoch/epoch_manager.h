@@ -4,20 +4,23 @@
 
 #ifndef TAAS_EPOCH_MANANGER_H
 #define TAAS_EPOCH_MANANGER_H
+#include <unistd.h>
+
+#include <atomic>
 #include <memory>
+#include <mutex>
+#include <unordered_map>
 #include <utility>
 #include <vector>
-#include <unordered_map>
-#include <atomic>
-#include <mutex>
-#include <unistd.h>
+
+#include "message/handler_receive.h"
+#include "proto/message.pb.h"
+#include "tikv_client.h"
 #include "tools/atomic_counters.h"
+#include "tools/blocking_concurrent_queue.hpp"
 #include "tools/concurrent_hash_map.h"
 #include "tools/context.h"
-#include "tools/blocking_concurrent_queue.hpp"
-#include "proto/message.pb.h"
 #include "zmq.hpp"
-#include "tikv_client.h"
 
 namespace Taas {
     template<typename T>
@@ -227,18 +230,26 @@ namespace Taas {
             return online_server_num[epoch % max_length]->load();
         }
 
-        static void SetServerOnLine(const std::string& ip) {
+        static void SetServerOnLine(uint64_t epoch, const std::string& ip) {
             for(int i = 0; i < (int)ctx.kServerIp.size(); i++) {
                 if(ip == ctx.kServerIp[i]) {
-                    server_state.SetCount(i, 1);
+                    server_state.SetCount(epoch, i, 1);
+                    MessageReceiveHandler::sharding_should_receive_pack_num.Clear(epoch, 1);///relate to server state
+                    MessageReceiveHandler::backup_should_receive_pack_num.Clear(epoch, 1);///relate to server state
+                    MessageReceiveHandler::insert_set_should_receive_num.Clear(epoch, 1);///relate to server state
+                    MessageReceiveHandler::sharding_should_receive_abort_set_num.Clear(epoch, 1);///relate to server state
                 }
             }
         }
 
-        static void SetServerOffLine(const std::string& ip) {
+        static void SetServerOffLine(uint64_t epoch, const std::string& ip) {
             for(int i = 0; i < (int)ctx.kServerIp.size(); i++) {
                 if(ip == ctx.kServerIp[i]) {
-                    server_state.SetCount(i, 0);
+                    server_state.SetCount(epoch, i, 0);
+                    MessageReceiveHandler::sharding_should_receive_pack_num.Clear(epoch, 0);///relate to server state
+                    MessageReceiveHandler::backup_should_receive_pack_num.Clear(epoch, 0);///relate to server state
+                    MessageReceiveHandler::insert_set_should_receive_num.Clear(epoch, 0);///relate to server state
+                    MessageReceiveHandler::sharding_should_receive_abort_set_num.Clear(epoch, 0);///relate to server state
                 }
             }
         }

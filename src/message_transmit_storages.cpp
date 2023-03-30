@@ -136,7 +136,8 @@ namespace Taas {
                     auto key = s + std::to_string(i);
                     auto *ptr = push_response->add_txns();
                     assert(ptr != nullptr);
-                    assert(EpochManager::committed_txn_cache[epoch_mod]->getValue(key, (*ptr))); //copy
+                    auto res = EpochManager::committed_txn_cache[epoch_mod]->getValue(key, (*ptr)); //copy
+                    assert(res != false);
                 }
                 push_response->set_result(proto::Success);
                 push_response->set_epoch_id(epoch);
