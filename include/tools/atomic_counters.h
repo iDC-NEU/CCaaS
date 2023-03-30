@@ -73,7 +73,7 @@ namespace Taas {
 
     class AtomicCounters_Cache {
     private:
-        std::vector<std::shared_ptr<std::vector<std::shared_ptr<std::atomic<uint64_t>>>>> vec;
+        std::vector<std::unique_ptr<std::vector<std::unique_ptr<std::atomic<uint64_t>>>>> vec;
         uint64_t _size, epoch_mod{}, _length;
     public:
 
@@ -81,7 +81,8 @@ namespace Taas {
 
         AtomicCounters_Cache(uint64_t length = 1000, uint64_t size = 8);
 
-        void Init(uint64_t length = 1000, uint64_t size = 8);
+//        void Init(uint64_t length = 1000, uint64_t size = 8);
+        void Init(uint64_t length = 1000, uint64_t size = 8, uint64_t value = 0);
 
         uint64_t IncCount(uint64_t epoch, uint64_t index, uint64_t value) {
             return (*vec[epoch % _length])[index % _size]->fetch_add(value);

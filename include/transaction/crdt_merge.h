@@ -18,7 +18,6 @@ public:
     static bool LocalCRDTMerge(Context& ctx, proto::Transaction& txn);
     static bool MultiMasterCRDTMerge(Context& ctx, proto::Transaction& txn);
     static bool Commit(Context& ctx, proto::Transaction& txn);
-    static void RedoLog(Context& ctx, proto::Transaction& txn);
 
 };
 

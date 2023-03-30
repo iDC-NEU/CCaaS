@@ -3,6 +3,7 @@
 //
 
 #include "test/test.h"
+#include "transaction/merge.h"
 #include <random>
 
 namespace Taas {
@@ -40,7 +41,7 @@ namespace Taas {
                 row->set_key(key);
                 switch (op_type) {
                     case 0 : {
-                        if(EpochManager::read_version_map.getValue(key, read_version)) {
+                        if(Merger::read_version_map.getValue(key, read_version)) {
                             row->set_op_type(proto::Read);
                             row->set_data(read_version);
                             break;

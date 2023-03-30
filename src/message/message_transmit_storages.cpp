@@ -3,7 +3,10 @@
 //
 
 #include "epoch/epoch_manager.h"
+#include "message/message.h"
+#include "storage/redo_loger.h"
 #include "tools/utilities.h"
+#include "transaction/merge.h"
 
 namespace Taas {
 
@@ -40,6 +43,7 @@ namespace Taas {
         send_socket.set(zmq::sockopt::sndhwm, queue_length);
         send_socket.set(zmq::sockopt::rcvhwm, queue_length);
         recv_socket.bind("tcp://*:" + std::to_string(recv_port));
+        while(!EpochManager::IsInitOK()) usleep(1000);
 
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> recv_message = std::make_unique<zmq::message_t>();
@@ -58,15 +62,15 @@ namespace Taas {
             auto pull_msg_resp = std::make_unique<proto::Message>();
             auto pull_resp = pull_msg_resp->mutable_storage_pull_response();
 
-            if (EpochManager::committed_txn_num.GetCount(epoch_id) ==
-                EpochManager::should_commit_txn_num.GetCount(epoch_id)) { // the epoch's txns all have been c committed
+            if (Merger::epoch_committed_txn_num.GetCount(epoch_id) ==
+                    Merger::epoch_should_commit_txn_num.GetCount(epoch_id)) { // the epoch's txns all have been c committed
                 auto s = std::to_string(epoch_id) + ":";
                 auto epoch_mod = epoch_id % EpochManager::max_length;
-                auto total_num = EpochManager::epoch_log_lsn.GetCount(epoch_id);
+                auto total_num = RedoLoger::epoch_log_lsn.GetCount(epoch_id);
                 for (uint64_t i = 0; i < total_num; i++) {
                     auto key = s + std::to_string(i);
                     auto *ptr = pull_resp->add_txns();
-                    EpochManager::committed_txn_cache[epoch_mod]->getValue(key, (*ptr)); //copy
+                    RedoLoger::committed_txn_cache[epoch_mod]->getValue(key, (*ptr)); //copy
                 }
 //            for (auto iter = EpochManager::redo_log[epoch_id]->begin(); iter != EpochManager::redo_log[epoch_id]->end(); iter++) {
 //                proto::Transaction* ptr = pull_resp->add_txns();
@@ -99,7 +103,7 @@ namespace Taas {
         printf("线程开始工作 SendStoragePUBServerThread ZMQ_PUB tcp:// ip + :5556\n");
         std::unique_ptr<send_params> params;
         std::unique_ptr<zmq::message_t> msg;
-        while (!init_ok.load());
+        while(!EpochManager::IsInitOK()) usleep(1000);
         while (!EpochManager::IsTimerStop()) {
             send_to_storage_queue->wait_dequeue(params);
             if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
@@ -123,7 +127,7 @@ namespace Taas {
         std::unique_ptr<send_params> params;
         std::unique_ptr<zmq::message_t> msg;
         uint64_t epoch = 1;
-        while (!init_ok.load());
+        while(!EpochManager::IsInitOK()) usleep(1000);
         while (!EpochManager::IsTimerStop()) {
             if (epoch < EpochManager::GetLogicalEpoch()) {
                 auto push_msg = std::make_unique<proto::Message>();
@@ -131,12 +135,12 @@ namespace Taas {
                 assert(push_response != nullptr);
                 auto s = std::to_string(epoch) + ":";
                 auto epoch_mod = epoch % EpochManager::max_length;
-                auto total_num = EpochManager::epoch_log_lsn.GetCount(epoch);
+                auto total_num = RedoLoger::epoch_log_lsn.GetCount(epoch);
                 for (uint64_t i = 0; i < total_num; i++) {
                     auto key = s + std::to_string(i);
                     auto *ptr = push_response->add_txns();
                     assert(ptr != nullptr);
-                    auto res = EpochManager::committed_txn_cache[epoch_mod]->getValue(key, (*ptr)); //copy
+                    auto res = RedoLoger::committed_txn_cache[epoch_mod]->getValue(key, (*ptr)); //copy
                     assert(res != false);
                 }
                 push_response->set_result(proto::Success);
@@ -156,7 +160,7 @@ namespace Taas {
         socket_send.send((zmq::message_t &) "end", sendFlags);
     }
 
-    void SendStorageTiKVThreadMain(Context ctx) { //PUB Txn
+    void SendStorageTiKVThreadMain(const Context& ctx) { //PUB Txn
         SetCPU();
         int queue_length = 0;
         zmq::context_t context(1);
@@ -171,12 +175,12 @@ namespace Taas {
         std::unique_ptr<send_params> params;
         std::unique_ptr<zmq::message_t> msg;
         uint64_t epoch = 1;
-        while (!init_ok.load());
+        while(!EpochManager::IsInitOK()) usleep(1000);
         while (!EpochManager::IsTimerStop()) {
             if (epoch < EpochManager::GetLogicalEpoch()) {
                 auto s = std::to_string(epoch) + ":";
                 auto epoch_mod = epoch % EpochManager::max_length;
-                auto total_num = EpochManager::epoch_log_lsn.GetCount(epoch);
+                auto total_num = RedoLoger::epoch_log_lsn.GetCount(epoch);
                 for (int i = 0; i < (int)total_num; i++) {
                     auto push_msg = std::make_unique<proto::Message>();
                     auto push_response = push_msg->mutable_storage_push_response();
@@ -184,7 +188,7 @@ namespace Taas {
                     auto key = s + std::to_string(i);
                     auto *ptr = push_response->add_txns();
                     assert(ptr != nullptr);
-                    assert(EpochManager::committed_txn_cache[epoch_mod]->getValue(key, (*ptr))); //copy
+                    assert(RedoLoger::committed_txn_cache[epoch_mod]->getValue(key, (*ptr))); //copy
                     push_response->set_result(proto::Success);
                     push_response->set_epoch_id(epoch);
                     push_response->set_txn_num(total_num);

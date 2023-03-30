@@ -4,6 +4,8 @@
 #include "message/handler_send.h"
 #include "message/handler_receive.h"
 #include "tools/utilities.h"
+#include "transaction/merge.h"
+
 namespace Taas {
 
 /**
@@ -206,8 +208,7 @@ namespace Taas {
             if (MessageReceiveHandler::IsRemoteShardingPackReceiveComplete(abort_set_send_epoch, ctx) &&
                 MessageReceiveHandler::IsRemoteShardingTxnReceiveComplete(abort_set_send_epoch, ctx) &&
                 MessageReceiveHandler::IsEpochTxnEnqueued_MergeQueue(abort_set_send_epoch, ctx) &&
-                EpochManager::should_merge_txn_num.GetCount(abort_set_send_epoch) >
-                EpochManager::merged_txn_num.GetCount(abort_set_send_epoch) &&
+                Merger::IsEpochMergeComplete(abort_set_send_epoch, ctx) &&
                 MessageReceiveHandler::IsBackUpSendFinish(abort_set_send_epoch, ctx) &&
                 MessageReceiveHandler::IsBackUpACKReceiveComplete(abort_set_send_epoch, ctx)) {
 
@@ -218,7 +219,7 @@ namespace Taas {
                 txn_end->set_commit_epoch(abort_set_send_epoch);
                 txn_end->set_sharding_id(0);
                 std::vector<std::string> keys, values;
-                EpochManager::local_epoch_abort_txn_set[abort_set_send_epoch % ctx.kCacheMaxLength]->getValue(keys,
+                Merger::local_epoch_abort_txn_set[abort_set_send_epoch % ctx.kCacheMaxLength]->getValue(keys,
                                                                                                               values);
                 for (uint64_t i = 0; i < keys.size(); i++) {
                     auto row = txn_end->add_row();
@@ -248,7 +249,7 @@ namespace Taas {
         txn_end->set_commit_epoch(insert_set_send_epoch);
         txn_end->set_sharding_id(0);
         std::vector<std::string> keys, values;
-        EpochManager::epoch_insert_set[insert_set_send_epoch % ctx.kCacheMaxLength]->getValue(keys, values);
+        Merger::epoch_insert_set[insert_set_send_epoch % ctx.kCacheMaxLength]->getValue(keys, values);
         for(uint64_t i = 0; i < keys.size(); i ++) {
             auto row = txn_end->add_row();
             row->set_key(keys[i]);

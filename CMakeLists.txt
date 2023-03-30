@@ -141,7 +141,7 @@ file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 # Note: for header-only libraries change all PUBLIC flags to INTERFACE and create an interface
 # target: add_library(${PROJECT_NAME} INTERFACE)
-add_library(${PROJECT_NAME} ${headers} ${sources} src/storage/tikv.cpp include/storage/tikv.h)
+add_library(${PROJECT_NAME} ${headers} ${sources} src/storage/tikv.cpp include/storage/tikv.h src/storage/redo_loger.cpp include/storage/redo_loger.h src/message/message.cpp include/message/message.h src/epoch/worker.cpp include/epoch/worker.h)
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 
 

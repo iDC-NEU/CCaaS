@@ -4,8 +4,12 @@
 
 #ifndef TAAS_HANDLER_SEND_H
 #define TAAS_HANDLER_SEND_H
+#include "proto/message.pb.h"
+#include "message.h"
 #include "epoch/epoch_manager.h"
 #include "tools/context.h"
+
+
 namespace Taas {
 
     class MessageSendHandler {
@@ -31,8 +35,6 @@ namespace Taas {
         std::vector<uint64_t> sharding_send_epoch;
         bool sleep_flag = false;
         std::unique_ptr<pack_params> pack_param;
-
-
 
     };
 }

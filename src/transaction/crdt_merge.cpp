@@ -1,8 +1,10 @@
 //
 // Created by 周慰星 on 11/8/22.
 //
-#include "transaction/crdt_merge.h"
+
 #include "epoch/epoch_manager.h"
+#include "transaction/merge.h"
+#include "transaction/crdt_merge.h"
 
 namespace Taas {
     bool Taas::CRDTMerge::ValidateReadSet(Taas::Context &ctx, proto::Transaction &txn) {
@@ -24,7 +26,7 @@ namespace Taas {
     bool Taas::CRDTMerge::ValidateWriteSet(Taas::Context &ctx, proto::Transaction &txn) {
         auto epoch_mod = txn.commit_epoch() % ctx.kCacheMaxLength;
         auto csn_temp = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
-        if(EpochManager::epoch_abort_txn_set[epoch_mod]->contain(csn_temp, csn_temp)) {
+        if(Merger::epoch_abort_txn_set[epoch_mod]->contain(csn_temp, csn_temp)) {
             return false;
         }
         return true;
@@ -40,9 +42,9 @@ namespace Taas {
             if(row.op_type() == proto::OpType::Read) {
                 continue;
             }
-            if (!EpochManager::epoch_merge_map[epoch_mod]->insert(row.key(), csn_temp, csn_result)) {
-                EpochManager::epoch_abort_txn_set[epoch_mod]->insert(csn_result, csn_result);
-                EpochManager::local_epoch_abort_txn_set[epoch_mod]->insert(csn_result, csn_result);
+            if (!Merger::epoch_merge_map[epoch_mod]->insert(row.key(), csn_temp, csn_result)) {
+                Merger::epoch_abort_txn_set[epoch_mod]->insert(csn_result, csn_result);
+                Merger::local_epoch_abort_txn_set[epoch_mod]->insert(csn_result, csn_result);
                 result = false;
             }
         }
@@ -58,30 +60,18 @@ namespace Taas {
                 continue;
             }
             else if(row.op_type() == proto::OpType::Insert) {
-                EpochManager::epoch_insert_set[epoch_mod]->insert(row.key(), csn_temp);
-                EpochManager::insert_set.insert(row.key(), csn_temp);
+                Merger::epoch_insert_set[epoch_mod]->insert(row.key(), csn_temp);
+                Merger::insert_set.insert(row.key(), csn_temp);
             }
             else if(row.op_type() == proto::OpType::Delete) {
-                EpochManager::insert_set.remove(row.key(), csn_temp);
+                Merger::insert_set.remove(row.key(), csn_temp);
             }
             else {
                 //nothing to do
             }
-            EpochManager::read_version_map.insert(row.key(), csn_temp);
+            Merger::read_version_map.insert(row.key(), csn_temp);
         }
         return true;
-    }
-
-    void CRDTMerge::RedoLog(Context &ctx, proto::Transaction &txn) {
-        uint64_t epoch_id = txn.commit_epoch();
-        auto epoch_mod = epoch_id % ctx.kCacheMaxLength;
-        auto lsn = EpochManager::epoch_log_lsn.IncCount(epoch_id, 1);
-        auto key = std::to_string(epoch_id) + ":" + std::to_string(lsn);
-        if(ctx.is_tikv_enable) {
-            epoch_redo_log_queue[epoch_mod]->enqueue(std::make_unique<proto::Transaction>(txn));
-            epoch_redo_log_queue[epoch_mod]->enqueue(nullptr);
-        }
-        EpochManager::committed_txn_cache[epoch_id % EpochManager::max_length]->insert(key, txn);
     }
 }
 

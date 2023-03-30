@@ -18,12 +18,10 @@ namespace Taas {
         typedef typename std::unordered_map<key, value>::iterator map_iterator;
         typedef typename std::unordered_map<key, value>::size_type size_type;
 
-        bool insert(const key &k, const value &v, pointer &ptr)
-        {
-            std::mutex& _mutex_temp = GetMutexRef(k);
+        bool insert(const key &k, const value &v, pointer &ptr) {
             std::unordered_map<key, value>& _map_temp = GetMapRef(k);
             bool result = true;
-            std::unique_lock<std::mutex> lock(_mutex_temp);
+            std::unique_lock<std::mutex> lock(GetMutexRef(k));
             map_iterator iter = _map_temp.find(k);
             if (iter == _map_temp.end()) {
                 _map_temp[k] = v;
@@ -49,18 +47,15 @@ namespace Taas {
         }
 
         void insert(const key &k, const value &v){
-            std::mutex& _mutex_temp = GetMutexRef(k);
             std::unordered_map<key, value>& _map_temp = GetMapRef(k);
-            std::unique_lock<std::mutex> lock(_mutex_temp);
+            std::unique_lock<std::mutex> lock(GetMutexRef(k));
             _map_temp[k] = v;
         }
 
 
-        void remove(const key &k, const value &v)
-        {
-            std::mutex& _mutex_temp = GetMutexRef(k);
+        void remove(const key &k, const value &v) {
             std::unordered_map<key, value>& _map_temp = GetMapRef(k);
-            std::unique_lock<std::mutex> lock(_mutex_temp);
+            std::unique_lock<std::mutex> lock(GetMutexRef(k));
             map_iterator iter = _map_temp.find(k);
             if (iter != _map_temp.end()) {
                 if (iter->second == v) {
@@ -72,11 +67,9 @@ namespace Taas {
             lock.unlock();
         }
 
-        void remove(const key &k)
-        {
-            std::mutex& _mutex_temp = GetMutexRef(k);
+        void remove(const key &k) {
             std::unordered_map<key, value>& _map_temp = GetMapRef(k);
-            std::unique_lock<std::mutex> lock(_mutex_temp);
+            std::unique_lock<std::mutex> lock(GetMutexRef(k));
             map_iterator iter = _map_temp.find(k);
             if (iter != _map_temp.end()) {
                 _map_temp.erase(iter);
@@ -100,9 +93,8 @@ namespace Taas {
         }
 
         bool contain(const key &k, const value &v){
-            std::mutex& _mutex_temp = GetMutexRef(k);
             std::unordered_map<key, value>& _map_temp = GetMapRef(k);
-            std::unique_lock<std::mutex> lock(_mutex_temp);
+            std::unique_lock<std::mutex> lock(GetMutexRef(k));
             map_iterator iter = _map_temp.find(k);
             if(iter != _map_temp.end()){
                 if(iter->second == v){
@@ -113,9 +105,8 @@ namespace Taas {
         }
 
         bool contain(const key &k){
-            std::mutex& _mutex_temp = GetMutexRef(k);
             std::unordered_map<key, value>& _map_temp = GetMapRef(k);
-            std::unique_lock<std::mutex> lock(_mutex_temp);
+            std::unique_lock<std::mutex> lock(GetMutexRef(k));
             map_iterator iter = _map_temp.find(k);
             if(iter != _map_temp.end()){
                 return true;
@@ -176,16 +167,14 @@ namespace Taas {
         typedef typename std::unordered_map<key, value>::size_type size_type;
 
         void insert(const key &k, const value &v) {
-            std::mutex& _mutex_temp = GetMutexRef(k);
             std::unordered_map<key, value>& _map_temp = GetMapRef(k);
-            std::unique_lock<std::mutex> lock(_mutex_temp);
+            std::unique_lock<std::mutex> lock(GetMutexRef(k));
             _map_temp[k] = v;
         }
 
         void remove(const key &k, const value &v) {
-            std::mutex& _mutex_temp = GetMutexRef(k);
             std::unordered_map<key, value>& _map_temp = GetMapRef(k);
-            std::unique_lock<std::mutex> lock(_mutex_temp);
+            std::unique_lock<std::mutex> lock( GetMutexRef(k));
             map_iterator iter = _map_temp.find(k);
             if (iter != _map_temp.end()) {
                 if (iter->second == v) {
@@ -198,9 +187,8 @@ namespace Taas {
         }
 
         void remove(const key &k) {
-            std::mutex& _mutex_temp = GetMutexRef(k);
             std::unordered_map<key, value>& _map_temp = GetMapRef(k);
-            std::unique_lock<std::mutex> lock(_mutex_temp);
+            std::unique_lock<std::mutex> lock( GetMutexRef(k));
             map_iterator iter = _map_temp.find(k);
             if (iter != _map_temp.end()) {
                 _map_temp.erase(iter);
@@ -224,9 +212,8 @@ namespace Taas {
         }
 
         bool contain(key &k, value &v){
-            std::mutex& _mutex_temp = GetMutexRef(k);
             std::unordered_map<key, value>& _map_temp = GetMapRef(k);
-            std::unique_lock<std::mutex> lock(_mutex_temp);
+            std::unique_lock<std::mutex> lock(GetMutexRef(k));
             map_iterator iter = _map_temp.find(k);
             if(iter != _map_temp.end()){
                 if(iter->second == v){
@@ -237,9 +224,8 @@ namespace Taas {
         }
 
         bool getValue(const key &k, value &v){
-            std::mutex& _mutex_temp = GetMutexRef(k);
             std::unordered_map<key, value>& _map_temp = GetMapRef(k);
-            std::unique_lock<std::mutex> lock(_mutex_temp);
+            std::unique_lock<std::mutex> lock(GetMutexRef(k));
             map_iterator iter = _map_temp.find(k);
             if(iter != _map_temp.end()){
                 v = _map_temp[k];

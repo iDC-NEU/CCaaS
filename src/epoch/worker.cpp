@@ -1,12 +1,18 @@
 //
+// Created by 周慰星 on 23-3-30.
+//
+
+#include "epoch/worker.h"
+//
 // Created by 周慰星 on 2022/9/14.
 //
 
 #include <queue>
 #include <utility>
-#include "epoch/merge.h"
+
 #include "epoch/epoch_manager.h"
-#include "tools/utilities.h"
+#include "message/message.h"
+#include "transaction/merge.h"
 #include "storage/tikv.h"
 
 namespace Taas {
@@ -20,19 +26,22 @@ namespace Taas {
  */
 
     void StateChecker(Context ctx) {
-        Merger merger;
-        merger.Init(0, std::move(ctx));
+        Merger::StaticInit(ctx);
+        InitMessage(ctx);
+        MessageReceiveHandler::StaticInit(ctx);
 
-        auto sleep_flag = false;
-        std::unique_ptr<pack_params> pack_param;
-        std::unique_ptr<proto::Transaction> txn_ptr;
-        MessageReceiveHandler receiveHandler;
+
+        init_ok_num.fetch_add(1);
+
+
         MessageSendHandler sendHandler;
         sendHandler.Init(ctx);
+        MessageReceiveHandler receiveHandler;
         receiveHandler.Init(0, ctx);
-        MessageReceiveHandler::StaticInit(ctx);
-        uint64_t redo_log_epoch = 1, merge_epoch = 1;
-        while (!init_ok.load()) usleep(100);
+
+        auto sleep_flag = false;
+
+        while(!EpochManager::IsInitOK()) usleep(1000);
 
         while (!EpochManager::IsTimerStop()) {
             sleep_flag = sleep_flag | receiveHandler.StaticClear();///clear receive handler cache
@@ -48,23 +57,23 @@ namespace Taas {
     void WorkerThreadMain(uint64_t id, Context ctx) {
         Merger merger;
         merger.Init(id, std::move(ctx));
+        MessageSendHandler sendHandler;
+        sendHandler.Init(ctx);
+        MessageReceiveHandler receiveHandler;
+        receiveHandler.Init(id, ctx);
 
         auto sleep_flag = false;
         std::unique_ptr<pack_params> pack_param;
         std::unique_ptr<proto::Transaction> txn_ptr;
-        MessageReceiveHandler receiveHandler;
-        MessageSendHandler sendHandler;
-        sendHandler.Init(ctx);
-        receiveHandler.Init(id, ctx);
-        uint64_t redo_log_epoch = 1, merge_epoch = 1;
-        while (!init_ok.load()) usleep(100);
+
+        while(!EpochManager::IsInitOK()) usleep(1000);
 
         while(!EpochManager::IsTimerStop()) {
             EpochManager::EpochCacheSafeCheck();
             sleep_flag = sleep_flag | receiveHandler.HandleReceivedMessage();
             sleep_flag = sleep_flag | merger.EpochMerge();
             sleep_flag = sleep_flag | merger.EpochCommit_RedoLog_TxnMode();
-            sleep_flag = sleep_flag | sendTransactionToTiKV(EpochManager::GetPushDownEpoch() % ctx.kCacheMaxLength, txn_ptr);
+            sleep_flag = sleep_flag | TiKV::sendTransactionToTiKV(EpochManager::GetPushDownEpoch() % ctx.kCacheMaxLength, txn_ptr);
             if(!sleep_flag) usleep(50);
         }
 

@@ -3,6 +3,7 @@
 //
 
 #include "epoch/epoch_manager.h"
+#include "message/message.h"
 #include "tools/utilities.h"
 
 namespace Taas {
@@ -33,7 +34,7 @@ namespace Taas {
         socket_listen.set(zmq::sockopt::rcvhwm, queue_length);
         socket_listen.bind("tcp://*:5551");
         printf("线程开始工作 ListenClientThread ZMQ_PULL tcp://*:5551\n");
-
+        while(!EpochManager::IsInitOK()) usleep(1000);
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);//防止上次遗留消息造成message cache出现问题
@@ -72,7 +73,7 @@ namespace Taas {
         std::unique_ptr<send_params> params;
         std::unique_ptr<zmq::message_t> msg;
         printf("线程开始工作 SendClientThread ZMQ_PUSH tcp://ip+:5552 \n");
-        while (!init_ok.load()) usleep(200);
+        while(!EpochManager::IsInitOK()) usleep(1000);
         std::unordered_map<std::string, std::unique_ptr<zmq::socket_t>> socket_map;
         // 测试用，如果设置了会丢弃发送给client的Reply
         if (ctx.kTestClientNum > 0) {
