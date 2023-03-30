@@ -18,7 +18,7 @@
     <tikv_ip>47.92.250.79:2379</tikv_ip>
     <tikv_send_thread_num>1</tikv_send_thread_num>
 
-    <sync_start>1</sync_start>
+    <sync_start>0</sync_start>
 
     <!--    test config   -->
     <duration_time_us>0</duration_time_us>
