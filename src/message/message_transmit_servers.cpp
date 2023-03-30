@@ -5,6 +5,7 @@
 #include "epoch/epoch_manager.h"
 #include "message/message.h"
 #include "tools/utilities.h"
+#include "tools/zeromq.h"
 
 namespace Taas {
 
@@ -48,6 +49,7 @@ namespace Taas {
             if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
             if(params->id == ctx.txn_node_ip_index) assert(false);
             msg = std::make_unique<zmq::message_t>(*(params->str));
+            printf("send a message type %d\n", (params->type));
             socket_map[params->id]->send(*msg, sendFlags);
         }
         socket_map[0]->send((zmq::message_t &) "end", sendFlags);
@@ -88,6 +90,7 @@ namespace Taas {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);
             if(recvResult < 0) assert(false);
+            printf("receive a message\n");
             if (!listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
             if (!listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
                 assert(false); //防止moodycamel取不出
