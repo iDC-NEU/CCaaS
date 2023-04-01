@@ -45,7 +45,7 @@ namespace Taas {
             send_to_server_queue->wait_dequeue(params);
             if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
             if(params->id == ctx.txn_node_ip_index) assert(false);
-            printf("send a message type %d\n", (params->type));
+//            printf("send a message type %d\n", (params->type));
             socket_map[params->id]->send(std::move(*(params->str)));
         }
     }
@@ -71,7 +71,7 @@ namespace Taas {
             auto ret = server->receive();
             CHECK(ret != std::nullopt);
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>(std::move(*ret));
-            printf("receive a message\n");
+//            printf("receive a message\n");
             if (is_epoch_advance_started.load()) {
                 if (!listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
                 if (!listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
@@ -84,7 +84,7 @@ namespace Taas {
             auto ret = server->receive();
             CHECK(ret != std::nullopt);
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>(std::move(*ret));
-            printf("receive a message\n");
+//            printf("receive a message\n");
             if (!listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
             if (!listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
                 assert(false); //防止moodycamel取不出
