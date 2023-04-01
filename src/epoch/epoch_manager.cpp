@@ -104,22 +104,22 @@ namespace Taas {
  */
     void OUTPUTLOG(const string& s, uint64_t& epoch_mod){
         epoch_mod %= EpochManager::max_length;
-        printf("%50s \
-        physical %8lu, logical %8lu, \
-        epoch_mod                    %8lu, disstance %8lu, \n\
-        IsShardingMergeComplete      %8lu, IsAbortSetMergeComplete %8lu     \
-        IsCommitComplete             %8lu, SetRecordCommitted      %8lu   \n\
-        MergedTxnNum                 %8lu, ShouldMergeTxnNum        %8lu,   \
-        CommittedTxnNum              %8lu, ShouldCommitTxnNum       %8lu,   \
-        RecordCommit                 %8lu, RecordCommitted          %8lu, \n\
-        ShouldReceiveShardingPackNum %8lu, ReceivedShardingPackNum  %8lu    \
-        ShouldReceiveShardingTxnNum  %8lu, ReceivedShardingTxnNum   %8lu  \n\
-        ShouldReceiveBackUpPackNum   %8lu, ReceivedBackUpPackNum    %8lu    \
-        ShouldReceiveBackUpTxnNum    %8lu, ReceivedBackUpTxnNum     %8lu    \
-        ReceivedBackupACKNum         %8lu \n\
-        ReceivedInsertSetNum         %8lu, ReceivedAbortSetNum      %8lu    \
-        ReceivedInsertSetACKNum      %8lu, ReceivedAbortSetACKNum   %8lu  \n\
-        merge_num                    %8d, \
+        printf("%50s \n\
+        physical                     %6lu, logical                 %6lu,   \
+        epoch_mod                    %6lu, disstance %6lu, \n\
+        IsShardingMergeComplete      %6lu, IsAbortSetMergeComplete %6lu    \
+        IsCommitComplete             %6lu, SetRecordCommitted      %6lu  \n\
+        MergedTxnNum                 %6lu, ShouldMergeTxnNum       %6lu,   \
+        CommittedTxnNum              %6lu, ShouldCommitTxnNum      %6lu,   \
+        RecordCommit                 %6lu, RecordCommitted         %6lu, \n\
+        ShouldReceiveShardingPackNum %6lu, ReceivedShardingPackNum %6lu    \
+        ShouldReceiveShardingTxnNum  %6lu, ReceivedShardingTxnNum  %6lu  \n\
+        ShouldReceiveBackUpPackNum   %6lu, ReceivedBackUpPackNum   %6lu    \
+        ShouldReceiveBackUpTxnNum    %6lu, ReceivedBackUpTxnNum    %6lu    \
+        ReceivedBackupACKNum         %6lu \n\
+        ReceivedInsertSetNum         %6lu, ReceivedAbortSetNum     %6lu    \
+        ReceivedInsertSetACKNum      %6lu, ReceivedAbortSetACKNum  %6lu  \n\
+        merge_num                    %6d, \
         time %lu \n",
                s.c_str(),
                EpochManager::GetPhysicalEpoch(),                                                  EpochManager::GetLogicalEpoch(),
@@ -217,7 +217,7 @@ namespace Taas {
         if(ctx.is_cache_server_available) {
             cache_server_available = 0;
         }
-        OUTPUTLOG("=============start Epoch的合并===== ", epoch);
+        OUTPUTLOG("=====start Epoch的合并===== ", epoch);
         while(!EpochManager::IsTimerStop()){
             while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(20);
             sleep_flag = false;
@@ -228,7 +228,7 @@ namespace Taas {
 
             while(epoch < commit_epoch) {
                 total_commit_txn_num += Merger::epoch_record_committed_txn_num.GetCount(epoch);
-                OUTPUTLOG("=============完成一个Epoch的合并===== ", epoch);
+                OUTPUTLOG("==完成一个Epoch的合并=== ", epoch);
                 epoch ++;
                 EpochManager::ClearLog(epoch); //清空next epoch的redo_log信息
                 MessageReceiveHandler::StaticClear(epoch, ctx);//清空next epoch的receive cache num信息
