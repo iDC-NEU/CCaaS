@@ -26,16 +26,7 @@ namespace Taas {
  */
 
     void StateChecker(Context ctx) {
-        Merger::StaticInit(ctx);
-        InitMessage(ctx);
-        MessageReceiveHandler::StaticInit(ctx);
-
-
-        init_ok_num.fetch_add(1);
-
-
         MessageSendHandler sendHandler;
-        sendHandler.Init(ctx);
         MessageReceiveHandler receiveHandler;
         receiveHandler.Init(0, ctx);
 
@@ -51,11 +42,11 @@ namespace Taas {
             sleep_flag = sleep_flag | receiveHandler.CheckReceivedStatesAndReply();/// check and send ack
 //            printf("State Checker 52\n");
 
-            sleep_flag = sleep_flag | sendHandler.SendEpochEndMessage(ctx);///send epoch end flag
+            sleep_flag = sleep_flag | MessageSendHandler::SendEpochEndMessage(ctx);///send epoch end flag
 //            printf("State Checker 55\n");
-            sleep_flag = sleep_flag | sendHandler.SendBackUpEpochEndMessage(ctx);///send epoch backup end message
+            sleep_flag = sleep_flag | MessageSendHandler::SendBackUpEpochEndMessage(ctx);///send epoch backup end message
 //            printf("State Checker 57\n");
-            sleep_flag = sleep_flag | sendHandler.SendAbortSet(ctx); ///send abort set
+            sleep_flag = sleep_flag | MessageSendHandler::SendAbortSet(ctx); ///send abort set
 //            printf("State Checker 59\n");
             if(!sleep_flag) usleep(50);
         }
@@ -64,8 +55,6 @@ namespace Taas {
     void WorkerThreadMain(uint64_t id, Context ctx) {
         Merger merger;
         merger.Init(id, std::move(ctx));
-        MessageSendHandler sendHandler;
-        sendHandler.Init(ctx);
         MessageReceiveHandler receiveHandler;
         receiveHandler.Init(id, ctx);
 

@@ -37,6 +37,11 @@ namespace Taas {
     std::atomic<bool> is_epoch_advance_started(false), test_start(false);
 
     void InitEpochTimerManager(Context& ctx){
+        Merger::StaticInit(ctx);
+        InitMessage(ctx);
+        MessageSendHandler::StaticInit(ctx);
+        MessageReceiveHandler::StaticInit(ctx);
+
         EpochManager::max_length = ctx.kCacheMaxLength;
         //==========Logical Epoch Merge State=============
         EpochManager::merge_complete.resize(EpochManager::max_length);
@@ -242,6 +247,7 @@ namespace Taas {
                 EpochManager::ClearMergeEpochState(clear_epoch); //清空当前epoch的merge信息
                 EpochManager::SetCacheServerStored(clear_epoch, cache_server_available);
 
+                MessageSendHandler::StaticClear(epoch, ctx);
                 MessageReceiveHandler::StaticClear(epoch, ctx);//清空current epoch的receive cache num信息
                 Merger::ClearMergerEpochState(clear_epoch, ctx);
 

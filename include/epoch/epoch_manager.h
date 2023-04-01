@@ -120,7 +120,7 @@ namespace Taas {
         }
 
         static bool IsInitOK() {
-            return init_ok_num.load() >= 2;
+            return init_ok_num.load() >= 1;
         }
 
     };

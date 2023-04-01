@@ -21,21 +21,22 @@ namespace Taas {
         static bool SendACK(Context& ctx, uint64_t &epoch, uint64_t& to_whom, proto::Transaction &txn, proto::TxnType& txn_type);
         static bool SendMessageToAll(Context &ctx, uint64_t &epoch, proto::TxnType &txn_type);
 
-        void Init(Context &ctx);
+        ///一下函数都由single one线程执行
+        static void StaticInit(Context &ctx);
+        static void StaticClear(uint64_t &epoch, Context &ctx);
+        static std::vector<std::vector<std::unique_ptr<std::atomic<bool>>>> sharding_send_epoch;
+        static std::vector<std::unique_ptr<std::atomic<bool>>> backup_send_epoch, abort_set_send_epoch;
+        static uint64_t insert_set_send_epoch;
+        static bool SendEpochEndMessage(Context &ctx);
+        static bool SendBackUpEpochEndMessage(Context &ctx);
+        static bool SendAbortSet(Context &ctx);
+        static bool SendInsertSet(Context &ctx);
 
-        ///一下函数都由0号线程执行
-        bool SendEpochEndMessage(Context &ctx);
-        bool SendBackUpEpochEndMessage(Context &ctx);
-        bool SendAbortSet(Context &ctx);
-        bool SendInsertSet(Context &ctx);
 
 
     private:
-        uint64_t backup_send_epoch = 1, abort_set_send_epoch = 1, insert_set_send_epoch = 1;
-        std::vector<uint64_t> sharding_send_epoch;
         bool sleep_flag = false;
         std::unique_ptr<pack_params> pack_param;
-
     };
 }
 #endif //TAAS_HANDLER_SEND_H
