@@ -197,7 +197,7 @@ namespace Taas {
                 auto str_copy = std::make_unique<std::string>(*serialized_txn_str_ptr);
                 send_to_server_queue->enqueue(std::make_unique<send_params>(to_id, 0, "", backup_send_epoch, proto::TxnType::BackUpEpochEndFlag, std::move(str_copy), nullptr));
             }
-            printf("send epoch backup end flag epoch %lu\n",backup_send_epoch);
+//            printf("send epoch backup end flag epoch %lu\n",backup_send_epoch);
             send_to_server_queue->enqueue(std::make_unique<send_params>(to_id, 0, "", backup_send_epoch, proto::TxnType::NullMark, nullptr, nullptr));
             backup_send_epoch ++;
         }
@@ -236,7 +236,7 @@ namespace Taas {
                     auto str_copy = std::make_unique<std::string>(*serialized_txn_str_ptr);
                     send_to_server_queue->enqueue( std::make_unique<send_params>(i, 0, "", abort_set_send_epoch, proto::TxnType::AbortSet,std::move(str_copy), nullptr));
                 }
-                printf("send epoch abort set flag epoch %lu\n",abort_set_send_epoch);
+//                printf("send epoch abort set flag epoch %lu\n",abort_set_send_epoch);
                 send_to_server_queue->enqueue( std::make_unique<send_params>(0, 0, "", abort_set_send_epoch, proto::TxnType::NullMark, nullptr, nullptr));
                 EpochManager::SetShardingMergeComplete(abort_set_send_epoch, true);
             }

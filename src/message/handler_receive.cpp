@@ -305,7 +305,6 @@ namespace Taas {
             case proto::TxnType::EpochEndFlag : {
                 sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
-                printf("receive epoch end flag server id %lu epoch %lu\n", message_server_id, message_epoch);
                 break;
             }
             case proto::TxnType::BackUpTxn : {
