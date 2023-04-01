@@ -119,8 +119,7 @@ namespace Taas {
         ReceivedBackupACKNum         %6lu \n\
         ReceivedInsertSetNum         %6lu, ReceivedAbortSetNum     %6lu    \
         ReceivedInsertSetACKNum      %6lu, ReceivedAbortSetACKNum  %6lu  \n\
-        merge_num                    %6d, \
-        time %lu \n",
+        merge_num                    %6d,  time %lu \n",
                s.c_str(),
                EpochManager::GetPhysicalEpoch(),                                                  EpochManager::GetLogicalEpoch(),
                epoch_mod,                                                                         EpochManager::GetPhysicalEpoch() - EpochManager::GetLogicalEpoch(),
@@ -229,9 +228,9 @@ namespace Taas {
             while(epoch < commit_epoch) {
                 total_commit_txn_num += Merger::epoch_record_committed_txn_num.GetCount(epoch);
                 OUTPUTLOG("==完成一个Epoch的合并=== ", epoch);
+                MessageReceiveHandler::StaticClear(epoch, ctx);//清空current epoch的receive cache num信息
                 epoch ++;
                 EpochManager::ClearLog(epoch); //清空next epoch的redo_log信息
-                MessageReceiveHandler::StaticClear(epoch, ctx);//清空next epoch的receive cache num信息
                 RedoLoger::ClearRedoLog(epoch, ctx);
                 EpochManager::AddLogicalEpoch();
             }
