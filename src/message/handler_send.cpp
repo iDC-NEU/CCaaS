@@ -18,12 +18,11 @@ namespace Taas {
         backup_send_epoch.resize(ctx.kCacheMaxLength);
         abort_set_send_epoch.resize(ctx.kCacheMaxLength);
         for(uint64_t i = 0; i < ctx.kCacheMaxLength; i ++) {
-            backup_send_epoch.emplace_back(std::make_unique<std::atomic<bool>>(false));
-            abort_set_send_epoch.emplace_back(std::make_unique<std::atomic<bool>>(false));
-            sharding_send_epoch.emplace_back();
-        }
-        for(uint64_t i = 0; i < ctx.kTxnNodeNum; i ++) {
-            sharding_send_epoch[i].emplace_back(std::make_unique<std::atomic<bool>>(false));
+            backup_send_epoch [i] = std::make_unique<std::atomic<bool>>(false);
+            abort_set_send_epoch [i] =std::make_unique<std::atomic<bool>>(false);
+            for(uint64_t j = 0; j < ctx.kTxnNodeNum; j ++) {
+                sharding_send_epoch[i].emplace_back(std::make_unique<std::atomic<bool>>(false));
+            }
         }
     }
 
@@ -186,7 +185,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
             for(uint64_t sharding_id = 0; sharding_id < ctx.kTxnNodeNum; sharding_id ++) { /// send to everyone  sharding_num == TxnNodeNum
                 ///检查当前server(sharding_id)的第send_epoch的endFlag是否能够发送
                 if (sharding_id == ctx.txn_node_ip_index) continue;
-                auto &send_res = *(sharding_send_epoch[epoch][sharding_id]);
+                auto &send_res = *(sharding_send_epoch[epoch % ctx.kCacheMaxLength][sharding_id]);
                 if(send_res.load()) continue; ///已经发送过 不再发送
                 if(MessageReceiveHandler::IsShardingSendFinish(epoch, sharding_id)) {
                     auto msg = std::make_unique<proto::Message>();
@@ -211,7 +210,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
 
     bool MessageSendHandler::SendBackUpEpochEndMessage(Context &ctx) {
         for(auto epoch = EpochManager::GetLogicalEpoch(); epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
-            if(backup_send_epoch[epoch]->load()) continue; ///已经发送过 不再发送
+            if(backup_send_epoch[epoch % ctx.kCacheMaxLength]->load()) continue; ///已经发送过 不再发送
             if(MessageReceiveHandler::IsBackUpSendFinish(epoch, ctx)) {
                 auto msg = std::make_unique<proto::Message>();
                 auto* txn_end = msg->mutable_txn();
@@ -232,7 +231,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
                 }
 //            printf("send epoch backup end flag epoch %lu\n",backup_send_epoch);
                 send_to_server_queue->enqueue(std::make_unique<send_params>(to_id, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
-                backup_send_epoch[epoch]->store(true);
+                backup_send_epoch[epoch % ctx.kCacheMaxLength]->store(true);
             }
         }
         return true;
@@ -240,7 +239,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
 
     bool MessageSendHandler::SendAbortSet(Context &ctx) {
         for(auto epoch = EpochManager::GetLogicalEpoch(); epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
-            if(abort_set_send_epoch[epoch]->load()) continue; ///已经发送过 不再发送
+            if(abort_set_send_epoch[epoch % ctx.kCacheMaxLength]->load()) continue; ///已经发送过 不再发送
             if (Merger::IsEpochMergeComplete(epoch, ctx)) {
                 auto msg = std::make_unique<proto::Message>();
                 auto *txn_end = msg->mutable_txn();
@@ -265,7 +264,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
                 }
 //                printf("send epoch abort set flag epoch %lu\n",abort_set_send_epoch);
                 send_to_server_queue->enqueue( std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
-                abort_set_send_epoch[epoch]->store(true);
+                abort_set_send_epoch[epoch % ctx.kCacheMaxLength]->store(true);
             }
         }
         return true;
