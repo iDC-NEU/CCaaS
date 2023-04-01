@@ -254,8 +254,8 @@ namespace Taas {
     }
 
     bool MessageReceiveHandler::UpdateEpochAbortSet() {
-//        message_epoch = txn_ptr->commit_epoch();
-//        message_epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
+        message_epoch = txn_ptr->commit_epoch();
+        message_epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
         for(int i = 0; i < txn_ptr->row_size(); i ++) {
             Merger::epoch_insert_set[message_epoch_mod]->insert(txn_ptr->row(i).key(), txn_ptr->row(i).data());
         }

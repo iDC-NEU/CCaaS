@@ -215,7 +215,11 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
                 if (sharding_id == ctx.txn_node_ip_index) continue;
                 if(!sharding_send_epoch[sharding_sent_epoch % ctx.kCacheMaxLength][sharding_id]->load()) break;
             }
+            for(uint64_t sharding_id = 0; sharding_id < ctx.kTxnNodeNum; sharding_id ++) {
+                sharding_send_epoch[sharding_sent_epoch % ctx.kCacheMaxLength][sharding_id]->store(false);
+            }
             sharding_sent_epoch ++;
+
         }
         return true;
     }

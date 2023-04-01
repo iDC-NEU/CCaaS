@@ -247,7 +247,6 @@ namespace Taas {
                 EpochManager::ClearMergeEpochState(clear_epoch); //清空当前epoch的merge信息
                 EpochManager::SetCacheServerStored(clear_epoch, cache_server_available);
 
-                MessageSendHandler::StaticClear(epoch, ctx);
                 MessageReceiveHandler::StaticClear(epoch, ctx);//清空current epoch的receive cache num信息
                 Merger::ClearMergerEpochState(clear_epoch, ctx);
 
