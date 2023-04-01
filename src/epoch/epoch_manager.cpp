@@ -104,7 +104,7 @@ namespace Taas {
  */
     void OUTPUTLOG(const string& s, uint64_t& epoch_mod){
         epoch_mod %= EpochManager::max_length;
-        printf("%50s \n\
+        printf("%60s \n\
         physical                     %6lu, logical                 %6lu,   \
         epoch_mod                    %6lu, disstance %6lu, \n\
         IsShardingMergeComplete      %6lu, IsAbortSetMergeComplete %6lu    \
@@ -119,7 +119,7 @@ namespace Taas {
         ReceivedBackupACKNum         %6lu \n\
         ReceivedInsertSetNum         %6lu, ReceivedAbortSetNum     %6lu    \
         ReceivedInsertSetACKNum      %6lu, ReceivedAbortSetACKNum  %6lu  \n\
-        merge_num                    %6d,  time %lu \n",
+        merge_num                    %6lu, time       %lu \n",
                s.c_str(),
                EpochManager::GetPhysicalEpoch(),                                                  EpochManager::GetLogicalEpoch(),
                epoch_mod,                                                                         EpochManager::GetPhysicalEpoch() - EpochManager::GetLogicalEpoch(),
@@ -140,7 +140,7 @@ namespace Taas {
                MessageReceiveHandler::insert_set_received_num.GetCount(epoch_mod),          MessageReceiveHandler::sharding_received_abort_set_num.GetCount(epoch_mod),
                MessageReceiveHandler::insert_set_received_ack_num.GetCount(epoch_mod),      MessageReceiveHandler::sharding_abort_set_received_ack_num.GetCount(epoch_mod),
 
-               0,
+               (uint64_t)0,
                now_to_us());
         fflush(stdout);
     }
@@ -227,19 +227,22 @@ namespace Taas {
 
             while(epoch < commit_epoch) {
                 total_commit_txn_num += Merger::epoch_record_committed_txn_num.GetCount(epoch);
-                OUTPUTLOG("==完成一个Epoch的合并=== ", epoch);
-                MessageReceiveHandler::StaticClear(epoch, ctx);//清空current epoch的receive cache num信息
+                OUTPUTLOG("*******完成一个Epoch的合并*******", epoch);
                 epoch ++;
-                EpochManager::ClearLog(epoch); //清空next epoch的redo_log信息
-                RedoLoger::ClearRedoLog(epoch, ctx);
                 EpochManager::AddLogicalEpoch();
             }
 
             while(clear_epoch < redo_log_epoch) {
-                OUTPUTLOG("=============完成一个Epoch的Log Push Down===== ", clear_epoch);
+                OUTPUTLOG("=-=-=-=-=-=-=完成一个Epoch的Log Push Down=-=-=-=-=-=-=", clear_epoch);
                 EpochManager::ClearMergeEpochState(clear_epoch); //清空当前epoch的merge信息
-                Merger::ClearMergerEpochState(clear_epoch, ctx);
                 EpochManager::SetCacheServerStored(clear_epoch, cache_server_available);
+
+                MessageReceiveHandler::StaticClear(epoch, ctx);//清空current epoch的receive cache num信息
+                Merger::ClearMergerEpochState(clear_epoch, ctx);
+
+                EpochManager::ClearLog(epoch);
+                RedoLoger::ClearRedoLog(epoch, ctx);
+
                 clear_epoch ++;
                 EpochManager::AddPushDownEpoch();
             }
@@ -280,7 +283,7 @@ namespace Taas {
             EpochManager::AddPhysicalEpoch();
 //            epoch = EpochManager::GetPhysicalEpoch();
             epoch = EpochManager::GetLogicalEpoch();
-            OUTPUTLOG("=============start Epoch ", epoch);
+            OUTPUTLOG("=============start Epoch============= ", epoch);
             if((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((EpochManager::GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength) ) {
                 printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
                 printf("+++++++++++++++Fata : Cache Size exceeded!!! +++++++++++++++++++++\n");

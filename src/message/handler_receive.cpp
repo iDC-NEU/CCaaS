@@ -150,7 +150,7 @@ namespace Taas {
     }
 
     bool MessageReceiveHandler::StaticClear(uint64_t& epoch, const Context& context) {
-        printf("clean receive cache epoch %lu\n", epoch);
+//        printf("clean receive cache epoch %lu\n", epoch);
         auto cache_clear_epoch_num_mod = epoch % context.kCacheMaxLength;
         sharding_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
         sharding_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
