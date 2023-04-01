@@ -104,45 +104,42 @@ namespace Taas {
  */
     void OUTPUTLOG(const string& s, uint64_t& epoch_mod){
         epoch_mod %= EpochManager::max_length;
-        printf("%50s physical %8lu, logical %8lu, \
-        epoch_mod %8lu, disstance %8lu, \
-        IsShardingMergeComplete %d IsAbortSetMergeComplete %d\
-        IsCommitComplete %d SetRecordCommitted %d\
-        MergedTxnNum %8lu, ShouldMergeTxnNum %8lu, \
-        CommittedTxnNum %8lu, ShouldCommitTxnNum %8lu, \
-        RecordCommit %8lu, RecordCommitted %8lu, \
-\
-        ShouldReceiveShardingPackNum %8lu, ReceivedShardingPackNum %8lu\
-        ShouldReceiveShardingTxnNum %8lu, ReceivedShardingTxnNum %8lu\
-\
-        ShouldReceiveBackUpPackNum %8lu, ReceivedBackUpPackNum %8lu\
-        ShouldReceiveBackUpTxnNum %8lu, ReceivedBackUpTxnNum %8lu\
-        ReceivedBackupACKNum %8lu\
-\
-        ReceivedInsertSetNum %8lu, ReceivedAbortSetNum %8lu\
-        ReceivedInsertSetACKNum %8lu, ReceivedAbortSetACKNum %8lu\
-\
-        merge_num %8d, \
+        printf("%50s \
+        physical %8lu, logical %8lu, \
+        epoch_mod                    %8lu, disstance %8lu, \n\
+        IsShardingMergeComplete      %8lu, IsAbortSetMergeComplete %8lu     \
+        IsCommitComplete             %8lu, SetRecordCommitted      %8lu   \n\
+        MergedTxnNum                 %8lu, ShouldMergeTxnNum        %8lu,   \
+        CommittedTxnNum              %8lu, ShouldCommitTxnNum       %8lu,   \
+        RecordCommit                 %8lu, RecordCommitted          %8lu, \n\
+        ShouldReceiveShardingPackNum %8lu, ReceivedShardingPackNum  %8lu    \
+        ShouldReceiveShardingTxnNum  %8lu, ReceivedShardingTxnNum   %8lu  \n\
+        ShouldReceiveBackUpPackNum   %8lu, ReceivedBackUpPackNum    %8lu    \
+        ShouldReceiveBackUpTxnNum    %8lu, ReceivedBackUpTxnNum     %8lu    \
+        ReceivedBackupACKNum         %8lu \n\
+        ReceivedInsertSetNum         %8lu, ReceivedAbortSetNum      %8lu    \
+        ReceivedInsertSetACKNum      %8lu, ReceivedAbortSetACKNum   %8lu  \n\
+        merge_num                    %8d, \
         time %lu \n",
                s.c_str(),
-               EpochManager::GetPhysicalEpoch(), EpochManager::GetLogicalEpoch(),
-               epoch_mod, EpochManager::GetPhysicalEpoch() - EpochManager::GetLogicalEpoch(),
-               EpochManager::IsShardingMergeComplete(epoch_mod), EpochManager::IsAbortSetMergeComplete(epoch_mod),
-               EpochManager::IsCommitComplete(epoch_mod), EpochManager::IsRecordCommitted(epoch_mod),
+               EpochManager::GetPhysicalEpoch(),                                                  EpochManager::GetLogicalEpoch(),
+               epoch_mod,                                                                         EpochManager::GetPhysicalEpoch() - EpochManager::GetLogicalEpoch(),
+               (uint64_t)EpochManager::IsShardingMergeComplete(epoch_mod),                  (uint64_t)EpochManager::IsAbortSetMergeComplete(epoch_mod),
+               (uint64_t)EpochManager::IsCommitComplete(epoch_mod),                         (uint64_t)EpochManager::IsRecordCommitted(epoch_mod),
 
-               Merger::epoch_merged_txn_num.GetCount(epoch_mod), Merger::epoch_should_merge_txn_num.GetCount(epoch_mod),
-               Merger::epoch_committed_txn_num.GetCount(epoch_mod), Merger::epoch_should_commit_txn_num.GetCount(epoch_mod),
-               Merger::epoch_record_committed_txn_num.GetCount(epoch_mod), Merger::epoch_record_commit_txn_num.GetCount(epoch_mod),
+               Merger::epoch_merged_txn_num.GetCount(epoch_mod),                            Merger::epoch_should_merge_txn_num.GetCount(epoch_mod),
+               Merger::epoch_committed_txn_num.GetCount(epoch_mod),                         Merger::epoch_should_commit_txn_num.GetCount(epoch_mod),
+               Merger::epoch_record_committed_txn_num.GetCount(epoch_mod),                  Merger::epoch_record_commit_txn_num.GetCount(epoch_mod),
 
                MessageReceiveHandler::sharding_should_receive_pack_num.GetCount(epoch_mod), MessageReceiveHandler::sharding_received_pack_num.GetCount(epoch_mod),
-               MessageReceiveHandler::sharding_should_receive_txn_num.GetCount(epoch_mod), MessageReceiveHandler::sharding_received_txn_num.GetCount(epoch_mod),
+               MessageReceiveHandler::sharding_should_receive_txn_num.GetCount(epoch_mod),  MessageReceiveHandler::sharding_received_txn_num.GetCount(epoch_mod),
 
-               MessageReceiveHandler::backup_should_receive_pack_num.GetCount(epoch_mod), MessageReceiveHandler::backup_received_pack_num.GetCount(epoch_mod),
-               MessageReceiveHandler::backup_should_receive_txn_num.GetCount(epoch_mod), MessageReceiveHandler::backup_received_txn_num.GetCount(epoch_mod),
+               MessageReceiveHandler::backup_should_receive_pack_num.GetCount(epoch_mod),   MessageReceiveHandler::backup_received_pack_num.GetCount(epoch_mod),
+               MessageReceiveHandler::backup_should_receive_txn_num.GetCount(epoch_mod),    MessageReceiveHandler::backup_received_txn_num.GetCount(epoch_mod),
                MessageReceiveHandler::backup_received_ack_num.GetCount(epoch_mod),
 
-               MessageReceiveHandler::insert_set_received_num.GetCount(epoch_mod), MessageReceiveHandler::sharding_received_abort_set_num.GetCount(epoch_mod),
-               MessageReceiveHandler::insert_set_received_ack_num.GetCount(epoch_mod), MessageReceiveHandler::sharding_abort_set_received_ack_num.GetCount(epoch_mod),
+               MessageReceiveHandler::insert_set_received_num.GetCount(epoch_mod),          MessageReceiveHandler::sharding_received_abort_set_num.GetCount(epoch_mod),
+               MessageReceiveHandler::insert_set_received_ack_num.GetCount(epoch_mod),      MessageReceiveHandler::sharding_abort_set_received_ack_num.GetCount(epoch_mod),
 
                0,
                now_to_us());
@@ -150,6 +147,7 @@ namespace Taas {
     }
 
     bool CheckEpochMergeState(uint64_t &epoch, Context& ctx) {
+        if(epoch >= EpochManager::GetPhysicalEpoch()) return false;
         for(auto i = epoch; i < EpochManager::GetPhysicalEpoch(); i ++) {
             if( (ctx.kTxnNodeNum == 1 ||
                     (MessageReceiveHandler::IsRemoteShardingPackReceiveComplete(i, ctx) &&
@@ -164,11 +162,12 @@ namespace Taas {
                 EpochManager::SetShardingMergeComplete(i, true);
             }
         }
-        while(EpochManager::IsShardingMergeComplete(epoch)) epoch++;
+        while(EpochManager::IsShardingMergeComplete(epoch) && epoch < EpochManager::GetPhysicalEpoch()) epoch++;
         return true;
     }
 
     bool CheckEpochAbortSetState(uint64_t &epoch, Context& ctx) {
+        if(epoch >= EpochManager::GetPhysicalEpoch()) return false;
         for(auto i = epoch; i < EpochManager::GetPhysicalEpoch(); i ++) {
             if( (ctx.kTxnNodeNum == 1 ||
                     (MessageReceiveHandler::IsAbortSetACKReceiveComplete(i, ctx) &&
@@ -179,11 +178,12 @@ namespace Taas {
                 EpochManager::SetAbortSetMergeComplete(i, true);
             }
         }
-        while(EpochManager::IsAbortSetMergeComplete(epoch)) epoch++;
+        while(EpochManager::IsAbortSetMergeComplete(epoch) && epoch < EpochManager::GetPhysicalEpoch()) epoch++;
         return true;
     }
 
     bool CheckEpochCommitState(uint64_t &epoch, Context& ctx) {
+        if(epoch >= EpochManager::GetPhysicalEpoch()) return false;
         for(auto i = epoch; i < EpochManager::GetPhysicalEpoch(); i ++) {
             if( EpochManager::IsShardingMergeComplete(epoch) &&
                 EpochManager::IsAbortSetMergeComplete(i) &&
@@ -193,11 +193,12 @@ namespace Taas {
                 EpochManager::SetCommitComplete(i, true);
             }
         }
-        while(EpochManager::IsCommitComplete(epoch)) epoch++;
+        while(EpochManager::IsCommitComplete(epoch) && epoch < EpochManager::GetPhysicalEpoch()) epoch++;
         return true;
     }
 
     bool CheckAndSetRedoLogPushDownState(uint64_t& epoch, Context& ctx) {
+        if(epoch >= EpochManager::GetPhysicalEpoch()) return false;
         if(EpochManager::IsCommitComplete(epoch) &&
             MessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(epoch, ctx)) {
             EpochManager::SetRecordCommitted(epoch, true);
@@ -230,6 +231,7 @@ namespace Taas {
                 OUTPUTLOG("=============完成一个Epoch的合并===== ", epoch);
                 epoch ++;
                 EpochManager::ClearLog(epoch); //清空next epoch的redo_log信息
+                MessageReceiveHandler::StaticClear(epoch, ctx);//清空next epoch的receive cache num信息
                 RedoLoger::ClearRedoLog(epoch, ctx);
                 EpochManager::AddLogicalEpoch();
             }
@@ -277,7 +279,8 @@ namespace Taas {
         while(!EpochManager::IsTimerStop()){
             usleep(GetSleeptime(ctx));
             EpochManager::AddPhysicalEpoch();
-            epoch = EpochManager::GetPhysicalEpoch();
+//            epoch = EpochManager::GetPhysicalEpoch();
+            epoch = EpochManager::GetLogicalEpoch();
             OUTPUTLOG("=============start Epoch ", epoch);
             if((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((EpochManager::GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength) ) {
                 printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");

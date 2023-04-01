@@ -25,7 +25,7 @@ namespace Taas {
         }
 
         static bool StaticInit(const Context& context);
-        bool StaticClear();
+        static bool StaticClear(uint64_t& epoch, const Context& context);
     private:
         std::unique_ptr<zmq::message_t> message_ptr;
         std::unique_ptr<std::string> message_string_ptr;

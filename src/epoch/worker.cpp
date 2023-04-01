@@ -46,7 +46,7 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             sleep_flag = false;
 //            printf("State Checker 48\n");
-            sleep_flag = sleep_flag | receiveHandler.StaticClear();///clear receive handler cache
+//            sleep_flag = sleep_flag | receiveHandler.StaticClear();///clear receive handler cache
 //            printf("State Checker 50\n");
             sleep_flag = sleep_flag | receiveHandler.CheckReceivedStatesAndReply();/// check and send ack
 //            printf("State Checker 52\n");

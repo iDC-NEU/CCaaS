@@ -51,7 +51,8 @@ namespace Taas {
             }
             case proto::TxnType::BackUpACK :
             case proto::TxnType::AbortSetACK :
-            case proto::TxnType::InsertSetACK : {
+            case proto::TxnType::InsertSetACK :
+            case proto::TxnType::EpochShardingACK : {
                 SendACK(ctx, epoch, to_whom, txn, txn_type);
                 break;
             }
@@ -68,7 +69,6 @@ namespace Taas {
             case proto::BackUpEpochEndFlag:
             case proto::AbortSet:
             case proto::InsertSet:
-            case proto::EpochShardingACK:
                 break;
         }
         return true;

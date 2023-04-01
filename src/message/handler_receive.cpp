@@ -149,58 +149,53 @@ namespace Taas {
         return true;
     }
 
-    bool MessageReceiveHandler::StaticClear() {
-        res = false;
-        while(cache_clear_epoch_num + 50 < EpochManager::GetLogicalEpoch()) {
-            cache_clear_epoch_num_mod = cache_clear_epoch_num % ctx.kCacheMaxLength;
-            sharding_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
-            sharding_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
-            sharding_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-            sharding_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+    bool MessageReceiveHandler::StaticClear(uint64_t& epoch, const Context& context) {
+        printf("clean receive cache epoch %lu\n", epoch);
+        auto cache_clear_epoch_num_mod = epoch % context.kCacheMaxLength;
+        sharding_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
+        sharding_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
+        sharding_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        sharding_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
 
-            sharding_should_enqueue_merge_queue_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-            sharding_enqueued_merge_queue_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-            should_enqueue_local_txn_queue_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-            enqueued_local_txn_queue_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        sharding_should_enqueue_merge_queue_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        sharding_enqueued_merge_queue_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        should_enqueue_local_txn_queue_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        enqueued_local_txn_queue_txn_num.Clear(cache_clear_epoch_num_mod, 0),
 
-            sharding_should_handle_local_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-            sharding_handled_local_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-            sharding_should_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-            sharding_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        sharding_should_handle_local_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        sharding_handled_local_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        sharding_should_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        sharding_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
 
-            sharding_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
+        sharding_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
 
-            backup_should_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-            backup_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        backup_should_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        backup_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
 
-            backup_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
-            backup_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
-            backup_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-            backup_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-            backup_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
+        backup_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
+        backup_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
+        backup_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        backup_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        backup_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
 
-            insert_set_should_receive_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
-            insert_set_received_num.Clear(cache_clear_epoch_num_mod, 0),
-            insert_set_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
+        insert_set_should_receive_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
+        insert_set_received_num.Clear(cache_clear_epoch_num_mod, 0),
+        insert_set_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
 
-            sharding_should_receive_abort_set_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
-            sharding_received_abort_set_num.Clear(cache_clear_epoch_num_mod, 0);
-            sharding_abort_set_received_ack_num.Clear(cache_clear_epoch_num_mod, 0);
+        sharding_should_receive_abort_set_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
+        sharding_received_abort_set_num.Clear(cache_clear_epoch_num_mod, 0);
+        sharding_abort_set_received_ack_num.Clear(cache_clear_epoch_num_mod, 0);
 
-            redo_log_push_down_ack_num.Clear(cache_clear_epoch_num_mod, 0);
-            redo_log_push_down_local_epoch.Clear(cache_clear_epoch_num_mod, 0);
+        redo_log_push_down_ack_num.Clear(cache_clear_epoch_num_mod, 0);
+        redo_log_push_down_local_epoch.Clear(cache_clear_epoch_num_mod, 0);
 
-
-            while (!epoch_remote_sharding_txn[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
-            while (!epoch_local_txn[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
-            while (!epoch_backup_txn[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
-            while (!epoch_insert_set[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
-            while (!epoch_abort_set[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
-
-            cache_clear_epoch_num ++;
-            res = true;
-        }
-        return res;
+        auto txn_ptr = std::make_unique<proto::Transaction>();
+        while (!epoch_remote_sharding_txn[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
+        while (!epoch_local_txn[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
+        while (!epoch_backup_txn[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
+        while (!epoch_insert_set[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
+        while (!epoch_abort_set[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
+        return true;
     }
 
 
@@ -310,6 +305,7 @@ namespace Taas {
             case proto::TxnType::EpochEndFlag : {
                 sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
+                printf("receive epoch end flag server id %lu epoch %lu\n", message_server_id, message_epoch);
                 break;
             }
             case proto::TxnType::BackUpTxn : {
@@ -405,10 +401,12 @@ namespace Taas {
                                                 server_reply_ack_id, empty_txn, proto::TxnType::EpochLogPushDownComplete);
             redo_log_push_down_reply ++;
         }
+
         ///to single server  send ack
         if(id != ctx.txn_node_ip_index) {
             auto &sharding_epoch = sharding_send_ack_epoch_num[id];
-            if(sharding_received_pack_num.GetCount(sharding_epoch, id) >=
+            if(sharding_epoch < EpochManager::GetPhysicalEpoch() &&
+                sharding_received_pack_num.GetCount(sharding_epoch, id) >=
                 sharding_should_receive_pack_num.GetCount(sharding_epoch, id) &&
                     sharding_received_txn_num.GetCount(sharding_epoch, id) >=
                     sharding_should_receive_txn_num.GetCount(sharding_epoch, id) ) {
@@ -419,7 +417,8 @@ namespace Taas {
             }
 
             auto& backup_epoch = backup_send_ack_epoch_num[id];
-            if(backup_received_pack_num.GetCount(backup_epoch, id) >=
+            if(backup_epoch < EpochManager::GetPhysicalEpoch() &&
+                backup_received_pack_num.GetCount(backup_epoch, id) >=
                 backup_should_receive_pack_num.GetCount(backup_epoch, id)&&
                     backup_received_txn_num.GetCount(backup_epoch, id) >=
                     backup_should_receive_txn_num.GetCount(backup_epoch, id) ) {
@@ -430,7 +429,8 @@ namespace Taas {
             }
 
             auto& backup_insert_epoch = backup_insert_set_send_ack_epoch_num[id];
-            if(sharding_received_abort_set_num.GetCount(backup_insert_epoch, id) >=
+            if(backup_insert_epoch < EpochManager::GetPhysicalEpoch() &&
+                sharding_received_abort_set_num.GetCount(backup_insert_epoch, id) >=
                 insert_set_should_receive_num.GetCount(sharding_epoch, id)) {
                 MessageSendHandler::SendTxnToServer(ctx, backup_insert_epoch,
                                                         id, empty_txn, proto::TxnType::AbortSetACK);
@@ -439,7 +439,8 @@ namespace Taas {
             }
 
             auto& abort_set_epoch = abort_set_send_ack_epoch_num[id];
-            if(insert_set_received_num.GetCount(abort_set_epoch, id) >=
+            if(abort_set_epoch < EpochManager::GetPhysicalEpoch() &&
+                insert_set_received_num.GetCount(abort_set_epoch, id) >=
                 sharding_should_receive_abort_set_num.GetCount(sharding_epoch, id)) {
                 MessageSendHandler::SendTxnToServer(ctx, abort_set_epoch,
                                                         id, empty_txn, proto::TxnType::InsertSetACK);

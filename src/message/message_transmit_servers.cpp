@@ -34,7 +34,7 @@ namespace Taas {
         std::unique_ptr<send_params> params;
         for (int i = 0; i < (int) ctx.kServerIp.size(); i++) {
             if (i == (int) ctx.txn_node_ip_index) continue;
-            auto ret = util::ZMQInstance::NewClient<zmq::socket_type::push>(ctx.kServerIp[i], 20000+i);
+            auto ret = util::ZMQInstance::NewClient<zmq::socket_type::pub>(ctx.kServerIp[i], 20000+i);
             CHECK(ret != nullptr);
             socket_map[i] = std::move(ret);
             printf("Send Server connect ZMQ_PUSH %s", ("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(20000+i) + "\n").c_str());
@@ -63,7 +63,7 @@ namespace Taas {
         zmq::recv_flags recvFlags = zmq::recv_flags::none;
         zmq::recv_result_t  recvResult;
         int queue_length = 0;
-        auto server = util::ZMQInstance::NewServer<zmq::socket_type::pull>(20000+ctx.txn_node_ip_index);
+        auto server = util::ZMQInstance::NewServer<zmq::socket_type::sub>(20000+ctx.txn_node_ip_index);
         CHECK(server != nullptr);
         printf("线程开始工作 ListenServerThread ZMQ_PULL tcp://*:%s\n", std::to_string(20000+ctx.txn_node_ip_index).c_str());
         while(!EpochManager::IsInitOK()) usleep(1000);
@@ -72,7 +72,6 @@ namespace Taas {
             CHECK(ret != std::nullopt);
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>(std::move(*ret));
             printf("receive a message\n");
-            if(recvResult < 0) assert(false);
             if (is_epoch_advance_started.load()) {
                 if (!listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
                 if (!listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
@@ -85,7 +84,6 @@ namespace Taas {
             auto ret = server->receive();
             CHECK(ret != std::nullopt);
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>(std::move(*ret));
-            if(recvResult < 0) assert(false);
             printf("receive a message\n");
             if (!listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
             if (!listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
