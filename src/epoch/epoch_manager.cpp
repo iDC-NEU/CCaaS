@@ -119,7 +119,7 @@ namespace Taas {
         ReceivedBackupACKNum         %6lu \n\
         ReceivedInsertSetNum         %6lu, ReceivedAbortSetNum     %6lu    \
         ReceivedInsertSetACKNum      %6lu, ReceivedAbortSetACKNum  %6lu  \n\
-        merge_num                    %6lu, time       %lu \n",
+        merge_num                    %6lu, time          %lu \n",
                s.c_str(),
                EpochManager::GetPhysicalEpoch(),                                                  EpochManager::GetLogicalEpoch(),
                epoch_mod,                                                                         EpochManager::GetPhysicalEpoch() - EpochManager::GetLogicalEpoch(),
@@ -142,12 +142,14 @@ namespace Taas {
 
                (uint64_t)0,
                now_to_us());
-        fflush(stdout);
+//        fflush(stdout);
     }
 
     bool CheckEpochMergeState(uint64_t &epoch, Context& ctx) {
-        if(epoch >= EpochManager::GetPhysicalEpoch()) return false;
-        for(auto i = epoch; i < EpochManager::GetPhysicalEpoch(); i ++) {
+        auto epoch_max = EpochManager::GetPhysicalEpoch();
+        if(epoch >= epoch_max) return false;
+        for(auto i = epoch; i < epoch_max; i ++) {
+            if(EpochManager::IsShardingMergeComplete(i)) continue;
             if( (ctx.kTxnNodeNum == 1 ||
                     (MessageReceiveHandler::IsRemoteShardingPackReceiveComplete(i, ctx) &&
                     MessageReceiveHandler::IsRemoteShardingTxnReceiveComplete(i, ctx) &&
@@ -156,34 +158,37 @@ namespace Taas {
                     MessageReceiveHandler::IsBackUpACKReceiveComplete(i, ctx) )
                 ) &&
                 MessageReceiveHandler::IsEpochTxnEnqueued_MergeQueue(i, ctx) &&
-                Merger::IsEpochMergeComplete(epoch, i)
+                Merger::IsEpochMergeComplete(i, ctx)
             ) {
                 EpochManager::SetShardingMergeComplete(i, true);
             }
         }
-        while(EpochManager::IsShardingMergeComplete(epoch) && epoch < EpochManager::GetPhysicalEpoch()) epoch++;
+        while(EpochManager::IsShardingMergeComplete(epoch) && epoch < epoch_max) epoch++;
         return true;
     }
 
     bool CheckEpochAbortSetState(uint64_t &epoch, Context& ctx) {
-        if(epoch >= EpochManager::GetPhysicalEpoch()) return false;
-        for(auto i = epoch; i < EpochManager::GetPhysicalEpoch(); i ++) {
-            if( (ctx.kTxnNodeNum == 1 ||
+        auto epoch_max = EpochManager::GetPhysicalEpoch();
+        if(epoch >= epoch_max) return false;
+        for(auto i = epoch; i < epoch_max; i ++) {
+            if(EpochManager::IsAbortSetMergeComplete(i)) continue;
+            if(     (ctx.kTxnNodeNum == 1 ||
                     (MessageReceiveHandler::IsAbortSetACKReceiveComplete(i, ctx) &&
-                    MessageReceiveHandler::IsRemoteAbortSetReceiveComplete(i, ctx) )
-                ) &&
+                        MessageReceiveHandler::IsRemoteAbortSetReceiveComplete(i, ctx) )) &&
                 EpochManager::IsShardingMergeComplete(i)
                ) {
                 EpochManager::SetAbortSetMergeComplete(i, true);
             }
         }
-        while(EpochManager::IsAbortSetMergeComplete(epoch) && epoch < EpochManager::GetPhysicalEpoch()) epoch++;
+        while(EpochManager::IsAbortSetMergeComplete(epoch) && epoch < epoch_max) epoch++;
         return true;
     }
 
     bool CheckEpochCommitState(uint64_t &epoch, Context& ctx) {
-        if(epoch >= EpochManager::GetPhysicalEpoch()) return false;
-        for(auto i = epoch; i < EpochManager::GetPhysicalEpoch(); i ++) {
+        auto epoch_max = EpochManager::GetPhysicalEpoch();
+        if(epoch >= epoch_max) return false;
+        for(auto i = epoch; i < epoch_max; i ++) {
+            if(EpochManager::IsCommitComplete(i)) continue;
             if( EpochManager::IsShardingMergeComplete(epoch) &&
                 EpochManager::IsAbortSetMergeComplete(i) &&
                 MessageReceiveHandler::IsEpochTxnEnqueued_LocalTxnQueue(i, ctx) &&
@@ -192,7 +197,7 @@ namespace Taas {
                 EpochManager::SetCommitComplete(i, true);
             }
         }
-        while(EpochManager::IsCommitComplete(epoch) && epoch < EpochManager::GetPhysicalEpoch()) epoch++;
+        while(EpochManager::IsCommitComplete(epoch) && epoch < epoch_max) epoch++;
         return true;
     }
 
@@ -240,7 +245,6 @@ namespace Taas {
                 MessageReceiveHandler::StaticClear(epoch, ctx);//清空current epoch的receive cache num信息
                 Merger::ClearMergerEpochState(clear_epoch, ctx);
 
-                EpochManager::ClearLog(epoch);
                 RedoLoger::ClearRedoLog(epoch, ctx);
 
                 clear_epoch ++;

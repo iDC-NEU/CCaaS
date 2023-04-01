@@ -13,7 +13,6 @@ namespace Taas {
     tikv_client::TransactionClient* TiKV::tikv_client_ptr = nullptr;
 
     bool TiKV::sendTransactionToTiKV(uint64_t epoch_mod, std::unique_ptr<proto::Transaction> &txn_ptr) {
-        ///todo 检查push down的epoch
         if(!RedoLoger::epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr) || txn_ptr == nullptr) {
             return false;
         }

@@ -91,10 +91,6 @@ namespace Taas {
             is_current_epoch_abort[epoch_mod]->store(false);
         }
 
-        static void ClearLog(uint64_t epoch_mod) {
-
-        }
-
         static void EpochCacheSafeCheck() {
             if((GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength) ) {
                 printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
