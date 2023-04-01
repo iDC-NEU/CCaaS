@@ -42,7 +42,7 @@ namespace Taas {
         printf("线程开始工作 SendServerThread\n");
         while(!EpochManager::IsInitOK()) usleep(1000);
         while (!EpochManager::IsTimerStop()) {
-            send_to_server_queue->wait_dequeue(params);
+            MessageQueue::send_to_server_queue->wait_dequeue(params);
             if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
             if(params->id == ctx.txn_node_ip_index) assert(false);
 //            printf("send a message type %d\n", (params->type));
@@ -73,8 +73,8 @@ namespace Taas {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>(std::move(*ret));
 //            printf("receive a message\n");
             if (is_epoch_advance_started.load()) {
-                if (!listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
-                if (!listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
+                if (!MessageQueue::listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
+                if (!MessageQueue::listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
                     assert(false); //防止moodycamel取不出
                 break;
             }
@@ -85,8 +85,8 @@ namespace Taas {
             CHECK(ret != std::nullopt);
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>(std::move(*ret));
 //            printf("receive a message\n");
-            if (!listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
-            if (!listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
+            if (!MessageQueue::listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
+            if (!MessageQueue::listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
                 assert(false); //防止moodycamel取不出
         }
     }

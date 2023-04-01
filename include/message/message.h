@@ -43,12 +43,15 @@ namespace Taas {
 
     template<typename T>
     using  BlockingConcurrentQueue = moodycamel::BlockingConcurrentQueue<T>;
-    ///message transmit
-    extern std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>> listen_message_queue;
-    extern std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<send_params>>> send_to_server_queue, send_to_client_queue, send_to_storage_queue;
-    extern std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Message>>> request_queue, raft_message_queue;
 
-    extern void InitMessage(Context& ctx);
+    class MessageQueue{
+    public:
+        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>> listen_message_queue;
+        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<send_params>>> send_to_server_queue, send_to_client_queue, send_to_storage_queue;
+        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Message>>> request_queue, raft_message_queue;
+        static void StaticInitMessageQueue(Context& ctx);
+    };
+
     //message transport threads
     extern void SendServerThreadMain(Context ctx);
     extern void ListenServerThreadMain(const Context& ctx);

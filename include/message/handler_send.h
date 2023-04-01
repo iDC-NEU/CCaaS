@@ -25,8 +25,8 @@ namespace Taas {
         static void StaticInit(Context &ctx);
         static void StaticClear(uint64_t &epoch, Context &ctx);
         static std::vector<std::vector<std::unique_ptr<std::atomic<bool>>>> sharding_send_epoch;
-        static std::vector<std::unique_ptr<std::atomic<bool>>> backup_send_epoch, abort_set_send_epoch;
-        static uint64_t insert_set_send_epoch;
+        static std::vector<std::unique_ptr<std::atomic<bool>>> backup_send_epoch, abort_set_send_epoch, insert_set_send_epoch;
+        static uint64_t sharding_sent_epoch, backup_sent_epoch, abort_sent_epoch, insert_set_sent_epoch, abort_set_sent_epoch;
         static bool SendEpochEndMessage(Context &ctx);
         static bool SendBackUpEpochEndMessage(Context &ctx);
         static bool SendAbortSet(Context &ctx);

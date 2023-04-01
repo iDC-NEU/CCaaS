@@ -52,8 +52,8 @@ namespace Taas {
             while(!test_start.load()) usleep(10000);
             usleep(ctx.kDurationTime_us);
             EpochManager::SetTimerStop(true);
-            send_to_client_queue->enqueue(nullptr);
-            send_to_server_queue->enqueue(nullptr);
+            MessageQueue::send_to_client_queue->enqueue(nullptr);
+            MessageQueue::send_to_server_queue->enqueue(nullptr);
 
             zmq::context_t context(1);
             zmq::socket_t socket_send(context, ZMQ_PUSH);

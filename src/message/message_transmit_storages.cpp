@@ -105,7 +105,7 @@ namespace Taas {
         std::unique_ptr<zmq::message_t> msg;
         while(!EpochManager::IsInitOK()) usleep(1000);
         while (!EpochManager::IsTimerStop()) {
-            send_to_storage_queue->wait_dequeue(params);
+            MessageQueue::send_to_storage_queue->wait_dequeue(params);
             if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
             msg = std::make_unique<zmq::message_t>(*(params->str));
             socket_send.send(*msg, sendFlags);

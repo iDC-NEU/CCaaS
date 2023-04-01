@@ -368,7 +368,7 @@ namespace Taas {
 
     bool MessageReceiveHandler::HandleReceivedMessage() {
         sleep_flag = false;
-        while (listen_message_queue->try_dequeue(message_ptr)) {
+        while (MessageQueue::listen_message_queue->try_dequeue(message_ptr)) {
             if (message_ptr->empty()) continue;
             message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
                                                                     message_ptr->size());
@@ -380,8 +380,8 @@ namespace Taas {
                 SetMessageRelatedCountersInfo();
                 HandleReceivedTxn();
             } else {
-                request_queue->enqueue(std::move(msg_ptr));
-                request_queue->enqueue(nullptr);
+                MessageQueue::request_queue->enqueue(std::move(msg_ptr));
+                MessageQueue::request_queue->enqueue(nullptr);
             }
             sleep_flag = true;
         }

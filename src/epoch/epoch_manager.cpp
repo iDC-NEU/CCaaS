@@ -38,7 +38,7 @@ namespace Taas {
 
     void InitEpochTimerManager(Context& ctx){
         Merger::StaticInit(ctx);
-        InitMessage(ctx);
+        MessageQueue::StaticInitMessageQueue(ctx);
         MessageSendHandler::StaticInit(ctx);
         MessageReceiveHandler::StaticInit(ctx);
 

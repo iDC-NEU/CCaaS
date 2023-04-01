@@ -40,8 +40,8 @@ namespace Taas {
             recvResult = socket_listen.recv((*message_ptr), recvFlags);//防止上次遗留消息造成message cache出现问题
             if(recvResult == -1) assert(false);
             if (is_epoch_advance_started.load()) {
-                if (!listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
-                if (!listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
+                if (!MessageQueue::listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
+                if (!MessageQueue::listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
                     assert(false); //防止moodycamel取不出
                 break;
             }
@@ -51,8 +51,8 @@ namespace Taas {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);
             if(recvResult == -1) assert(false);
-            if (!listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
-            if (!listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
+            if (!MessageQueue::listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
+            if (!MessageQueue::listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
                 assert(false); //防止moodycamel取不出
         }
     }
@@ -78,12 +78,12 @@ namespace Taas {
         // 测试用，如果设置了会丢弃发送给client的Reply
         if (ctx.kTestClientNum > 0) {
             while (!EpochManager::IsTimerStop()) {
-                send_to_client_queue->wait_dequeue(params);
+                MessageQueue::send_to_client_queue->wait_dequeue(params);
             }
         } else {
 //         使用ZeroMQ发送Reply给client
             while(!EpochManager::IsTimerStop()){
-                send_to_client_queue->wait_dequeue(params);
+                MessageQueue::send_to_client_queue->wait_dequeue(params);
                 if(params == nullptr || params->type == proto::TxnType::NullMark) continue;
                 msg = std::make_unique<zmq::message_t>(*(params->str));
                 auto key = "tcp://" + params->ip;
