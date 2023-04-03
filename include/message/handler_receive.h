@@ -122,7 +122,8 @@ namespace Taas {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
                 if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
                 if(sharding_should_enqueue_merge_queue_txn_num.GetCount(epoch, i) >
-                   sharding_enqueued_merge_queue_txn_num.GetCount(epoch, i)) return false;
+                   sharding_enqueued_merge_queue_txn_num.GetCount(epoch, i) ||
+                   sharding_handled_local_txn_num.GetCount(epoch) < sharding_should_handle_local_txn_num.GetCount(epoch)) return false;
             }
             return true;
         }
