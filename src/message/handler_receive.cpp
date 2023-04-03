@@ -203,7 +203,6 @@ namespace Taas {
 
 
     bool MessageReceiveHandler::Sharding() {
-        sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
         std::vector<std::unique_ptr<proto::Transaction>> sharding_row_vector;
         for(uint64_t i = 0; i < sharding_num; i ++) {
             sharding_row_vector.emplace_back(std::make_unique<proto::Transaction>());
@@ -231,8 +230,7 @@ namespace Taas {
                 }
                 else {
                     sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
-                    MessageSendHandler::SendTxnToServer(ctx, message_epoch,
-                                                        i, *(sharding_row_vector[i]), proto::TxnType::RemoteServerTxn);
+                    MessageSendHandler::SendTxnToServer(ctx, message_epoch, i, *(sharding_row_vector[i]), proto::TxnType::RemoteServerTxn);
                     MessageReceiveHandler::sharding_send_txn_num.IncCount(message_epoch, i, 1);
                     sharding_send_txn_num.IncCount(message_epoch, i, 1);
                 }
@@ -240,16 +238,12 @@ namespace Taas {
         }
         {///backup sending full txn
             backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-            MessageSendHandler::SendTxnToServer(ctx, message_epoch,
-                                                message_server_id, *(txn_ptr), proto::TxnType::BackUpTxn);
+            MessageSendHandler::SendTxnToServer(ctx, message_epoch, message_server_id, *(txn_ptr), proto::TxnType::BackUpTxn);
             backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
 
-            should_enqueue_local_txn_queue_txn_num.IncCount(epoch_mod, ctx.txn_node_ip_index, 1);
             epoch_backup_txn[message_epoch_mod]->enqueue(std::make_unique<proto::Transaction>(*txn_ptr));
             epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
-            enqueued_local_txn_queue_txn_num.IncCount(epoch_mod, ctx.txn_node_ip_index, 1);
         }
-        sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
         return true;
     }
 
@@ -277,17 +271,18 @@ namespace Taas {
         switch (txn_ptr->txn_type()) {
             case proto::TxnType::ClientTxn : {/// sql node --> txn node
                 txn_ptr->set_commit_epoch(EpochManager::GetPhysicalEpoch());
+                sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
                 txn_ptr->set_csn(now_to_us());
                 txn_ptr->set_server_id(ctx.txn_node_ip_index);
                 SetMessageRelatedCountersInfo();
-                should_enqueue_local_txn_queue_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-                Merger::epoch_should_commit_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
                 Sharding();
                 assert(txn_ptr != nullptr);
+                should_enqueue_local_txn_queue_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+                Merger::epoch_should_commit_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
                 Merger::epoch_local_txn_queue[message_epoch_mod]->enqueue(std::move(txn_ptr));
                 Merger::epoch_local_txn_queue[message_epoch_mod]->enqueue(nullptr);
                 enqueued_local_txn_queue_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-
+                sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
                 break;
             }
             case proto::TxnType::RemoteServerTxn : {

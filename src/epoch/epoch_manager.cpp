@@ -120,9 +120,10 @@ namespace Taas {
         ShouldReceiveShardingPackNum %6lu, ReceivedShardingPackNum %6lu    \
         ShouldReceiveShardingTxnNum  %6lu, ReceivedShardingTxnNum  %6lu  \n\
         ShouldReceiveBackUpPackNum   %6lu, ReceivedBackUpPackNum   %6lu    \
-        ShouldReceiveBackUpTxnNum    %6lu, ReceivedBackUpTxnNum    %6lu    \
-        ReceivedBackupACKNum         %6lu \n\
-        ReceivedInsertSetNum         %6lu, ReceivedAbortSetNum     %6lu    \
+        ShouldReceiveBackUpTxnNum    %6lu, ReceivedBackUpTxnNum    %6lu  \n\
+        ShouldReceiveInsertsetNum    %6lu, ReceivedInsertSetNum    %6lu    \
+        ShouldReceiveAbortSetNum     %6lu, ReceivedAbortSetNum     %6lu  \n\
+        ReceivedShardingACKNum       %6lu, ReceivedBackupACKNum    %6lu    \
         ReceivedInsertSetACKNum      %6lu, ReceivedAbortSetACKNum  %6lu  \n\
         merge_num                    %6lu, time          %lu \n",
                s.c_str(),
@@ -140,9 +141,11 @@ namespace Taas {
 
                MessageReceiveHandler::backup_should_receive_pack_num.GetCount(epoch_mod),   MessageReceiveHandler::backup_received_pack_num.GetCount(epoch_mod),
                MessageReceiveHandler::backup_should_receive_txn_num.GetCount(epoch_mod),    MessageReceiveHandler::backup_received_txn_num.GetCount(epoch_mod),
-               MessageReceiveHandler::backup_received_ack_num.GetCount(epoch_mod),
 
-               MessageReceiveHandler::insert_set_received_num.GetCount(epoch_mod),          MessageReceiveHandler::sharding_received_abort_set_num.GetCount(epoch_mod),
+               MessageReceiveHandler::insert_set_should_receive_num.GetCount(epoch_mod),          MessageReceiveHandler::insert_set_received_num.GetCount(epoch_mod),
+               MessageReceiveHandler::sharding_should_receive_abort_set_num.GetCount(epoch_mod),  MessageReceiveHandler::sharding_received_abort_set_num.GetCount(epoch_mod),
+
+               MessageReceiveHandler::sharding_received_ack_num.GetCount(epoch_mod),        MessageReceiveHandler::backup_received_ack_num.GetCount(epoch_mod),
                MessageReceiveHandler::insert_set_received_ack_num.GetCount(epoch_mod),      MessageReceiveHandler::sharding_abort_set_received_ack_num.GetCount(epoch_mod),
 
                (uint64_t)0,
