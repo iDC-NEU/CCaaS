@@ -18,7 +18,7 @@ namespace Taas {
                 kMessageCacheThreadNum = 2, kPackThreadNum = 2, kTiKVSendThreadNum = 2, kDurationTime_us = 0,
                 kTestClientNum = 2, kTestKeyRange = 1000000, kTestTxnOpNum = 10,
                 kCacheMaxLength = 200000, kDelayEpochNum = 0, kServerTimeOut_us = 700000,
-                kRaftTimeOut_us = 500000, kStartCheckStateNum = 1000000;
+                kRaftTimeOut_us = 500000, kStartCheckStateNum = 1000000, print_mode_size = 1000;
         std::vector<std::string> send_ips;
         std::vector<uint64_t>send_ports;
         std::string kMasterIp, kPrivateIp, kTiKVIP;

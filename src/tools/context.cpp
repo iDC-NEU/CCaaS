@@ -53,6 +53,9 @@ namespace Taas {
         auto tikv_ip=ip_port->GetText();
         kTiKVIP = std::string(tikv_ip);
 
+        auto* mode_size_t = root->FirstChildElement("print_mode_size");
+        print_mode_size = std::stoull(mode_size_t->GetText());
+
         printf("Config Info:\n \tServerIp:\n");
         int cnt = 0;
         for(const auto& i : kServerIp) {
