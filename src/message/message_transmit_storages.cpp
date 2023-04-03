@@ -48,7 +48,7 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> recv_message = std::make_unique<zmq::message_t>();
             recvResult = recv_socket.recv((*recv_message), recvFlags);
-            if(recvResult < 0) assert(false);
+            assert(recvResult >= 0);
             auto message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(recv_message->data()),
                                                                     recv_message->size());
             auto pull_msg = std::make_unique<proto::Message>();
@@ -123,7 +123,7 @@ namespace Taas {
         socket_send.set(zmq::sockopt::sndhwm, queue_length);
         socket_send.set(zmq::sockopt::rcvhwm, queue_length);
         socket_send.bind("tcp://*:5556");//to server
-        printf("线程开始工作 SendStorage PUBServerThread ZMQ_PUB tcp:// ip + :5556\n");
+        printf("线程开始工作 SendStorage PUBServerThread ZMQ_PUB tcp://*:5556\n");
         std::unique_ptr<send_params> params;
         std::unique_ptr<zmq::message_t> msg;
         uint64_t epoch = 1;
@@ -141,7 +141,7 @@ namespace Taas {
                     auto *ptr = push_response->add_txns();
                     assert(ptr != nullptr);
                     auto res = RedoLoger::committed_txn_cache[epoch_mod]->getValue(key, (*ptr)); //copy
-                    assert(res != false);
+                    assert(res);
                 }
                 push_response->set_result(proto::Success);
                 push_response->set_epoch_id(epoch);
@@ -158,51 +158,6 @@ namespace Taas {
             }
         }
         socket_send.send((zmq::message_t &) "end", sendFlags);
-    }
-
-    void SendStorageTiKVThreadMain(const Context& ctx) { //PUB Txn
-        SetCPU();
-        int queue_length = 0;
-        zmq::context_t context(1);
-        zmq::message_t reply(5);
-        zmq::send_flags sendFlags = zmq::send_flags::none;
-        zmq::socket_t socket_send(context, ZMQ_PUB);
-        socket_send.set(zmq::sockopt::sndhwm, queue_length);
-        socket_send.set(zmq::sockopt::rcvhwm, queue_length);
-
-        socket_send.bind("tcp://*:5556");//to server
-        printf("线程开始工作 SendStorage PUBServerThread ZMQ_PUB tcp:// ip + :5556\n");
-        std::unique_ptr<send_params> params;
-        std::unique_ptr<zmq::message_t> msg;
-        uint64_t epoch = 1;
-        while(!EpochManager::IsInitOK()) usleep(1000);
-        while (!EpochManager::IsTimerStop()) {
-            if (epoch < EpochManager::GetLogicalEpoch()) {
-                auto s = std::to_string(epoch) + ":";
-                auto epoch_mod = epoch % EpochManager::max_length;
-                auto total_num = RedoLoger::epoch_log_lsn.GetCount(epoch);
-                for (int i = 0; i < (int)total_num; i++) {
-                    auto push_msg = std::make_unique<proto::Message>();
-                    auto push_response = push_msg->mutable_storage_push_response();
-                    assert(push_response != nullptr);
-                    auto key = s + std::to_string(i);
-                    auto *ptr = push_response->add_txns();
-                    assert(ptr != nullptr);
-                    assert(RedoLoger::committed_txn_cache[epoch_mod]->getValue(key, (*ptr))); //copy
-                    push_response->set_result(proto::Success);
-                    push_response->set_epoch_id(epoch);
-                    push_response->set_txn_num(total_num);
-                    auto serialized_pull_resp_str = std::make_unique<std::string>();
-                    auto res = Gzip(push_msg.get(), serialized_pull_resp_str.get());
-                    assert(res);
-                    auto send_message = std::make_unique<zmq::message_t>(*serialized_pull_resp_str);
-                    socket_send.send((*send_message), sendFlags);
-                }
-                epoch++;
-            } else {
-                usleep(2000);
-            }
-        }
     }
 
 }

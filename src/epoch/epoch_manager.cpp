@@ -237,13 +237,17 @@ namespace Taas {
 
             while(epoch < commit_epoch) {
                 total_commit_txn_num += Merger::epoch_record_committed_txn_num.GetCount(epoch);
-                OUTPUTLOG("*******完成一个Epoch的合并*******", epoch);
+                if(epoch % 1000 == 0) {
+                    printf("*************       完成一个Epoch的合并     Epoch: %8lu *************\n", epoch);
+                }
                 epoch ++;
                 EpochManager::AddLogicalEpoch();
             }
 
             while(clear_epoch < redo_log_epoch) {
-                OUTPUTLOG("=-=-=-=-=-=-=完成一个Epoch的Log Push Down=-=-=-=-=-=-=", clear_epoch);
+                if(clear_epoch % 1000 == 0) {
+                    printf("=-=-=-=-=-=-=完成一个Epoch的 Log Push Down Epoch: %8lu =-=-=-=-=-=-=\n", clear_epoch);
+                }
                 EpochManager::ClearMergeEpochState(clear_epoch); //清空当前epoch的merge信息
                 EpochManager::SetCacheServerStored(clear_epoch, cache_server_available);
 
@@ -282,7 +286,7 @@ namespace Taas {
             gettimeofday(&start_time, nullptr);
             start_time_ll = start_time.tv_sec * 1000000 + start_time.tv_usec;
         }
-        auto epoch = EpochManager::GetPhysicalEpoch();
+        auto epoch = EpochManager::GetPhysicalEpoch(), logical = EpochManager::GetLogicalEpoch();
         test_start.store(true);
         is_epoch_advance_started.store(true);
 
@@ -290,16 +294,18 @@ namespace Taas {
         while(!EpochManager::IsTimerStop()){
             usleep(GetSleeptime(ctx));
             EpochManager::AddPhysicalEpoch();
-//            epoch = EpochManager::GetPhysicalEpoch();
-            epoch = EpochManager::GetLogicalEpoch();
-            OUTPUTLOG("=============start Epoch============= ", epoch);
+            epoch ++;
+            if(epoch % 1000 == 0) {
+                logical = EpochManager::GetLogicalEpoch();
+                OUTPUTLOG("=============start Epoch============= ", logical);
+            }
             EpochManager::EpochCacheSafeCheck();
         }
         printf("EpochTimerManager End!!!\n");
     }
 
 
-    void EpochManager::SetServerOnLine(uint64_t epoch, const std::string& ip) {
+    void EpochManager::SetServerOnLine(uint64_t& epoch, const std::string& ip) {
         for(int i = 0; i < (int)ctx.kServerIp.size(); i++) {
             if(ip == ctx.kServerIp[i]) {
                 server_state.SetCount(epoch, i, 1);
@@ -311,7 +317,7 @@ namespace Taas {
         }
     }
 
-    void EpochManager::SetServerOffLine(uint64_t epoch, const std::string& ip) {
+    void EpochManager::SetServerOffLine(uint64_t& epoch, const std::string& ip) {
         for(int i = 0; i < (int)ctx.kServerIp.size(); i++) {
             if(ip == ctx.kServerIp[i]) {
                 server_state.SetCount(epoch, i, 0);

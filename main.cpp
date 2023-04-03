@@ -26,16 +26,12 @@ namespace Taas {
         for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
             threads.push_back(std::make_unique<std::thread>(WorkerThreadMain, i, ctx));
         }
-
         if(ctx.kTxnNodeNum > 1) {
             threads.push_back(std::make_unique<std::thread>(SendServerThreadMain, ctx));
             threads.push_back(std::make_unique<std::thread>(ListenServerThreadMain, ctx));
         }
-        for(int i = 0; i < (int)ctx.kSendClientThreadNum; i ++) {
-            threads.push_back(std::make_unique<std::thread>(SendClientThreadMain, ctx));
-        }
+        threads.push_back(std::make_unique<std::thread>(SendClientThreadMain, ctx));
         threads.push_back(std::make_unique<std::thread>(ListenClientThreadMain, ctx));
-
         threads.push_back(std::make_unique<std::thread>(SendStoragePUBThreadMain2, ctx));
 
 

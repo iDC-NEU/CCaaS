@@ -22,7 +22,7 @@ namespace Taas {
  * @param id 暂时未使用
  * @param ctx 暂时未使用
  */
-    void ListenClientThreadMain(Context ctx) {///监听client 写集
+    void ListenClientThreadMain(const Context& ctx) {///监听client 写集
         SetCPU();
         // 设置ZeroMQ的相关变量，并监听5555端口，接受client发来的写集
         int queue_length = 0;
@@ -38,7 +38,7 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);//防止上次遗留消息造成message cache出现问题
-            if(recvResult == -1) assert(false);
+            assert(recvResult != -1);
             if (is_epoch_advance_started.load()) {
                 if (!MessageQueue::listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
                 if (!MessageQueue::listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
@@ -50,7 +50,7 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);
-            if(recvResult == -1) assert(false);
+            assert(recvResult != -1);
             if (!MessageQueue::listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
             if (!MessageQueue::listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
                 assert(false); //防止moodycamel取不出
@@ -63,7 +63,7 @@ namespace Taas {
  * @param id
  * @param ctx
  */
-    void SendClientThreadMain(Context ctx) {
+    void SendClientThreadMain(const Context& ctx) {
         SetCPU();
         // 设置ZeroMQ的相关变量，通过5556端口发送Reply给client
         zmq::context_t context(1);
@@ -99,19 +99,6 @@ namespace Taas {
                     socket_map[key]->send(*(msg), sendFlags);
                 }
             }
-//==========================PUB==========================
-//            zmq::socket_t socket_send(context, ZMQ_PUB);
-//            socket_send.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
-//            socket->setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
-//            socket->setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
-//            socket_send.bind("tcp://*:5552");
-//            while (!EpochManager::IsTimerStop()) {
-//                send_to_client_queue.wait_dequeue(params);
-//                if (params == nullptr || params->merge_request_ptr == nullptr) continue;
-//                msg = std::make_unique<zmq::message_t>(*(params->merge_request_ptr));
-//                socket_send.send(*(msg));
-////            printf("txn time: %lu, id: %lu \n",now_to_us() - params->time, params->id);
-//            }
         }
     }
 }

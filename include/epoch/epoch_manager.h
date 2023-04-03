@@ -82,8 +82,8 @@ namespace Taas {
         static uint64_t GetPushDownEpoch(){ return push_down_epoch.load();}
 
 
-        static void ClearMergeEpochState(uint64_t epoch_mod) {
-            epoch_mod %= max_length;
+        static void ClearMergeEpochState(uint64_t& epoch) {
+            auto epoch_mod = epoch %  max_length;
             merge_complete[epoch_mod]->store(false);
             abort_set_merge_complete[epoch_mod]->store(false);
             commit_complete[epoch_mod]->store(false);
@@ -101,22 +101,22 @@ namespace Taas {
             }
         }
 
-        static uint64_t AddOnLineServerNum(uint64_t epoch, uint64_t value) {
+        static uint64_t AddOnLineServerNum(uint64_t& epoch, uint64_t value) {
             return online_server_num[epoch % max_length]->fetch_add(value);
         }
-        static uint64_t SubOnLineServerNum(uint64_t epoch, uint64_t value) {
+        static uint64_t SubOnLineServerNum(uint64_t& epoch, uint64_t value) {
             return online_server_num[epoch % max_length]->fetch_sub(value);
         }
-        static void StoreOnLineServerNum(uint64_t epoch, uint64_t value) {
+        static void StoreOnLineServerNum(uint64_t& epoch, uint64_t value) {
             online_server_num[epoch % max_length]->store(value);
         }
-        static uint64_t GetOnLineServerNum(uint64_t epoch) {
+        static uint64_t GetOnLineServerNum(uint64_t& epoch) {
             return online_server_num[epoch % max_length]->load();
         }
-        static void SetServerOnLine(uint64_t epoch, const std::string& ip);
-        static void SetServerOffLine(uint64_t epoch, const std::string& ip);
+        static void SetServerOnLine(uint64_t& epoch, const std::string& ip);
+        static void SetServerOffLine(uint64_t& epoch, const std::string& ip);
 
-        static void SetCacheServerStored(uint64_t epoch, uint64_t value) {
+        static void SetCacheServerStored(uint64_t& epoch, uint64_t value) {
             cache_server_received_epoch[epoch % max_length]->store(value);
         }
 

@@ -27,8 +27,8 @@ namespace Taas {
         }
     }
 
-    void RedoLoger::ClearRedoLog(uint64_t &epoch_mod, Context &ctx) {
-        epoch_mod %= ctx.kCacheMaxLength;
+    void RedoLoger::ClearRedoLog(uint64_t& epoch, Context &ctx) {
+        auto epoch_mod = epoch % ctx.kCacheMaxLength;
         redo_log[epoch_mod]->clear();
         committed_txn_cache[epoch_mod]->clear();
         epoch_log_lsn.SetCount(epoch_mod, 0);

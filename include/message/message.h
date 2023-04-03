@@ -55,8 +55,8 @@ namespace Taas {
     //message transport threads
     extern void SendServerThreadMain(Context ctx);
     extern void ListenServerThreadMain(const Context& ctx);
-    extern void SendClientThreadMain(Context ctx);
-    extern void ListenClientThreadMain(Context ctx);
+    extern void SendClientThreadMain(const Context& ctx);
+    extern void ListenClientThreadMain(const Context& ctx);
     extern void ListenStorageThreadMain(Context ctx);
     extern void SendStoragePUBThreadMain(Context ctx);
     extern void SendStoragePUBThreadMain2(Context ctx);
