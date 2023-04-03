@@ -107,8 +107,8 @@ namespace Taas {
  * @param s 待输出的自定义字符串
  * @param epoch_mod epoch号
  */
-    void OUTPUTLOG(const string& s, uint64_t& epoch_mod){
-        epoch_mod %= EpochManager::max_length;
+    void OUTPUTLOG(const string& s, uint64_t& epoch, Context& ctx){
+        auto epoch_mod = epoch % EpochManager::max_length;
         printf("%60s \n\
         physical                     %6lu, logical                      %6lu,   \
         epoch_mod                    %6lu, disstance %6lu, \n\
@@ -135,9 +135,9 @@ namespace Taas {
 
                (uint64_t)EpochManager::IsShardingMergeComplete(epoch_mod),                  (uint64_t)EpochManager::IsAbortSetMergeComplete(epoch_mod),
                (uint64_t)EpochManager::IsCommitComplete(epoch_mod),                         (uint64_t)EpochManager::IsRecordCommitted(epoch_mod),
-               MessageReceiveHandler::IsRemoteShardingPackReceiveComplete(epoch_mod),               MessageReceiveHandler::IsRemoteShardingTxnReceiveComplete(epoch_mod),
-               MessageReceiveHandler::IsShardingSendFinish(epoch_mod),                              MessageReceiveHandler::IsShardingACKReceiveComplete(epoch_mod),
-               MessageReceiveHandler::IsBackUpSendFinish(epoch_mod),                                MessageReceiveHandler::IsBackUpACKReceiveComplete(epoch_mod),
+               (uint64_t)MessageReceiveHandler::IsRemoteShardingPackReceiveComplete(epoch_mod, ctx),(uint64_t)MessageReceiveHandler::IsRemoteShardingTxnReceiveComplete(epoch_mod, ctx),
+               (uint64_t)MessageReceiveHandler::IsShardingSendFinish(epoch_mod),                        (uint64_t)MessageReceiveHandler::IsShardingACKReceiveComplete(epoch_mod, ctx),
+               (uint64_t)MessageReceiveHandler::IsBackUpSendFinish(epoch_mod, ctx),                 (uint64_t)MessageReceiveHandler::IsBackUpACKReceiveComplete(epoch_mod, ctx),
                Merger::epoch_merged_txn_num.GetCount(epoch_mod),                            Merger::epoch_should_merge_txn_num.GetCount(epoch_mod),
                Merger::epoch_committed_txn_num.GetCount(epoch_mod),                         Merger::epoch_should_commit_txn_num.GetCount(epoch_mod),
                Merger::epoch_record_committed_txn_num.GetCount(epoch_mod),                  Merger::epoch_record_commit_txn_num.GetCount(epoch_mod),
@@ -235,7 +235,7 @@ namespace Taas {
         if(ctx.is_cache_server_available) {
             cache_server_available = 0;
         }
-        OUTPUTLOG("=====start Epoch的合并===== ", epoch);
+        OUTPUTLOG("=====start Epoch的合并===== ", epoch, ctx);
         while(!EpochManager::IsTimerStop()){
             while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(20);
             sleep_flag = false;
@@ -306,7 +306,7 @@ namespace Taas {
             epoch ++;
             if(epoch % ctx.print_mode_size == 0) {
                 logical = EpochManager::GetLogicalEpoch();
-                OUTPUTLOG("=============start Epoch============= ", logical);
+                OUTPUTLOG("=============start Epoch============= ", logical, ctx);
             }
             EpochManager::EpochCacheSafeCheck();
         }

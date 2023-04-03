@@ -105,6 +105,11 @@ namespace Taas {
                     sharding_handled_local_txn_num.GetCount(epoch) >= sharding_should_handle_local_txn_num.GetCount(epoch) &&
                     epoch < EpochManager::GetPhysicalEpoch();
         }
+        static bool IsShardingSendFinish(uint64_t epoch) {
+            return sharding_send_txn_num.GetCount(epoch) >= sharding_should_send_txn_num.GetCount(epoch) &&
+                   sharding_handled_local_txn_num.GetCount(epoch) >= sharding_should_handle_local_txn_num.GetCount(epoch) &&
+                   epoch < EpochManager::GetPhysicalEpoch();
+        }
         static bool IsShardingACKReceiveComplete(uint64_t epoch, Context &ctx) {
             for(int i = 0; i < (int)ctx.kTxnNodeNum; i ++) {
                 if(i == (int)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
