@@ -294,7 +294,7 @@ namespace Taas {
                 Merger::merge_queue->enqueue(std::move(txn_ptr));
                 Merger::merge_queue->enqueue(nullptr);
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
-                sharding_should_enqueue_merge_queue_txn_num.IncCount(message_epoch, message_server_id, 1);
+                sharding_enqueued_merge_queue_txn_num.IncCount(message_epoch, message_server_id, 1);
                 break;
             }
             case proto::TxnType::EpochEndFlag : {
