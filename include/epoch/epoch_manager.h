@@ -92,7 +92,8 @@ namespace Taas {
         }
 
         static void EpochCacheSafeCheck() {
-            if((GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength) ) {
+            if((GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength) ||
+                GetPushDownEpoch() % ctx.kCacheMaxLength ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength)) {
                 printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
                 printf("+++++++++++++++Fata : Cache Size exceeded!!! +++++++++++++++++++++\n");
                 printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");

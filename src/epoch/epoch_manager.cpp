@@ -247,10 +247,10 @@ namespace Taas {
                 EpochManager::ClearMergeEpochState(clear_epoch); //清空当前epoch的merge信息
                 EpochManager::SetCacheServerStored(clear_epoch, cache_server_available);
 
-                MessageReceiveHandler::StaticClear(epoch, ctx);//清空current epoch的receive cache num信息
+                MessageReceiveHandler::StaticClear(clear_epoch, ctx);//清空current epoch的receive cache num信息
                 Merger::ClearMergerEpochState(clear_epoch, ctx);
 
-                RedoLoger::ClearRedoLog(epoch, ctx);
+                RedoLoger::ClearRedoLog(clear_epoch, ctx);
 
                 clear_epoch ++;
                 EpochManager::AddPushDownEpoch();
@@ -293,12 +293,7 @@ namespace Taas {
 //            epoch = EpochManager::GetPhysicalEpoch();
             epoch = EpochManager::GetLogicalEpoch();
             OUTPUTLOG("=============start Epoch============= ", epoch);
-            if((EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((EpochManager::GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength) ) {
-                printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
-                printf("+++++++++++++++Fata : Cache Size exceeded!!! +++++++++++++++++++++\n");
-                printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
-                assert(false);
-            }
+            EpochManager::EpochCacheSafeCheck();
         }
         printf("EpochTimerManager End!!!\n");
     }
