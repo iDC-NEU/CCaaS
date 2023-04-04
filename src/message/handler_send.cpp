@@ -156,7 +156,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         auto res = Gzip(msg.get(), serialized_txn_str_ptr.get());
         assert(res);
-        printf("send epoch end flag server %lu epoch %lu type %d\n",to_whom, epoch, txn_type);
+        printf("send ack %lu epoch %lu type %d\n",to_whom, epoch, txn_type);
         MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_whom, 0, "", epoch, txn_type, std::move(serialized_txn_str_ptr), nullptr));
         MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_whom, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
         return true;

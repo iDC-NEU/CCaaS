@@ -383,6 +383,7 @@ namespace Taas {
         if(id != ctx.txn_node_ip_index) {
             auto &sharding_epoch = sharding_send_ack_epoch_num[id];
             if(sharding_epoch < EpochManager::GetPhysicalEpoch() &&
+                    IsEpochTxnHandleComplete(sharding_epoch) &&
                     IsShardingPackReceiveComplete(sharding_epoch, id) &&
                IsShardingTxnReceiveComplete(sharding_epoch, id)) {
                 MessageSendHandler::SendTxnToServer(ctx, sharding_epoch,
@@ -393,6 +394,7 @@ namespace Taas {
 
             auto& backup_epoch = backup_send_ack_epoch_num[id];
             if(backup_epoch < EpochManager::GetPhysicalEpoch() &&
+                    IsEpochTxnHandleComplete(backup_epoch) &&
                     IsBackUpPackReceiveComplete(backup_epoch, id) &&
                     IsBackUpTxnReceiveComplete(backup_epoch, id)) {
                 MessageSendHandler::SendTxnToServer(ctx, backup_epoch,
@@ -403,18 +405,22 @@ namespace Taas {
 
             auto& backup_insert_epoch = backup_insert_set_send_ack_epoch_num[id];
             if(backup_insert_epoch < EpochManager::GetPhysicalEpoch() &&
+                    IsEpochTxnHandleComplete(backup_insert_epoch) &&
                     IsInsertSetReceiveComplete(backup_insert_epoch, id)) {
                 MessageSendHandler::SendTxnToServer(ctx, backup_insert_epoch,
-                                                        id, empty_txn, proto::TxnType::AbortSetACK);
+                                                        id, empty_txn, proto::TxnType::InsertSetACK);
                 backup_insert_epoch ++;
                 res = true;
             }
 
             auto& abort_set_epoch = abort_set_send_ack_epoch_num[id];
+
             if(abort_set_epoch < EpochManager::GetPhysicalEpoch() &&
+                    IsEpochTxnHandleComplete(abort_set_epoch) &&
                     IsAbortSetReceiveComplete(abort_set_epoch, id)) {
+
                 MessageSendHandler::SendTxnToServer(ctx, abort_set_epoch,
-                                                        id, empty_txn, proto::TxnType::InsertSetACK);
+                                                        id, empty_txn, proto::TxnType::AbortSetACK);
                 abort_set_epoch ++;
                 res = true;
             }
