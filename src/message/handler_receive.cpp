@@ -281,7 +281,7 @@ namespace Taas {
             case proto::TxnType::EpochEndFlag : {
                 sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
-                printf("receive a epoch end flag epoch %lu, server %lu\n", message_epoch, message_server_id);
+//                printf("receive a epoch end flag epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::BackUpTxn : {
@@ -293,7 +293,7 @@ namespace Taas {
             case proto::TxnType::BackUpEpochEndFlag : {
                 backup_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 backup_received_pack_num.IncCount(message_epoch,message_server_id, 1);
-                printf("receive a buckup epoch end flag epoch %lu, server %lu\n", message_epoch, message_server_id);
+//                printf("receive a buckup epoch end flag epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::AbortSet : {
@@ -301,7 +301,7 @@ namespace Taas {
                 epoch_abort_set[message_epoch_mod]->enqueue(std::move(txn_ptr));
                 epoch_abort_set[message_epoch_mod]->enqueue(nullptr);
                 abort_set_received_num.IncCount(message_epoch,message_server_id, 1);
-                printf("receive a abort set epoch %lu, server %lu\n", message_epoch, message_server_id);
+//                printf("receive a abort set epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::InsertSet : {
@@ -312,17 +312,17 @@ namespace Taas {
             }
             case proto::TxnType::EpochShardingACK : {
                 sharding_received_ack_num.IncCount(message_epoch,message_server_id, 1);
-                printf("receive a epoch sharding ack epoch %lu, server %lu\n", message_epoch, message_server_id);
+//                printf("receive a epoch sharding ack epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::BackUpACK : {
                 backup_received_ack_num.IncCount(message_epoch,message_server_id, 1);
-                printf("receive a buckup ack epoch %lu, server %lu\n", message_epoch, message_server_id);
+//                printf("receive a buckup ack epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::AbortSetACK : {
                 abort_set_received_ack_num.IncCount(message_epoch,message_server_id, 1);
-                printf("receive a abort set ack epoch %lu, server %lu\n", message_epoch, message_server_id);
+//                printf("receive a abort set ack epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::InsertSetACK : {
@@ -331,7 +331,7 @@ namespace Taas {
             }
             case proto::TxnType::EpochLogPushDownComplete : {
                 redo_log_push_down_ack_num.IncCount(message_epoch,message_server_id, 1);
-                printf("receive a log push down epoch %lu, server %lu\n", message_epoch, message_server_id);
+//                printf("receive a log push down epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::NullMark:
@@ -403,6 +403,17 @@ namespace Taas {
                 res = true;
             }
 
+            auto& abort_set_epoch = abort_set_send_ack_epoch_num[id];
+            if(abort_set_epoch < EpochManager::GetPhysicalEpoch() &&
+               IsEpochTxnHandleComplete(abort_set_epoch) &&
+               IsAbortSetReceiveComplete(abort_set_epoch, id)) {
+
+                MessageSendHandler::SendTxnToServer(ctx, abort_set_epoch,
+                                                    id, empty_txn, proto::TxnType::AbortSetACK);
+                abort_set_epoch ++;
+                res = true;
+            }
+
             auto& backup_insert_epoch = backup_insert_set_send_ack_epoch_num[id];
             if(backup_insert_epoch < EpochManager::GetPhysicalEpoch() &&
                     IsEpochTxnHandleComplete(backup_insert_epoch) &&
@@ -413,22 +424,10 @@ namespace Taas {
                 res = true;
             }
 
-            auto& abort_set_epoch = abort_set_send_ack_epoch_num[id];
-
-            if(abort_set_epoch < EpochManager::GetPhysicalEpoch() &&
-                    IsEpochTxnHandleComplete(abort_set_epoch) &&
-                    IsAbortSetReceiveComplete(abort_set_epoch, id)) {
-
-                MessageSendHandler::SendTxnToServer(ctx, abort_set_epoch,
-                                                        id, empty_txn, proto::TxnType::AbortSetACK);
-                abort_set_epoch ++;
-                res = true;
-            }
         }
         id = (id + 1) % ctx.kTxnNodeNum;
         return res;
     }
-
 
 
 
