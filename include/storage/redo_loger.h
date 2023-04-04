@@ -25,6 +25,9 @@ namespace Taas {
         static void StaticInit(Context& ctx);
         static void ClearRedoLog(uint64_t& epoch_mod, Context& ctx);
         static bool RedoLog(Context& ctx, proto::Transaction& txn);
+
+        static void RedoLogQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr, Context &ctx);
+        static bool RedoLogQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr, Context &ctx);
     };
 }
 

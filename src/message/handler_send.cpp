@@ -228,7 +228,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
     bool MessageSendHandler::SendBackUpEpochEndMessage(Context &ctx) {
         for(auto epoch = backup_sent_epoch; epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
             if(backup_send_epoch[epoch % ctx.kCacheMaxLength]->load()) continue; ///已经发送过 不再发送
-            if(MessageReceiveHandler::IsBackUpSendFinish(epoch, ctx)) {
+            if(MessageReceiveHandler::IsBackUpSendFinish(epoch)) {
                 auto msg = std::make_unique<proto::Message>();
                 auto* txn_end = msg->mutable_txn();
                 txn_end->set_server_id(ctx.txn_node_ip_index);

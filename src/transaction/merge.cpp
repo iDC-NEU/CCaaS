@@ -32,8 +32,9 @@ namespace Taas {
             Merger::abort_txn_set; /// 所有abort的事务，不区分epoch
 
 
-    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> Merger::merge_queue;///存放要进行merge的事务，分片`
+//    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> Merger::merge_queue;///存放要进行merge的事务，分片`
     std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
+            Merger::epoch_merge_queue,///存放要进行merge的事务，分片`
             Merger::epoch_local_txn_queue,///存放epoch由client发送过来的事务，存放每个epoch要进行写日志的事务，整个事务写日志
             Merger::epoch_commit_queue;///存放每个epoch要进行写日志的事务，分片写日志
 
@@ -47,9 +48,9 @@ namespace Taas {
         epoch_abort_txn_set.resize(max_length);
         epoch_insert_set.resize(max_length);
 
-        ///transaction concurrent queue
-        merge_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-
+//        ///transaction concurrent queue
+//        merge_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+        epoch_merge_queue.resize(max_length);
         epoch_local_txn_queue.resize(max_length);
         epoch_commit_queue.resize(max_length);
 
@@ -66,11 +67,43 @@ namespace Taas {
             epoch_abort_txn_set[i] = std::make_unique<concurrent_crdt_unordered_map<std::string, std::string, std::string>>();
             epoch_insert_set[i] = std::make_unique<concurrent_unordered_map<std::string, std::string>>();
 
+            epoch_merge_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
             epoch_local_txn_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
             epoch_commit_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
         }
         RedoLoger::StaticInit(ctx);
     }
+
+    void Merger::MergeQueueEnqueue(uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr, Context& ctx) {
+        auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        epoch_merge_queue[epoch_mod]->enqueue(std::move(txn_ptr));
+        epoch_merge_queue[epoch_mod]->enqueue(nullptr);
+    }
+    bool Merger::MergeQueueTryDequeue(uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr, Context& ctx) {
+        auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        return epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr);
+    }
+
+    void Merger::LocalTxnCommitQueueEnqueue(uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr, Context& ctx) {
+        auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        epoch_local_txn_queue[epoch_mod]->enqueue(std::move(txn_ptr));
+        epoch_local_txn_queue[epoch_mod]->enqueue(nullptr);
+    }
+    bool Merger::LocalTxnCommitQueueTryDequeue(uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr, Context& ctx) {
+        auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        return epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr);
+    }
+
+    void Merger::CommitQueueEnqueue(uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr, Context& ctx) {
+        auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        epoch_commit_queue[epoch_mod]->enqueue(std::move(txn_ptr));
+        epoch_commit_queue[epoch_mod]->enqueue(nullptr);
+    }
+    bool Merger::CommitQueueTryDequeue(uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr, Context& ctx) {
+        auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        return epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr);
+    }
+
 
     void Merger::ClearMergerEpochState(uint64_t& epoch, Context& ctx) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
@@ -92,24 +125,27 @@ namespace Taas {
 
     bool Merger::EpochMerge() {
         sleep_flag = false;
-        while (merge_queue->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
-            res = true;
-            epoch = txn_ptr->commit_epoch();
-            if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))){
-                res = false;
-            }
-            if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
-                res = false;
-            }
-            if(res) {
-                txn_server_id = txn_ptr->server_id();
-                epoch_should_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                epoch_commit_queue[epoch % ctx.kCacheMaxLength]->enqueue(std::move(txn_ptr));
-                epoch_commit_queue[epoch % ctx.kCacheMaxLength]->enqueue(nullptr);
-            }
-            epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
+        epoch = EpochManager::GetLogicalEpoch();
+        for(; epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
+            auto epoch_mod = epoch % ctx.kCacheMaxLength;
+            while (MergeQueueTryDequeue(epoch, txn_ptr, ctx) && txn_ptr != nullptr) {
+                res = true;
+                if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
+                    res = false;
+                }
+                if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
+                    res = false;
+                }
+                if (res) {
+                    txn_server_id = txn_ptr->server_id();
+                    epoch_should_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+                    epoch_commit_queue[epoch_mod]->enqueue(std::move(txn_ptr));
+                    epoch_commit_queue[epoch_mod]->enqueue(nullptr);
+                }
+                epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
 
-            sleep_flag = true;
+                sleep_flag = true;
+            }
         }
         return sleep_flag;
     }

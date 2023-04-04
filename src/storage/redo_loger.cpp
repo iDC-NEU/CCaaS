@@ -48,4 +48,14 @@ namespace Taas {
         return true;
     }
 
+    void RedoLoger::RedoLogQueueEnqueue(uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr, Context& ctx) {
+        auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        epoch_redo_log_queue[epoch_mod]->enqueue(std::move(txn_ptr));
+        epoch_redo_log_queue[epoch_mod]->enqueue(nullptr);
+    }
+    bool RedoLoger::RedoLogQueueTryDequeue(uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr, Context& ctx) {
+        auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        return epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr);
+    }
+
 }
