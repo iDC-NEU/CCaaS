@@ -328,7 +328,7 @@ namespace Taas {
                 EpochManager::AddLogicalEpoch();
             }
 
-            while(clear_epoch < redo_log_epoch) {
+            while(clear_epoch < redo_log_epoch && clear_epoch < RedoLoger::GetPushedDownMOTEpoch()) {
                 if(clear_epoch % ctx.print_mode_size == 0) {
                     printf("=-=-=-=-=-=-=完成一个Epoch的 Log Push Down Epoch: %8lu =-=-=-=-=-=-=\n", clear_epoch);
                 }

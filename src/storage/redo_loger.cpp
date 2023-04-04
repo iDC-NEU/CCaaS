@@ -14,6 +14,8 @@ namespace Taas {
     ///存放完成的事务 发送给tikv或其他只提供接口的系统，进行日志下推, 按照epoch先后进行
     std::vector<std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>> RedoLoger::epoch_redo_log_queue;
 
+    std::atomic<uint64_t> RedoLoger::pushed_down_mot_epoch = 1, RedoLoger::pushed_down_tikv_epoch = 1;
+
     void RedoLoger::StaticInit(Context &ctx) {
         auto max_length = ctx.kCacheMaxLength;
         epoch_log_lsn.Init(max_length);

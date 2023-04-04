@@ -153,6 +153,7 @@ namespace Taas {
                 socket_send.send((*send_message), sendFlags);
 
                 epoch++;
+                RedoLoger::IncPushedDownMOTEpoch();
             } else {
                 usleep(2000);
             }

@@ -21,10 +21,23 @@ namespace Taas {
         static std::vector<std::unique_ptr<concurrent_unordered_map<std::string, proto::Transaction>>> committed_txn_cache;
         static std::vector<std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
             epoch_redo_log_queue; ///store transactions receive from clients, wait to push down
-
+        static std::atomic<uint64_t> pushed_down_mot_epoch, pushed_down_tikv_epoch;
         static void StaticInit(Context& ctx);
         static void ClearRedoLog(uint64_t& epoch_mod, Context& ctx);
         static bool RedoLog(Context& ctx, proto::Transaction& txn);
+
+        static uint64_t IncPushedDownMOTEpoch() {
+            return pushed_down_mot_epoch.fetch_add(1);
+        }
+        static uint64_t GetPushedDownMOTEpoch() {
+            return pushed_down_mot_epoch.load();
+        }
+        static uint64_t IncPushedDownTiKVEpoch() {
+            return pushed_down_tikv_epoch.fetch_add(1);
+        }
+        static uint64_t GetPushedDownTiKVEpoch() {
+            return pushed_down_tikv_epoch.load();
+        }
 
         static void RedoLogQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr, Context &ctx);
         static bool RedoLogQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr, Context &ctx);
