@@ -24,7 +24,7 @@ namespace Taas {
     extern void InitEpochTimerManager(Context& ctx);
     extern void EpochLogicalTimerManagerThreadMain(Context ctx);
     extern void EpochPhysicalTimerManagerThreadMain(Context ctx);
-
+    void OUTPUTLOG(const std::string& s, uint64_t& epoch, Context& ctx);
     class EpochManager {
     private:
         static bool timerStop;
@@ -92,8 +92,10 @@ namespace Taas {
         }
 
         static void EpochCacheSafeCheck() {
-            if((GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength) ||
-                GetPushDownEpoch() % ctx.kCacheMaxLength ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength)) {
+            if(((GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength)) ||
+                    ((GetPushDownEpoch() % ctx.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength))) {
+                auto i = 0;
+                OUTPUTLOG("Assert", reinterpret_cast<uint64_t &>(i), ctx);
                 printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
                 printf("+++++++++++++++Fata : Cache Size exceeded!!! +++++++++++++++++++++\n");
                 printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");

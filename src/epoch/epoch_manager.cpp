@@ -183,6 +183,7 @@ namespace Taas {
         auto epoch_mod = epoch % EpochManager::max_length;
         printf("%60s \n\
         physical                     %6lu, logical                      %6lu,   \
+        pushdown_mot                 %6lu, pushdownepoch                %6lu  \n\
         epoch_mod                    %6lu, disstance %6lu, \n\
         ShardingPackReceiveOK?       %6lu, ShardingTxnReceiveOK?        %6lu    \
         ShardingSendOK?              %6lu, ShardingACKReceiveOK?        %6lu  \n\
@@ -204,6 +205,7 @@ namespace Taas {
         merge_num                    %6lu, time          %lu \n",
        s.c_str(),
        EpochManager::GetPhysicalEpoch(),                                                  EpochManager::GetLogicalEpoch(),
+       RedoLoger::GetPushedDownMOTEpoch(), EpochManager::GetPushDownEpoch(),
        epoch_mod,                                                                         EpochManager::GetPhysicalEpoch() - EpochManager::GetLogicalEpoch(),
 
        (uint64_t)MessageReceiveHandler::IsShardingPackReceiveComplete(epoch_mod, ctx),(uint64_t)MessageReceiveHandler::IsShardingTxnReceiveComplete(epoch_mod, ctx),
@@ -291,14 +293,13 @@ namespace Taas {
     }
 
     bool CheckAndSetRedoLogPushDownState(uint64_t& epoch, Context& ctx) {
-        if(epoch >= EpochManager::GetPhysicalEpoch()) return false;
-        if(EpochManager::IsCommitComplete(epoch) &&
+        while(epoch < EpochManager::GetPhysicalEpoch() &&
+            EpochManager::IsCommitComplete(epoch) &&
             MessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(epoch, ctx)) {
             EpochManager::SetRecordCommitted(epoch, true);
             epoch ++;
-            return true;
         }
-        return false;
+        return true;
     }
 
     void EpochLogicalTimerManagerThreadMain(Context ctx) {
@@ -322,7 +323,7 @@ namespace Taas {
             while(epoch < commit_epoch) {
                 total_commit_txn_num += Merger::epoch_record_committed_txn_num.GetCount(epoch);
                 if(epoch % ctx.print_mode_size == 0) {
-                    printf("*************       完成一个Epoch的合并     Epoch: %8lu *************\n", epoch);
+                    printf("*************       完成一个Epoch的合并     Epoch: %8lu ClearEpoch: %8lu *************\n", epoch, clear_epoch);
                 }
                 epoch ++;
                 EpochManager::AddLogicalEpoch();
@@ -330,7 +331,7 @@ namespace Taas {
 
             while(clear_epoch < redo_log_epoch && clear_epoch < RedoLoger::GetPushedDownMOTEpoch()) {
                 if(clear_epoch % ctx.print_mode_size == 0) {
-                    printf("=-=-=-=-=-=-=完成一个Epoch的 Log Push Down Epoch: %8lu =-=-=-=-=-=-=\n", clear_epoch);
+                    printf("=-=-=-=-=-=-=完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", epoch, clear_epoch);
                 }
                 EpochManager::ClearMergeEpochState(clear_epoch); //清空当前epoch的merge信息
                 EpochManager::SetCacheServerStored(clear_epoch, cache_server_available);
