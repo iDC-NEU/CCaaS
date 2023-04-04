@@ -217,7 +217,8 @@ namespace Taas {
                 ///sharding sending
                 if(i == ctx.txn_node_ip_index) {
                     Merger::epoch_should_merge_txn_num.IncCount(message_epoch, i, 1);
-                    Merger::MergeQueueEnqueue(message_epoch, std::move(sharding_row_vector[i]), ctx);
+//                    Merger::MergeQueueEnqueue(message_epoch, std::move(sharding_row_vector[i]), ctx);
+                    Merger::EpochMerge(message_epoch, std::move(sharding_row_vector[ctx.txn_node_ip_index]), ctx);
                 }
                 else {
                     sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
@@ -274,7 +275,8 @@ namespace Taas {
             }
             case proto::TxnType::RemoteServerTxn : {
                 Merger::epoch_should_merge_txn_num.IncCount(message_epoch, message_server_id, 1);
-                Merger::MergeQueueEnqueue(message_epoch, std::move(txn_ptr), ctx);
+//                Merger::MergeQueueEnqueue(message_epoch, std::move(txn_ptr), ctx);
+                Merger::EpochMerge(message_epoch, std::move(txn_ptr), ctx);
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
                 break;
             }
@@ -428,7 +430,5 @@ namespace Taas {
         id = (id + 1) % ctx.kTxnNodeNum;
         return res;
     }
-
-
 
 }

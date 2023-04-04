@@ -123,12 +123,32 @@ namespace Taas {
         message_handler.Init(thread_id, ctx);
     }
 
+    bool Merger::EpochMerge(uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr, Context& ctx) {
+        auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        auto txn_server_id = txn_ptr->server_id();
+        auto res = true;
+        if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
+            res = false;
+        }
+        if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
+            res = false;
+        }
+        if (res) {
+            epoch_should_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+            epoch_commit_queue[epoch_mod]->enqueue(std::move(txn_ptr));
+            epoch_commit_queue[epoch_mod]->enqueue(nullptr);
+        }
+        epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
+        return res;
+    }
+
     bool Merger::EpochMerge() {
         sleep_flag = false;
         epoch = EpochManager::GetLogicalEpoch();
         for(; epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
             auto epoch_mod = epoch % ctx.kCacheMaxLength;
             while (MergeQueueTryDequeue(epoch, txn_ptr, ctx) && txn_ptr != nullptr) {
+                txn_server_id = txn_ptr->server_id();
                 res = true;
                 if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
                     res = false;
@@ -137,7 +157,6 @@ namespace Taas {
                     res = false;
                 }
                 if (res) {
-                    txn_server_id = txn_ptr->server_id();
                     epoch_should_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
                     epoch_commit_queue[epoch_mod]->enqueue(std::move(txn_ptr));
                     epoch_commit_queue[epoch_mod]->enqueue(nullptr);

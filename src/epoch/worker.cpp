@@ -61,7 +61,7 @@ namespace Taas {
         while(!EpochManager::IsTimerStop()) {
             EpochManager::EpochCacheSafeCheck();
             sleep_flag = sleep_flag | receiveHandler.HandleReceivedMessage();
-            sleep_flag = sleep_flag | merger.EpochMerge();
+//            sleep_flag = sleep_flag | merger.EpochMerge();
             sleep_flag = sleep_flag | merger.EpochCommit_RedoLog_TxnMode();
             sleep_flag = sleep_flag | TiKV::sendTransactionToTiKV(EpochManager::GetPushDownEpoch() % ctx.kCacheMaxLength, txn_ptr);
             if(!sleep_flag) usleep(50);

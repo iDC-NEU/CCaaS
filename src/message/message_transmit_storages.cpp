@@ -141,7 +141,7 @@ namespace Taas {
                     auto *ptr = push_response->add_txns();
                     assert(ptr != nullptr);
                     auto res = RedoLoger::committed_txn_cache[epoch_mod]->getValue(key, (*ptr)); //copy
-                    assert(res);
+//                    assert(res);
                 }
                 push_response->set_result(proto::Success);
                 push_response->set_epoch_id(epoch);

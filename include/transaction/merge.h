@@ -55,6 +55,8 @@ namespace Taas {
         static void ClearMergerEpochState(uint64_t &epoch, Context &ctx);
 
         void Init(uint64_t id, Context ctx);
+
+        static bool EpochMerge(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr, Context &ctx);
         bool EpochMerge();
         bool EpochCommit_RedoLog_TxnMode();
         bool EpochCommit_RedoLog_ShardingMode();
@@ -90,8 +92,6 @@ namespace Taas {
 
         static void CommitQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr, Context &ctx);
         static bool CommitQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr, Context &ctx);
-
-
     };
 }
 
