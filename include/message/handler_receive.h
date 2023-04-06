@@ -154,7 +154,7 @@ namespace Taas {
             return epoch_abort_set_merge_complete[epoch % ctx.kCacheMaxLength]->load();
         }
 
-
+        //TODO  DELETE sharding_handled_txn_num.GetCount(epoch) >= sharding_should_handle_txn_num.GetCount(epoch)
         ///local txn sharding send check
         static bool IsShardingSendFinish(uint64_t epoch, uint64_t sharding_id) {
             return sharding_send_txn_num.GetCount(epoch, sharding_id) >= sharding_should_send_txn_num.GetCount(epoch, sharding_id) &&
