@@ -241,12 +241,9 @@ namespace Taas {
         if(epoch >= epoch_max) return false;
         for(auto i = epoch; i < epoch_max; i ++) {
             if(EpochManager::IsShardingMergeComplete(i)) continue;
-            if((ctx.kTxnNodeNum == 1 ||
-                    (MessageReceiveHandler::IsShardingPackReceiveComplete(ctx, i) &&
-                     MessageReceiveHandler::IsShardingTxnReceiveComplete(ctx, i) &&
-                     MessageReceiveHandler::IsShardingACKReceiveComplete(ctx, i) &&
-                            MessageReceiveHandler::IsBackUpSendFinish(i) &&
-                     MessageReceiveHandler::IsBackUpACKReceiveComplete(ctx, i) )
+            if((ctx.kTxnNodeNum == 1 || (MessageReceiveHandler::IsEpochShardingSendComplete(ctx, i) &&
+                            MessageReceiveHandler::IsEpochShardingReceiveComplete(ctx, i) &&
+                        MessageReceiveHandler::IsEpochBackUpComplete(ctx, i))
                 ) &&
                     MessageReceiveHandler::IsEpochTxnHandleComplete(i) &&
                Merger::IsEpochMergeComplete(ctx, i)
@@ -263,9 +260,7 @@ namespace Taas {
         if(epoch >= epoch_max) return false;
         for(auto i = epoch; i < epoch_max; i ++) {
             if(EpochManager::IsAbortSetMergeComplete(i)) continue;
-            if(     (ctx.kTxnNodeNum == 1 ||
-                    (MessageReceiveHandler::IsAbortSetACKReceiveComplete(ctx, i) &&
-                        MessageReceiveHandler::IsAbortSetReceiveComplete(ctx, i) )) &&
+            if( (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::IsEpochAbortSetMergeComplete(ctx, i)) &&
                 EpochManager::IsShardingMergeComplete(i)
                ) {
                 EpochManager::SetAbortSetMergeComplete(i, true);

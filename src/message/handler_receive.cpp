@@ -25,6 +25,14 @@ namespace Taas {
         MessageReceiveHandler::epoch_backup_txn,
         MessageReceiveHandler::epoch_insert_set,
         MessageReceiveHandler::epoch_abort_set;
+
+    std::vector<std::unique_ptr<std::atomic<bool>>>
+            MessageReceiveHandler::epoch_sharding_send_complete,
+            MessageReceiveHandler::epoch_sharding_receive_complete,
+            MessageReceiveHandler::epoch_back_up_complete,
+            MessageReceiveHandler::epoch_abort_set_merge_complete,
+            MessageReceiveHandler::epoch_insert_set_complete;
+
     ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
     AtomicCounters_Cache ///epoch, server_id, value
         ///epoch txn counters
@@ -67,6 +75,8 @@ namespace Taas {
         MessageReceiveHandler::redo_log_push_down_ack_num(10, 1),
         MessageReceiveHandler::redo_log_push_down_local_epoch(10, 1);
 
+
+
     bool MessageReceiveHandler::Init(const Context& ctx_, uint64_t id) {
         message_ptr = nullptr;
         txn_ptr = nullptr;
@@ -103,8 +113,18 @@ namespace Taas {
         epoch_backup_txn.resize(EpochManager::max_length);
         epoch_insert_set.resize(EpochManager::max_length);
         epoch_abort_set.resize(EpochManager::max_length);
+        epoch_sharding_send_complete.resize(EpochManager::max_length);
+        epoch_sharding_receive_complete.resize(EpochManager::max_length);
+        epoch_back_up_complete.resize(EpochManager::max_length);
+        epoch_abort_set_merge_complete.resize(EpochManager::max_length);
+        epoch_insert_set_complete.resize(EpochManager::max_length);
 
         for(int i = 0; i < static_cast<int>(EpochManager::max_length); i ++) {
+            epoch_sharding_send_complete[i] = std::make_unique<std::atomic<bool>>(false);
+            epoch_sharding_receive_complete[i] = std::make_unique<std::atomic<bool>>(false);
+            epoch_back_up_complete[i] = std::make_unique<std::atomic<bool>>(false);
+            epoch_abort_set_merge_complete[i] = std::make_unique<std::atomic<bool>>(false);
+            epoch_insert_set_complete[i] = std::make_unique<std::atomic<bool>>(false);
             epoch_remote_sharding_txn[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
             epoch_local_sharding_txn[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
             epoch_local_txn[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
@@ -183,6 +203,12 @@ namespace Taas {
         redo_log_push_down_ack_num.Clear(cache_clear_epoch_num_mod, 0);
         redo_log_push_down_local_epoch.Clear(cache_clear_epoch_num_mod, 0);
 
+        epoch_sharding_send_complete[cache_clear_epoch_num_mod]->store(false);
+        epoch_sharding_receive_complete[cache_clear_epoch_num_mod]->store(false);
+        epoch_back_up_complete[cache_clear_epoch_num_mod]->store(false);
+        epoch_abort_set_merge_complete[cache_clear_epoch_num_mod]->store(false);
+        epoch_insert_set_complete[cache_clear_epoch_num_mod]->store(false);
+
         auto txn_ptr = std::make_unique<proto::Transaction>();
         while (epoch_remote_sharding_txn[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
         while (epoch_local_txn[cache_clear_epoch_num_mod]->try_dequeue(txn_ptr));
@@ -256,6 +282,55 @@ namespace Taas {
         return true;
     }
 
+    bool MessageReceiveHandler::CheckAndReplyEpochEndFlagACK(){
+        if(epoch < EpochManager::GetPhysicalEpoch() &&
+                IsShardingPackReceiveComplete(message_epoch, message_server_id) &&
+                IsShardingTxnReceiveComplete(message_epoch, message_server_id)) {
+            MessageSendHandler::SendTxnToServer(ctx, message_epoch,
+                                                message_server_id, empty_txn, proto::TxnType::EpochShardingACK);
+            return true;
+        }
+        return false;
+    }
+
+    bool MessageReceiveHandler::CheckAndReplyBackUpEndFlagACK(){
+        if(epoch < EpochManager::GetPhysicalEpoch() &&
+                IsBackUpPackReceiveComplete(message_epoch, message_server_id) &&
+                IsBackUpTxnReceiveComplete(message_epoch, message_server_id)) {
+            MessageSendHandler::SendTxnToServer(ctx, message_epoch,
+                                                message_server_id, empty_txn, proto::TxnType::BackUpACK);
+            return true;
+        }
+        return false;
+    }
+    bool MessageReceiveHandler::CheckAndReplyAbortSetACK(){
+        if(epoch < EpochManager::GetPhysicalEpoch() &&
+                IsAbortSetReceiveComplete(message_epoch, message_server_id)) {
+            MessageSendHandler::SendTxnToServer(ctx, message_epoch,
+                                                message_server_id, empty_txn, proto::TxnType::AbortSetACK);
+            return true;
+        }
+        return false;
+    }
+    bool MessageReceiveHandler::CheckAndReplyInsertACK(){
+        if(epoch < EpochManager::GetPhysicalEpoch() &&
+                IsInsertSetReceiveComplete(message_epoch, message_server_id)) {
+            MessageSendHandler::SendTxnToServer(ctx, message_epoch,
+                                                message_server_id, empty_txn, proto::TxnType::InsertSetACK);
+            return true;
+        }
+        return false;
+    }
+    bool MessageReceiveHandler::CheckAndReplyRedoLogPushDownACK(uint64_t& epoch){
+        if(epoch < EpochManager::GetPhysicalEpoch() &&
+                Merger::IsEpochCommitComplete(ctx, epoch) &&
+           IsShardingTxnReceiveComplete(ctx, epoch)) {
+            MessageSendHandler::SendMessageToAll(ctx, epoch, proto::TxnType::EpochLogPushDownComplete);
+            return true;
+        }
+        return false;
+    }
+
     bool MessageReceiveHandler::HandleReceivedTxn() {
         if(txn_ptr->txn_type() == proto::TxnType::ClientTxn) {
             txn_ptr->set_commit_epoch(EpochManager::GetPhysicalEpoch());
@@ -263,26 +338,35 @@ namespace Taas {
             txn_ptr->set_server_id(ctx.txn_node_ip_index);
         }
         SetMessageRelatedCountersInfo();
-        sharding_should_handle_txn_num.IncCount(message_epoch, thread_id, 1);
+
         switch (txn_ptr->txn_type()) {
             ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
             case proto::TxnType::ClientTxn : {/// sql node --> txn node
+                sharding_should_handle_txn_num.IncCount(message_epoch, thread_id, 1);
                 Sharding();
                 assert(txn_ptr != nullptr);
                 Merger::epoch_should_commit_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
                 Merger::LocalTxnCommitQueueEnqueue(ctx, message_epoch, std::move(txn_ptr));
+                sharding_handled_txn_num.IncCount(message_epoch, thread_id, 1);
+                CheckEpochShardingSendComplete(ctx, message_epoch);
+                CheckEpochBackUpComplete(ctx, message_epoch);
+
                 break;
             }
             case proto::TxnType::RemoteServerTxn : {
+                sharding_should_handle_txn_num.IncCount(message_epoch, thread_id, 1);
                 Merger::epoch_should_merge_txn_num.IncCount(message_epoch, message_server_id, 1);
 //                Merger::MergeQueueEnqueue(message_epoch, std::move(txn_ptr), ctx);
                 Merger::EpochMerge(ctx, message_epoch, std::move(txn_ptr));
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
+                sharding_handled_txn_num.IncCount(message_epoch, thread_id, 1);
+                CheckEpochShardingReceiveComplete(ctx,message_epoch);
                 break;
             }
             case proto::TxnType::EpochEndFlag : {
                 sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
+                CheckEpochShardingReceiveComplete(ctx,message_epoch);
 //                printf("receive a epoch end flag epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
@@ -303,6 +387,7 @@ namespace Taas {
                 epoch_abort_set[message_epoch_mod]->enqueue(std::move(txn_ptr));
                 epoch_abort_set[message_epoch_mod]->enqueue(nullptr);
                 abort_set_received_num.IncCount(message_epoch,message_server_id, 1);
+                CheckEpochAbortSetMergeComplete(ctx, message_epoch);
 //                printf("receive a abort set epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
@@ -314,16 +399,19 @@ namespace Taas {
             }
             case proto::TxnType::EpochShardingACK : {
                 sharding_received_ack_num.IncCount(message_epoch,message_server_id, 1);
+                CheckEpochShardingSendComplete(ctx, message_epoch);
 //                printf("receive a epoch sharding ack epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::BackUpACK : {
                 backup_received_ack_num.IncCount(message_epoch,message_server_id, 1);
+                CheckEpochBackUpComplete(ctx, message_epoch);
 //                printf("receive a buckup ack epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::AbortSetACK : {
                 abort_set_received_ack_num.IncCount(message_epoch,message_server_id, 1);
+                CheckEpochAbortSetMergeComplete(ctx, message_epoch);
 //                printf("receive a abort set ack epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
@@ -342,7 +430,6 @@ namespace Taas {
             case proto::CommittedTxn:
                 break;
         }
-        sharding_handled_txn_num.IncCount(message_epoch, thread_id, 1);
         return true;
     }
 

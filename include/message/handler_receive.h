@@ -61,6 +61,13 @@ namespace Taas {
             epoch_insert_set,
             epoch_abort_set;
 
+        static std::vector<std::unique_ptr<std::atomic<bool>>>
+            epoch_sharding_send_complete,
+            epoch_sharding_receive_complete,
+            epoch_back_up_complete,
+            epoch_abort_set_merge_complete,
+            epoch_insert_set_complete;
+
 
         ///sharding txns
         ///接收到来自client的事务，进行分片并将事务发送到指定的txn node
@@ -95,6 +102,58 @@ namespace Taas {
             ///redo log push down state
             redo_log_push_down_ack_num,
             redo_log_push_down_local_epoch;
+
+        static bool CheckEpochShardingSendComplete(const Context &ctx, uint64_t& epoch) {
+            if(epoch < EpochManager::GetPhysicalEpoch() &&
+                IsShardingSendFinish(epoch) &&
+                    IsShardingACKReceiveComplete(ctx, epoch)) {
+                epoch_sharding_send_complete[epoch % ctx.kCacheMaxLength]->store(true);
+                return true;
+            }
+            return false;
+        }
+        static bool IsEpochShardingSendComplete(const Context &ctx, uint64_t& epoch) {
+            return epoch_sharding_send_complete[epoch % ctx.kCacheMaxLength]->load();
+        }
+
+        static bool CheckEpochShardingReceiveComplete(const Context &ctx, uint64_t& epoch) {
+            if(epoch < EpochManager::GetPhysicalEpoch() &&
+                IsShardingPackReceiveComplete(ctx, epoch) &&
+                    IsShardingTxnReceiveComplete(ctx, epoch)) {
+                epoch_sharding_receive_complete[epoch % ctx.kCacheMaxLength]->store(true);
+                return true;
+            }
+            return false;
+        }
+        static bool IsEpochShardingReceiveComplete(const Context &ctx, uint64_t& epoch) {
+            return epoch_sharding_receive_complete[epoch % ctx.kCacheMaxLength]->load();
+        }
+
+        static bool CheckEpochBackUpComplete(const Context &ctx, uint64_t& epoch) {
+            if(epoch < EpochManager::GetPhysicalEpoch() && IsBackUpSendFinish(epoch) &&
+                    IsBackUpACKReceiveComplete(ctx, epoch)) {
+                epoch_back_up_complete[epoch % ctx.kCacheMaxLength]->store(true);
+                return true;
+            }
+            return false;
+        }
+        static bool IsEpochBackUpComplete(const Context &ctx, uint64_t& epoch) {
+            return epoch_back_up_complete[epoch % ctx.kCacheMaxLength]->load();
+        }
+        static bool CheckEpochAbortSetMergeComplete(const Context &ctx, uint64_t& epoch) {
+            if(epoch < EpochManager::GetPhysicalEpoch() &&
+                IsAbortSetACKReceiveComplete(ctx, epoch) &&
+                    IsAbortSetReceiveComplete(ctx, epoch)
+            ) {
+                epoch_abort_set_merge_complete[epoch % ctx.kCacheMaxLength]->store(true);
+                return true;
+            }
+            return false;
+        }
+        static bool IsEpochAbortSetMergeComplete(const Context &ctx, uint64_t& epoch) {
+            return epoch_abort_set_merge_complete[epoch % ctx.kCacheMaxLength]->load();
+        }
+
 
         ///local txn sharding send check
         static bool IsShardingSendFinish(uint64_t epoch, uint64_t sharding_id) {
@@ -231,6 +290,15 @@ namespace Taas {
             return true;
         }
 
+        bool CheckAndReplyEpochEndFlagACK();
+
+        bool CheckAndReplyBackUpEndFlagACK();
+
+        bool CheckAndReplyAbortSetACK();
+
+        bool CheckAndReplyInsertACK();
+
+        bool CheckAndReplyRedoLogPushDownACK(uint64_t &epoch);
     };
 
 }
