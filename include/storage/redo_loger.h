@@ -22,9 +22,9 @@ namespace Taas {
         static std::vector<std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
             epoch_redo_log_queue; ///store transactions receive from clients, wait to push down
         static std::atomic<uint64_t> pushed_down_mot_epoch, pushed_down_tikv_epoch;
-        static void StaticInit(Context& ctx);
-        static void ClearRedoLog(uint64_t& epoch_mod, Context& ctx);
-        static bool RedoLog(Context& ctx, proto::Transaction& txn);
+        static void StaticInit(const Context& ctx);
+        static void ClearRedoLog(const Context& ctx, uint64_t& epoch_mod);
+        static bool RedoLog(const Context& ctx, proto::Transaction& txn);
 
         static uint64_t IncPushedDownMOTEpoch() {
             return pushed_down_mot_epoch.fetch_add(1);
@@ -39,8 +39,9 @@ namespace Taas {
             return pushed_down_tikv_epoch.load();
         }
 
-        static void RedoLogQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr, Context &ctx);
-        static bool RedoLogQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr, Context &ctx);
+        static void RedoLogQueueEnqueue(const Context &ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
+        static bool RedoLogQueueTryDequeue(const Context &ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
+
     };
 }
 

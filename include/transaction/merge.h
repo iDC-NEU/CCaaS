@@ -51,18 +51,18 @@ namespace Taas {
                 epoch_local_txn_queue, ///epoch_local_txn_queue 本地接收到的完整的事务  txn receive from client (used to push log down to storage)
                 epoch_commit_queue;///epoch_commit_queue 当前epoch的涉及当前分片的要进行validate和commit的子事务 receive from servers and local sharding txn, wait to validate
 
-        static void StaticInit(Context& ctx);
-        static void ClearMergerEpochState(uint64_t &epoch, Context &ctx);
+        static void StaticInit(const Context& ctx);
+        static void ClearMergerEpochState(const Context& ctx, uint64_t &epoch);
 
-        void Init(uint64_t id, Context ctx);
+        void Init(const Context& ctx_, uint64_t id);
 
-        static bool EpochMerge(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr, Context &ctx);
+        static bool EpochMerge(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
         bool EpochMerge();
         bool EpochCommit_RedoLog_TxnMode();
         bool EpochCommit_RedoLog_ShardingMode();
 
 
-        static bool IsEpochMergeComplete(uint64_t& epoch, Context& ctx) {
+        static bool IsEpochMergeComplete(const Context& ctx, uint64_t& epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
                 if (epoch_should_merge_txn_num.GetCount(epoch, i) > epoch_merged_txn_num.GetCount(epoch, i))
                     return false;
@@ -73,7 +73,7 @@ namespace Taas {
             return epoch_should_merge_txn_num.GetCount(epoch, server_id) <= epoch_merged_txn_num.GetCount(epoch, server_id);
         }
 
-        static bool IsEpochCommitComplete(uint64_t& epoch, Context& ctx) {
+        static bool IsEpochCommitComplete(const Context& ctx, uint64_t& epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
                 if (epoch_should_commit_txn_num.GetCount(epoch, i) > epoch_committed_txn_num.GetCount(epoch, i))
                     return false;
@@ -84,14 +84,14 @@ namespace Taas {
             return epoch_should_commit_txn_num.GetCount(epoch, server_id) <= epoch_committed_txn_num.GetCount(epoch, server_id);
         }
 
-        static void MergeQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr, Context &ctx);
-        static bool MergeQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr, Context &ctx);
+        static void MergeQueueEnqueue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
+        static bool MergeQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
 
-        static void LocalTxnCommitQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr, Context &ctx);
-        static bool LocalTxnCommitQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr, Context &ctx);
+        static void LocalTxnCommitQueueEnqueue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
+        static bool LocalTxnCommitQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
 
-        static void CommitQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr, Context &ctx);
-        static bool CommitQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr, Context &ctx);
+        static void CommitQueueEnqueue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
+        static bool CommitQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
     };
 }
 

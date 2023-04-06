@@ -13,11 +13,10 @@ class Context;
 
 class CRDTMerge{
 public:
-    static bool ValidateReadSet(Context& ctx, proto::Transaction& txn);
-    static bool ValidateWriteSet(Context& ctx, proto::Transaction& txn);
-    static bool LocalCRDTMerge(Context& ctx, proto::Transaction& txn);
-    static bool MultiMasterCRDTMerge(Context& ctx, proto::Transaction& txn);
-    static bool Commit(Context& ctx, proto::Transaction& txn);
+    static bool ValidateReadSet(const Context& ctx, proto::Transaction& txn);
+    static bool ValidateWriteSet(const Context& ctx, proto::Transaction& txn);
+    static bool MultiMasterCRDTMerge(const Context& ctx, proto::Transaction& txn);
+    static bool Commit(const Context& ctx, proto::Transaction& txn);
 
 };
 

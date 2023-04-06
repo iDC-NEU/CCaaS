@@ -12,7 +12,7 @@ namespace Taas {
     std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Message>>> MessageQueue::request_queue,
             MessageQueue::raft_message_queue;
 
-    void MessageQueue::StaticInitMessageQueue(Context& ctx) {
+    void MessageQueue::StaticInitMessageQueue(const Context& ctx) {
         listen_message_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>>();
         send_to_server_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<send_params>>>();
         send_to_client_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<send_params>>>();

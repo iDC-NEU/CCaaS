@@ -49,17 +49,17 @@ namespace Taas {
         static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>> listen_message_queue;
         static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<send_params>>> send_to_server_queue, send_to_client_queue, send_to_storage_queue;
         static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Message>>> request_queue, raft_message_queue;
-        static void StaticInitMessageQueue(Context& ctx);
+        static void StaticInitMessageQueue(const Context& ctx);
     };
 
     //message transport threads
-    extern void SendServerThreadMain(Context ctx);
+    extern void SendServerThreadMain(const Context& ctx);
     extern void ListenServerThreadMain(const Context& ctx);
     extern void SendClientThreadMain(const Context& ctx);
     extern void ListenClientThreadMain(const Context& ctx);
-    extern void ListenStorageThreadMain(Context ctx);
-    extern void SendStoragePUBThreadMain(Context ctx);
-    extern void SendStoragePUBThreadMain2(Context ctx);
+    extern void ListenStorageThreadMain(const Context& ctx);
+    extern void SendStoragePUBThreadMain(const Context& ctx);
+    extern void SendStoragePUBThreadMain2(const Context& ctx);
 
 
 }

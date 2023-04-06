@@ -24,7 +24,7 @@ namespace Taas {
         threads.push_back(std::make_unique<std::thread>(EpochLogicalTimerManagerThreadMain, ctx));
         threads.push_back(std::make_unique<std::thread>(StateChecker, ctx));
         for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
-            threads.push_back(std::make_unique<std::thread>(WorkerThreadMain, i, ctx));
+            threads.push_back(std::make_unique<std::thread>(WorkerThreadMain, ctx, i));
         }
         if(ctx.kTxnNodeNum > 1) {
             threads.push_back(std::make_unique<std::thread>(SendServerThreadMain, ctx));
@@ -36,7 +36,7 @@ namespace Taas {
 
 
         for(int i = 0; i < (int)ctx.kTestClientNum; i ++) {
-            threads.push_back(std::make_unique<std::thread>(Client, i ,ctx));
+            threads.push_back(std::make_unique<std::thread>(Client, ctx, i));
         }
 
         if(ctx.is_tikv_enable) {

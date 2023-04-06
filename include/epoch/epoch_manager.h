@@ -21,10 +21,10 @@ namespace Taas {
 
     extern std::atomic<int> init_ok_num;
     extern std::atomic<bool> is_epoch_advance_started, test_start;
-    extern void InitEpochTimerManager(Context& ctx);
+    extern void InitEpochTimerManager(const Context& ctx);
     extern void EpochLogicalTimerManagerThreadMain(Context ctx);
     extern void EpochPhysicalTimerManagerThreadMain(Context ctx);
-    void OUTPUTLOG(const std::string& s, uint64_t& epoch, Context& ctx);
+    void OUTPUTLOG(const Context& ctx, const std::string& s, uint64_t& epoch);
     class EpochManager {
     private:
         static bool timerStop;
@@ -95,7 +95,7 @@ namespace Taas {
             if(((GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength)) ||
                     ((GetPushDownEpoch() % ctx.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength))) {
                 auto i = 0;
-                OUTPUTLOG("Assert", reinterpret_cast<uint64_t &>(i), ctx);
+                OUTPUTLOG(ctx, "Assert", reinterpret_cast<uint64_t &>(i));
                 printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
                 printf("+++++++++++++++Fata : Cache Size exceeded!!! +++++++++++++++++++++\n");
                 printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");

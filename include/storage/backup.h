@@ -18,7 +18,7 @@ namespace Taas {
         ///backup ack
         backup_received_ack_num;
         static Context ctx;
-        static void Init(Context& ctx);
+        static void Init(const Context& ctx);
     };
 }
 

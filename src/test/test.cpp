@@ -8,7 +8,7 @@
 
 namespace Taas {
 
-    void Client(uint64_t id, const Context& ctx) {
+    void Client(const Context& ctx, uint64_t id) {
         printf("Test Client %lu start\n", id);
         srand(now_to_us() % 71);
         uint64_t txn_id = 0, op_num, op_type;

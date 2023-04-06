@@ -17,7 +17,7 @@ namespace Taas {
             MessageSendHandler::abort_sent_epoch = 1,
             MessageSendHandler::insert_set_sent_epoch = 1, MessageSendHandler::abort_set_sent_epoch = 1;
 
-    void MessageSendHandler::StaticInit(Context& ctx) {
+    void MessageSendHandler::StaticInit(const Context& ctx) {
         sharding_send_epoch.resize(ctx.kCacheMaxLength);
         backup_send_epoch.resize(ctx.kCacheMaxLength);
         abort_set_send_epoch.resize(ctx.kCacheMaxLength);
@@ -31,7 +31,7 @@ namespace Taas {
         }
     }
 
-    void MessageSendHandler::StaticClear(uint64_t& epoch, Context& ctx) {
+    void MessageSendHandler::StaticClear(const Context& ctx, uint64_t& epoch) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         for(uint64_t i = 0; i < ctx.kTxnNodeNum; i ++) {
             sharding_send_epoch[epoch_mod][i]->store(false);
@@ -47,7 +47,7 @@ namespace Taas {
  * @param txn 等待回复给client的事务
  * @param txn_state 告诉client此txn的状态(Success or Abort)
  */
-bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transaction &txn, proto::TxnState txn_state) {
+bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::Transaction &txn, proto::TxnState txn_state) {
 //        return true; ///test
         //不是本地事务不进行回复
         if(txn.server_id() != ctx.txn_node_ip_index) return true;
@@ -70,7 +70,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
         return true;
     }
 
-    bool MessageSendHandler::SendTxnToServer(Context& ctx, uint64_t &epoch, uint64_t &to_whom, proto::Transaction &txn, proto::TxnType txn_type) {
+    bool MessageSendHandler::SendTxnToServer(const Context& ctx, uint64_t &epoch, uint64_t &to_whom, proto::Transaction &txn, proto::TxnType txn_type) {
         auto pack_param = std::make_unique<pack_params>(to_whom, 0, "", epoch, txn_type, nullptr);
         switch (txn_type) {
             case proto::TxnType::RemoteServerTxn : {
@@ -106,7 +106,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
         return true;
     }
 
-    bool MessageSendHandler::SendRemoteServerTxn(Context& ctx, uint64_t &epoch, uint64_t& to_whom, proto::Transaction& txn, proto::TxnType& txn_type) {
+    bool MessageSendHandler::SendRemoteServerTxn(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn, proto::TxnType txn_type) {
         assert(to_whom != ctx.txn_node_ip_index);
         auto msg = std::make_unique<proto::Message>();
         auto* txn_temp = msg->mutable_txn();
@@ -124,8 +124,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
         return true;
     }
 
-    bool MessageSendHandler::SendBackUpTxn(Context &ctx, uint64_t &epoch, proto::Transaction &txn,
-                                           proto::TxnType &txn_type) {
+    bool MessageSendHandler::SendBackUpTxn(const Context &ctx, uint64_t& epoch, proto::Transaction &txn, proto::TxnType txn_type) {
         auto msg = std::make_unique<proto::Message>();
         auto* txn_temp = msg->mutable_txn();
         *(txn_temp) = txn;
@@ -144,7 +143,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
         return true;
     }
 
-    bool MessageSendHandler::SendACK(Context& ctx, uint64_t &epoch, uint64_t& to_whom, proto::Transaction& txn, proto::TxnType& txn_type) {
+    bool MessageSendHandler::SendACK(const Context& ctx, uint64_t &epoch, uint64_t& to_whom, proto::Transaction& txn, proto::TxnType txn_type) {
         if(to_whom == ctx.txn_node_ip_index) return true;
         auto msg = std::make_unique<proto::Message>();
         auto* txn_end = msg->mutable_txn();
@@ -163,7 +162,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
     }
 
     bool
-    MessageSendHandler::SendMessageToAll(Context &ctx, uint64_t &epoch, proto::TxnType &txn_type) {
+    MessageSendHandler::SendMessageToAll(const Context &ctx, uint64_t& epoch, proto::TxnType txn_type) {
         auto msg = std::make_unique<proto::Message>();
         auto* txn_end = msg->mutable_txn();
         txn_end->set_server_id(ctx.txn_node_ip_index);
@@ -186,7 +185,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
 
 
     ///一下函数都由0号线程执行
-    bool MessageSendHandler::SendEpochEndMessage(Context &ctx) {
+    bool MessageSendHandler::SendEpochEndMessage(const Context &ctx) {
         for(auto epoch = sharding_sent_epoch; epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
             for(uint64_t sharding_id = 0; sharding_id < ctx.kTxnNodeNum; sharding_id ++) { /// send to everyone  sharding_num == TxnNodeNum
                 ///检查当前server(sharding_id)的第send_epoch的endFlag是否能够发送
@@ -225,7 +224,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
         return true;
     }
 
-    bool MessageSendHandler::SendBackUpEpochEndMessage(Context &ctx) {
+    bool MessageSendHandler::SendBackUpEpochEndMessage(const Context &ctx) {
         for(auto epoch = backup_sent_epoch; epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
             if(backup_send_epoch[epoch % ctx.kCacheMaxLength]->load()) continue; ///已经发送过 不再发送
             if(MessageReceiveHandler::IsBackUpSendFinish(epoch)) {
@@ -258,10 +257,10 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
         return true;
     }
 
-    bool MessageSendHandler::SendAbortSet(Context &ctx) {
+    bool MessageSendHandler::SendAbortSet(const Context &ctx) {
         for(auto epoch = abort_sent_epoch; epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
             if(abort_set_send_epoch[epoch % ctx.kCacheMaxLength]->load()) continue; ///已经发送过 不再发送
-            if (Merger::IsEpochMergeComplete(epoch, ctx)) {
+            if (Merger::IsEpochMergeComplete(ctx, epoch)) {
                 auto msg = std::make_unique<proto::Message>();
                 auto *txn_end = msg->mutable_txn();
                 txn_end->set_server_id(ctx.txn_node_ip_index);
@@ -295,7 +294,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(Context &ctx, proto::Transa
         return true;
     }
 
-    bool MessageSendHandler::SendInsertSet(Context &ctx) {
+    bool MessageSendHandler::SendInsertSet(const Context &ctx) {
         for(auto epoch = insert_set_sent_epoch; epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
             auto msg = std::make_unique<proto::Message>();
             auto* txn_end = msg->mutable_txn();

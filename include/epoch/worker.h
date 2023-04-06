@@ -8,8 +8,8 @@
 #include "tools/context.h"
 
 namespace Taas {
-    extern void StateChecker(Context ctx);
-    extern void WorkerThreadMain(uint64_t id, Context ctx);
+    extern void StateChecker(const Context& ctx);
+    extern void WorkerThreadMain(const Context& ctx, uint64_t id);
 }
 
 

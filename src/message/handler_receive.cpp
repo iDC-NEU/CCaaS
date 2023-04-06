@@ -67,7 +67,7 @@ namespace Taas {
         MessageReceiveHandler::redo_log_push_down_ack_num(10, 1),
         MessageReceiveHandler::redo_log_push_down_local_epoch(10, 1);
 
-    bool MessageReceiveHandler::Init(uint64_t id, Context context) {
+    bool MessageReceiveHandler::Init(const Context& ctx_, uint64_t id) {
         message_ptr = nullptr;
         txn_ptr = nullptr;
 //        pack_param = nullptr;
@@ -75,9 +75,9 @@ namespace Taas {
 //        epoch = 0, max_length = 0;
 //        res = false, sleep_flag = false;
         thread_id = id;
-        ctx = std::move(context);
-        max_length = ctx.kCacheMaxLength;
-        sharding_num = ctx.kTxnNodeNum;
+        ctx = ctx_;
+        max_length = ctx_.kCacheMaxLength;
+        sharding_num = ctx_.kTxnNodeNum;
 
         return true;
     }
@@ -148,9 +148,9 @@ namespace Taas {
         return true;
     }
 
-    bool MessageReceiveHandler::StaticClear(uint64_t& epoch, const Context& context) {
+    bool MessageReceiveHandler::StaticClear(const Context& ctx, uint64_t& epoch) {
 //        printf("clean receive cache epoch %lu\n", epoch);
-        auto cache_clear_epoch_num_mod = epoch % context.kCacheMaxLength;
+        auto cache_clear_epoch_num_mod = epoch % ctx.kCacheMaxLength;
         sharding_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
         sharding_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
         sharding_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
@@ -218,7 +218,7 @@ namespace Taas {
                 if(i == ctx.txn_node_ip_index) {
                     Merger::epoch_should_merge_txn_num.IncCount(message_epoch, i, 1);
 //                    Merger::MergeQueueEnqueue(message_epoch, std::move(sharding_row_vector[i]), ctx);
-                    Merger::EpochMerge(message_epoch, std::move(sharding_row_vector[ctx.txn_node_ip_index]), ctx);
+                    Merger::EpochMerge(ctx, message_epoch, std::move(sharding_row_vector[ctx.txn_node_ip_index]));
                 }
                 else {
                     sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
@@ -270,13 +270,13 @@ namespace Taas {
                 Sharding();
                 assert(txn_ptr != nullptr);
                 Merger::epoch_should_commit_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-                Merger::LocalTxnCommitQueueEnqueue(message_epoch, std::move(txn_ptr), ctx);
+                Merger::LocalTxnCommitQueueEnqueue(ctx, message_epoch, std::move(txn_ptr));
                 break;
             }
             case proto::TxnType::RemoteServerTxn : {
                 Merger::epoch_should_merge_txn_num.IncCount(message_epoch, message_server_id, 1);
 //                Merger::MergeQueueEnqueue(message_epoch, std::move(txn_ptr), ctx);
-                Merger::EpochMerge(message_epoch, std::move(txn_ptr), ctx);
+                Merger::EpochMerge(ctx, message_epoch, std::move(txn_ptr));
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
                 break;
             }
@@ -374,7 +374,7 @@ namespace Taas {
         auto& id = server_reply_ack_id;
         ///to all server
         /// change epoch_record_committed_txn_num to tikv check
-        if(Merger::IsEpochCommitComplete(redo_log_push_down_reply, ctx) &&
+        if(Merger::IsEpochCommitComplete(ctx, redo_log_push_down_reply) &&
                 redo_log_push_down_reply < EpochManager::GetLogicalEpoch()) {
             MessageSendHandler::SendTxnToServer(ctx, redo_log_push_down_reply,
                                                 server_reply_ack_id, empty_txn, proto::TxnType::EpochLogPushDownComplete);

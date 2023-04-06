@@ -12,7 +12,7 @@
 namespace Taas {
     class MessageReceiveHandler{
     public:
-        bool Init(uint64_t id, Context context);
+        bool Init(const Context& ctx_, uint64_t id);
         bool SetMessageRelatedCountersInfo();
         bool HandleReceivedMessage();
         bool HandleReceivedTxn();
@@ -25,7 +25,7 @@ namespace Taas {
         }
 
         static bool StaticInit(const Context& context);
-        static bool StaticClear(uint64_t& epoch, const Context& context);
+        static bool StaticClear(const Context& context, uint64_t& epoch);
     private:
         std::unique_ptr<zmq::message_t> message_ptr;
         std::unique_ptr<std::string> message_string_ptr;
@@ -107,7 +107,7 @@ namespace Taas {
                    sharding_handled_txn_num.GetCount(epoch) >= sharding_should_handle_txn_num.GetCount(epoch) &&
                    epoch < EpochManager::GetPhysicalEpoch();
         }
-        static bool IsShardingACKReceiveComplete(uint64_t epoch, Context &ctx) {
+        static bool IsShardingACKReceiveComplete(const Context &ctx, uint64_t epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i ++) {
                 if(i == ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
                 if(sharding_received_ack_num.GetCount(epoch, i) < sharding_should_receive_pack_num.GetCount(epoch, i)) return false;
@@ -119,7 +119,7 @@ namespace Taas {
                 && epoch < EpochManager::GetPhysicalEpoch();
         }
         ///remote txn receive check
-        static bool IsShardingPackReceiveComplete(uint64_t epoch, Context &ctx) {
+        static bool IsShardingPackReceiveComplete(const Context &ctx, uint64_t epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i ++) {
                 if(i == ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
                 if(sharding_received_pack_num.GetCount(epoch, i) < sharding_should_receive_pack_num.GetCount(epoch, i)) return false;
@@ -129,7 +129,7 @@ namespace Taas {
         static bool IsShardingPackReceiveComplete(uint64_t epoch, uint64_t id) {
             return sharding_received_pack_num.GetCount(epoch, id) >= sharding_should_receive_pack_num.GetCount(epoch, id);
         }
-        static bool IsShardingTxnReceiveComplete(uint64_t epoch, Context &ctx) {
+        static bool IsShardingTxnReceiveComplete(const Context &ctx, uint64_t epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i ++) {
                 if(i == ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
                 if(sharding_received_txn_num.GetCount(epoch, i) < sharding_received_txn_num.GetCount(epoch, i)) return false;
@@ -149,7 +149,7 @@ namespace Taas {
                     sharding_handled_txn_num.GetCount(epoch) >= sharding_should_handle_txn_num.GetCount(epoch) &&
                     epoch < EpochManager::GetPhysicalEpoch();
         }
-        static bool IsBackUpACKReceiveComplete(uint64_t epoch, Context &ctx) {
+        static bool IsBackUpACKReceiveComplete(const Context &ctx, uint64_t epoch) {
             auto to_id = ctx.txn_node_ip_index + 1;
             for(uint64_t i = 0; i < ctx.kBackUpNum; i ++) { /// send to i+1, i+2...i+kBackNum-1
                 to_id = (to_id + i) % ctx.kTxnNodeNum;
@@ -158,7 +158,7 @@ namespace Taas {
             }
             return true;
         }
-        static bool IsBackUpPackReceiveComplete(uint64_t epoch, Context &ctx) {
+        static bool IsBackUpPackReceiveComplete(const Context &ctx, uint64_t epoch) {
             auto to_id = ctx.txn_node_ip_index + 1;
             for(uint64_t i = 0; i < ctx.kBackUpNum; i ++) { /// send to i+1, i+2...i+kBackNum-1
                 to_id = (to_id + i) % ctx.kTxnNodeNum;
@@ -170,7 +170,7 @@ namespace Taas {
         static bool IsBackUpPackReceiveComplete(uint64_t epoch, uint64_t id) {
             return backup_received_pack_num.GetCount(epoch, id) >= backup_should_receive_pack_num.GetCount(epoch, id);
         }
-        static bool IsBackUpTxnReceiveComplete(uint64_t epoch, Context &ctx) {
+        static bool IsBackUpTxnReceiveComplete(const Context &ctx, uint64_t epoch) {
             auto to_id = ctx.txn_node_ip_index + 1;
             for(uint64_t i = 0; i < ctx.kBackUpNum; i ++) { /// send to i+1, i+2...i+kBackNum-1
                 to_id = (to_id + i) % ctx.kTxnNodeNum;
@@ -190,14 +190,14 @@ namespace Taas {
         static bool IsAbortSetReceiveComplete(uint64_t epoch, uint64_t id) {
             return abort_set_received_num.GetCount(epoch, id) >= abort_set_should_receive_num.GetCount(epoch, id);
         }
-        static bool IsAbortSetReceiveComplete(uint64_t epoch, Context &ctx) {
+        static bool IsAbortSetReceiveComplete(const Context &ctx, uint64_t epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i ++) {
                 if(i == ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
                 if(abort_set_received_num.GetCount(epoch, i) < abort_set_should_receive_num.GetCount(epoch, i)) return false;
             }
             return true;
         }
-        static bool IsAbortSetACKReceiveComplete(uint64_t epoch, Context &ctx) {
+        static bool IsAbortSetACKReceiveComplete(const Context &ctx, uint64_t epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i ++) {
                 if(i == ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
                 if(abort_set_received_ack_num.GetCount(epoch, i) < abort_set_should_receive_num.GetCount(epoch, i)) return false;
@@ -208,14 +208,14 @@ namespace Taas {
         static bool IsInsertSetReceiveComplete(uint64_t epoch, uint64_t id) {
             return insert_set_received_num.GetCount(epoch, id) >= insert_set_should_receive_num.GetCount(epoch, id);
         }
-        static bool IsnsertSetReceiveComplete(uint64_t epoch, Context &ctx) {
+        static bool IsnsertSetReceiveComplete(const Context &ctx, uint64_t epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i ++) {
                 if(i == ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
                 if(insert_set_received_num.GetCount(epoch, i) < insert_set_should_receive_num.GetCount(epoch, i)) return false;
             }
             return true;
         }
-        static bool IsInsertSetACKReceiveComplete(uint64_t epoch, Context &ctx) {
+        static bool IsInsertSetACKReceiveComplete(const Context &ctx, uint64_t epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i ++) {
                 if(i == ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
                 if(insert_set_received_ack_num.GetCount(epoch, i) < insert_set_should_receive_num.GetCount(epoch, i)) return false;
@@ -223,7 +223,7 @@ namespace Taas {
             return true;
         }
         ///redo log check
-        static bool IsRedoLogPushDownACKReceiveComplete(uint64_t epoch, Context &ctx) {
+        static bool IsRedoLogPushDownACKReceiveComplete(const Context &ctx, uint64_t epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i ++) {
                 if(i == ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
                 if(redo_log_push_down_ack_num.GetCount(epoch, i) < EpochManager::server_state.GetCount(epoch, i)) return false;

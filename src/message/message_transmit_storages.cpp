@@ -27,7 +27,7 @@ namespace Taas {
 //        recv_socket.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
 //        recv_socket.setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
 
-    void ListenStorageThreadMain(Context ctx) { //PULL & PUSH
+    void ListenStorageThreadMain(const Context& ctx) { //PULL & PUSH
         uint32_t recv_port = 5553;
         int queue_length = 0;
         zmq::context_t context(1);
@@ -91,7 +91,7 @@ namespace Taas {
 
     }
 
-    void SendStoragePUBThreadMain(Context ctx) { //PUB Txn
+    void SendStoragePUBThreadMain(const Context& ctx) { //PUB Txn
         int queue_length = 0;
         zmq::context_t context(1);
         zmq::message_t reply(5);
@@ -113,7 +113,7 @@ namespace Taas {
         socket_send.send((zmq::message_t &) "end", sendFlags);
     }
 
-    void SendStoragePUBThreadMain2(Context ctx) {//PUB PACK
+    void SendStoragePUBThreadMain2(const Context& ctx) {//PUB PACK
         SetCPU();
         int queue_length = 0;
         zmq::context_t context(1);

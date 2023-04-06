@@ -24,7 +24,7 @@ namespace Taas {
  * @param id 暂未使用
  * @param ctx 暂未使用
  */
-    void SendServerThreadMain(Context ctx) {
+    void SendServerThreadMain(const Context& ctx) {
         SetCPU();
         zmq::context_t context(1);
         zmq::message_t reply(5);

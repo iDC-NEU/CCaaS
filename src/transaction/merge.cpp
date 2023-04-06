@@ -39,7 +39,7 @@ namespace Taas {
             Merger::epoch_commit_queue;///存放每个epoch要进行写日志的事务，分片写日志
 
 
-    void Merger::StaticInit(Context &ctx) {
+    void Merger::StaticInit(const Context &ctx) {
         auto max_length = ctx.kCacheMaxLength;
         auto pack_num = ctx.kIndexNum;
         ///epoch merge state
@@ -74,38 +74,38 @@ namespace Taas {
         RedoLoger::StaticInit(ctx);
     }
 
-    void Merger::MergeQueueEnqueue(uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr, Context& ctx) {
+    void Merger::MergeQueueEnqueue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_merge_queue[epoch_mod]->enqueue(std::move(txn_ptr));
         epoch_merge_queue[epoch_mod]->enqueue(nullptr);
     }
-    bool Merger::MergeQueueTryDequeue(uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr, Context& ctx) {
+    bool Merger::MergeQueueTryDequeue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         return epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr);
     }
 
-    void Merger::LocalTxnCommitQueueEnqueue(uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr, Context& ctx) {
+    void Merger::LocalTxnCommitQueueEnqueue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_local_txn_queue[epoch_mod]->enqueue(std::move(txn_ptr));
         epoch_local_txn_queue[epoch_mod]->enqueue(nullptr);
     }
-    bool Merger::LocalTxnCommitQueueTryDequeue(uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr, Context& ctx) {
+    bool Merger::LocalTxnCommitQueueTryDequeue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         return epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr);
     }
 
-    void Merger::CommitQueueEnqueue(uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr, Context& ctx) {
+    void Merger::CommitQueueEnqueue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_commit_queue[epoch_mod]->enqueue(std::move(txn_ptr));
         epoch_commit_queue[epoch_mod]->enqueue(nullptr);
     }
-    bool Merger::CommitQueueTryDequeue(uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr, Context& ctx) {
+    bool Merger::CommitQueueTryDequeue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         return epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr);
     }
 
 
-    void Merger::ClearMergerEpochState(uint64_t& epoch, Context& ctx) {
+    void Merger::ClearMergerEpochState(const Context& ctx, uint64_t& epoch) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_merge_map[epoch_mod]->clear();
         epoch_insert_set[epoch_mod]->clear();
@@ -116,14 +116,14 @@ namespace Taas {
         epoch_record_commit_txn_num.Clear(epoch_mod), epoch_record_committed_txn_num.Clear(epoch_mod);
     }
 
-    void Merger::Init(uint64_t id_, Context ctx_) {
+    void Merger::Init(const Context& ctx_, uint64_t id_) {
         txn_ptr = nullptr;
         thread_id = id_;
-        ctx = std::move(ctx_);
-        message_handler.Init(thread_id, ctx);
+        ctx = ctx_;
+        message_handler.Init(ctx, thread_id);
     }
 
-    bool Merger::EpochMerge(uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr, Context& ctx) {
+    bool Merger::EpochMerge(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         auto txn_server_id = txn_ptr->server_id();
         auto res = true;
@@ -144,10 +144,9 @@ namespace Taas {
 
     bool Merger::EpochMerge() {
         sleep_flag = false;
-        epoch = EpochManager::GetLogicalEpoch();
-        for(; epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
+        for(epoch = EpochManager::GetLogicalEpoch(); epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
             auto epoch_mod = epoch % ctx.kCacheMaxLength;
-            while (MergeQueueTryDequeue(epoch, txn_ptr, ctx) && txn_ptr != nullptr) {
+            while (MergeQueueTryDequeue(ctx, epoch, txn_ptr) && txn_ptr != nullptr) {
                 txn_server_id = txn_ptr->server_id();
                 res = true;
                 if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {

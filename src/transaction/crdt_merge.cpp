@@ -7,7 +7,7 @@
 #include "transaction/crdt_merge.h"
 
 namespace Taas {
-    bool Taas::CRDTMerge::ValidateReadSet(Taas::Context &ctx, proto::Transaction &txn) {
+    bool CRDTMerge::ValidateReadSet(const Context &ctx, proto::Transaction &txn) {
         ///RC
         return true;
 //        std::string key, version;
@@ -23,7 +23,7 @@ namespace Taas {
 //        return true;
     }
 
-    bool Taas::CRDTMerge::ValidateWriteSet(Taas::Context &ctx, proto::Transaction &txn) {
+    bool CRDTMerge::ValidateWriteSet(const Context &ctx, proto::Transaction &txn) {
         auto epoch_mod = txn.commit_epoch() % ctx.kCacheMaxLength;
         auto csn_temp = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
         if(Merger::epoch_abort_txn_set[epoch_mod]->contain(csn_temp, csn_temp)) {
@@ -32,7 +32,7 @@ namespace Taas {
         return true;
     }
 
-    bool Taas::CRDTMerge::MultiMasterCRDTMerge(Taas::Context &ctx, proto::Transaction &txn) {
+    bool CRDTMerge::MultiMasterCRDTMerge(const Context &ctx, proto::Transaction &txn) {
         auto epoch_mod = txn.commit_epoch() % ctx.kCacheMaxLength;
         auto csn_temp = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
         std::string csn_result;
@@ -51,7 +51,7 @@ namespace Taas {
         return result;
     }
 
-    bool CRDTMerge::Commit(Context &ctx, proto::Transaction &txn) {
+    bool CRDTMerge::Commit(const Context &ctx, proto::Transaction &txn) {
         auto epoch_mod = txn.commit_epoch() % ctx.kCacheMaxLength;
         auto csn_temp = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
         for(auto i = 0; i < txn.row_size(); i ++) {

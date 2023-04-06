@@ -16,7 +16,7 @@ namespace Taas {
 
     std::atomic<uint64_t> RedoLoger::pushed_down_mot_epoch(1), RedoLoger::pushed_down_tikv_epoch(1);
 
-    void RedoLoger::StaticInit(Context &ctx) {
+    void RedoLoger::StaticInit(const Context& ctx) {
         auto max_length = ctx.kCacheMaxLength;
         epoch_log_lsn.Init(max_length);
         committed_txn_cache.resize(max_length);
@@ -29,7 +29,7 @@ namespace Taas {
         }
     }
 
-    void RedoLoger::ClearRedoLog(uint64_t& epoch, Context &ctx) {
+    void RedoLoger::ClearRedoLog(const Context& ctx, uint64_t& epoch) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         redo_log[epoch_mod]->clear();
         committed_txn_cache[epoch_mod]->clear();
@@ -37,7 +37,7 @@ namespace Taas {
     }
 
 
-    bool RedoLoger::RedoLog(Context &ctx, proto::Transaction &txn) {
+    bool RedoLoger::RedoLog(const Context& ctx, proto::Transaction &txn) {
         uint64_t epoch_id = txn.commit_epoch();
         auto epoch_mod = epoch_id % ctx.kCacheMaxLength;
         auto lsn = epoch_log_lsn.IncCount(epoch_id, 1);
@@ -50,12 +50,12 @@ namespace Taas {
         return true;
     }
 
-    void RedoLoger::RedoLogQueueEnqueue(uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr, Context& ctx) {
+    void RedoLoger::RedoLogQueueEnqueue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_redo_log_queue[epoch_mod]->enqueue(std::move(txn_ptr));
         epoch_redo_log_queue[epoch_mod]->enqueue(nullptr);
     }
-    bool RedoLoger::RedoLogQueueTryDequeue(uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr, Context& ctx) {
+    bool RedoLoger::RedoLogQueueTryDequeue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         return epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr);
     }
