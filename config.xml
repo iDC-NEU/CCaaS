@@ -19,7 +19,7 @@
     <is_tikv_enable>0</is_tikv_enable>
     <tikv_ip>47.92.250.79:2379</tikv_ip>
 <!--    print mod size-->
-    <print_mode_size>100</print_mode_size>
+    <print_mode_size>1</print_mode_size>
 <!--    client use push/pull mode send txn to taas through 5551 port-->
 <!--    client use push/pull mode receive result from taas through 5552 port-->
 

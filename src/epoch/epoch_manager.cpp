@@ -177,10 +177,10 @@ namespace Taas {
         for(auto i = epoch_; i < epoch_max; i ++) {
             if (EpochManager::IsShardingMergeComplete(i)) return true;
             if ((ctx.kTxnNodeNum == 1 ||
-                (MessageReceiveHandler::IsEpochShardingSendComplete(ctx, i) &&
-                MessageReceiveHandler::IsEpochShardingReceiveComplete(ctx, i) &&
-                MessageReceiveHandler::IsEpochBackUpComplete(ctx, i)))
-                && Merger::IsEpochMergeComplete(ctx, i)
+                (MessageReceiveHandler::CheckEpochShardingSendComplete(ctx, i) &&
+                MessageReceiveHandler::CheckEpochShardingReceiveComplete(ctx, i) &&
+                MessageReceiveHandler::CheckEpochBackUpComplete(ctx, i)))
+                && Merger::CheckEpochMergeComplete(ctx, i)
                     ) {
                 EpochManager::SetShardingMergeComplete(i, true);
                 res = true;
@@ -197,7 +197,7 @@ namespace Taas {
         if(epoch_ >= epoch_max) return false;
         for(auto i = epoch_; i < epoch_max; i ++) {
             if(EpochManager::IsAbortSetMergeComplete(i)) continue;
-            if( (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::IsEpochAbortSetMergeComplete(ctx, i)) &&
+            if( (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
                 EpochManager::IsShardingMergeComplete(i)
                ) {
                 EpochManager::SetAbortSetMergeComplete(i, true);
@@ -216,8 +216,8 @@ namespace Taas {
             if(EpochManager::IsCommitComplete(i)) continue;
             if(EpochManager::IsShardingMergeComplete(i) &&
                EpochManager::IsAbortSetMergeComplete(i) &&
-                    MessageReceiveHandler::IsEpochTxnHandleComplete(i) &&
-               Merger::IsEpochCommitComplete(ctx, i)
+                    Merger::CheckEpochCommitComplete(ctx, i) &&
+                    MessageReceiveHandler::IsEpochTxnHandleComplete(i)
                 ) {
                 EpochManager::SetCommitComplete(i, true);
                 res = true;
