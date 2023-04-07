@@ -310,6 +310,7 @@ namespace Taas {
             return true;
         }
 
+        void CheckAdnSetEpochMergeState();
     };
 
 }

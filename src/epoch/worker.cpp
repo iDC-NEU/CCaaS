@@ -27,7 +27,7 @@ namespace Taas {
 //        printf("State Checker\n");
         while (!EpochManager::IsTimerStop()) {
             sleep_flag = false;
-            sleep_flag = sleep_flag | EpochManager::CheckEpochMergeState();
+//            sleep_flag = sleep_flag | EpochManager::CheckEpochMergeState();
             sleep_flag = sleep_flag | receiveHandler.CheckReceivedStatesAndReply();/// check and send ack
             sleep_flag = sleep_flag | MessageSendHandler::SendEpochEndMessage(ctx);///send epoch end flag
             sleep_flag = sleep_flag | MessageSendHandler::SendBackUpEpochEndMessage(ctx);///send epoch backup end message

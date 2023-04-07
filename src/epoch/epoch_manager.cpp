@@ -173,38 +173,46 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
 
     bool EpochManager::CheckEpochMergeState() {
         auto res = false;
-        auto epoch_max = EpochManager::GetPhysicalEpoch();
-        if(merge_epoch.load() >= epoch_max) return false;
-        for(auto i = merge_epoch.load(); i < epoch_max; i ++) {
-            if (EpochManager::IsShardingMergeComplete(i)) continue;
-            if ((ctx.kTxnNodeNum == 1 ||
-                (MessageReceiveHandler::CheckEpochShardingSendComplete(ctx, i) &&
-                MessageReceiveHandler::CheckEpochShardingReceiveComplete(ctx, i) &&
-                MessageReceiveHandler::CheckEpochBackUpComplete(ctx, i)))
-                && Merger::CheckEpochMergeComplete(ctx, i)) {
-                EpochManager::SetShardingMergeComplete(i, true);
-                res = true;
-            }
+        auto i = merge_epoch.load();
+        if (EpochManager::IsShardingMergeComplete(i)) return true;
+        while(i < EpochManager::GetPhysicalEpoch() &&
+                (ctx.kTxnNodeNum == 1 ||
+                    (MessageReceiveHandler::CheckEpochShardingSendComplete(ctx, i) &&
+                    MessageReceiveHandler::CheckEpochShardingReceiveComplete(ctx, i) &&
+                    MessageReceiveHandler::CheckEpochBackUpComplete(ctx, i))
+                    ) &&
+                Merger::CheckEpochMergeComplete(ctx, i)
+            ) {
+            EpochManager::SetShardingMergeComplete(i, true);
+            merge_epoch.fetch_add(1);
+            i ++;
+            res = true;
         }
-        while(EpochManager::IsShardingMergeComplete(merge_epoch.load())
-            && merge_epoch.load() < epoch_max) merge_epoch.fetch_add(1);
         return res;
     }
 
     bool EpochManager::CheckEpochAbortSetState() {
         auto res = false;
-        if(abort_set_epoch.load() >= merge_epoch.load()) return false;
-        for(auto i = abort_set_epoch.load(); i < merge_epoch.load(); i ++) {
-            if(EpochManager::IsAbortSetMergeComplete(i)) continue;
-            if( (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
-                EpochManager::IsShardingMergeComplete(i)
-               ) {
-                EpochManager::SetAbortSetMergeComplete(i, true);
-                res = true;
-            }
+        auto i = abort_set_epoch.load();
+        if(i >= merge_epoch.load()) return false;
+        if(EpochManager::IsAbortSetMergeComplete(i)) return true;
+        if( (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
+            EpochManager::IsShardingMergeComplete(i)) {
+            EpochManager::SetAbortSetMergeComplete(i, true);
+            abort_set_epoch.fetch_add(1);
+            res = true;
         }
-        while(EpochManager::IsAbortSetMergeComplete(abort_set_epoch.load())
-            && abort_set_epoch.load() < merge_epoch.load()) abort_set_epoch.fetch_add(1);
+//        for(auto i = abort_set_epoch.load(); i < merge_epoch.load(); i ++) {
+//            if(EpochManager::IsAbortSetMergeComplete(i)) continue;
+//            if( (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
+//                EpochManager::IsShardingMergeComplete(i)
+//               ) {
+//                EpochManager::SetAbortSetMergeComplete(i, true);
+//                res = true;
+//            }
+//        }
+//        while(EpochManager::IsAbortSetMergeComplete(abort_set_epoch.load())
+//            && abort_set_epoch.load() < merge_epoch.load()) abort_set_epoch.fetch_add(1);
         return res;
     }
 
@@ -250,10 +258,10 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         while(!EpochManager::IsTimerStop()){
             sleep_flag = false;
             while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(20);
-            sleep_flag = sleep_flag | EpochManager::CheckEpochMergeState();
-            sleep_flag = sleep_flag | EpochManager::CheckEpochAbortSetState();
-            sleep_flag = sleep_flag | EpochManager::CheckEpochCommitState();
-            sleep_flag = sleep_flag | EpochManager::CheckAndSetRedoLogPushDownState();
+            EpochManager::CheckEpochMergeState();
+            while(EpochManager::CheckEpochAbortSetState()) usleep(50);
+            while(EpochManager::CheckEpochCommitState()) usleep(50);
+            EpochManager::CheckAndSetRedoLogPushDownState();
 
 //            if(!EpochManager::CheckEpochAbortSetState()) usleep(20);
 //            if(!EpochManager::CheckEpochCommitState()) usleep(20);
