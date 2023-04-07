@@ -175,7 +175,7 @@ namespace Taas {
         auto epoch_max = EpochManager::GetPhysicalEpoch();
         if(merge_epoch >= epoch_max) return false;
         for(auto i = merge_epoch; i < epoch_max; i ++) {
-            if (EpochManager::IsShardingMergeComplete(i)) return true;
+            if (EpochManager::IsShardingMergeComplete(i)) continue;
             if ((ctx.kTxnNodeNum == 1 ||
                 (MessageReceiveHandler::CheckEpochShardingSendComplete(ctx, i) &&
                 MessageReceiveHandler::CheckEpochShardingReceiveComplete(ctx, i) &&
@@ -183,7 +183,7 @@ namespace Taas {
                 && Merger::CheckEpochMergeComplete(ctx, i)
                     ) {
                 EpochManager::SetShardingMergeComplete(i, true);
-                printf("====Sharding Merge complete epoch %lu\n", i);
+//                printf("====Sharding Merge complete epoch %lu\n", i);
                 res = true;
             }
         }
@@ -201,7 +201,7 @@ namespace Taas {
                 EpochManager::IsShardingMergeComplete(i)
                ) {
                 EpochManager::SetAbortSetMergeComplete(i, true);
-                printf("====AbortSet Merge complete epoch %lu\n", i);
+//                printf("====AbortSet Merge complete epoch %lu\n", i);
                 res = true;
             }
         }
@@ -220,7 +220,7 @@ namespace Taas {
                     MessageReceiveHandler::IsEpochTxnHandleComplete(i)
                 ) {
                 EpochManager::SetCommitComplete(i, true);
-                printf("====Commit complete epoch %lu\n", i);
+//                printf("====Commit complete epoch %lu\n", i);
                 res = true;
             }
         }
@@ -250,7 +250,7 @@ namespace Taas {
         }
         OUTPUTLOG(ctx, "=====start Epoch的合并===== ", epoch);
         while(!EpochManager::IsTimerStop()){
-            while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(20);
+            while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(100);
             sleep_flag = false;
             sleep_flag = sleep_flag | CheckEpochMergeState(merge_epoch, ctx);
             sleep_flag = sleep_flag | CheckEpochAbortSetState(abort_set_epoch, ctx);
@@ -281,7 +281,7 @@ namespace Taas {
                 clear_epoch ++;
                 EpochManager::AddPushDownEpoch();
             }
-            if(!sleep_flag) usleep(20);
+            if(!sleep_flag) usleep(100);
         }
         printf("total commit txn num: %lu\n", total_commit_txn_num);
     }
