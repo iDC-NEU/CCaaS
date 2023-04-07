@@ -173,8 +173,8 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
 
     bool EpochManager::CheckEpochMergeState() {
         auto res = false;
+        while (EpochManager::IsShardingMergeComplete(merge_epoch.load())) merge_epoch.fetch_add(1);
         auto i = merge_epoch.load();
-        if (EpochManager::IsShardingMergeComplete(i)) return true;
         while(i < EpochManager::GetPhysicalEpoch() &&
                 (ctx.kTxnNodeNum == 1 ||
                     (MessageReceiveHandler::CheckEpochShardingSendComplete(ctx, i) &&
@@ -196,7 +196,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         auto i = abort_set_epoch.load();
         if(i >= merge_epoch.load()) return false;
         if(EpochManager::IsAbortSetMergeComplete(i)) return true;
-        if( (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
+        while( (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
             EpochManager::IsShardingMergeComplete(i)) {
             EpochManager::SetAbortSetMergeComplete(i, true);
             abort_set_epoch.fetch_add(1);
@@ -274,7 +274,8 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
                 EpochManager::AddLogicalEpoch();
             }
 
-            while(clear_epoch < redo_log_epoch && clear_epoch < RedoLoger::GetPushedDownMOTEpoch()) {
+            while(clear_epoch < merge_epoch.load() &&
+                    clear_epoch < abort_set_epoch.load() && clear_epoch < commit_epoch.load() && clear_epoch < RedoLoger::GetPushedDownMOTEpoch()) {
                 if(clear_epoch % ctx.print_mode_size == 0) {
                     printf("=-=-=-=-=-=-=完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", epoch, clear_epoch.load());
                 }
