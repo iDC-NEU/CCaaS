@@ -203,36 +203,22 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
             i ++;
             res = true;
         }
-//        for(auto i = abort_set_epoch.load(); i < merge_epoch.load(); i ++) {
-//            if(EpochManager::IsAbortSetMergeComplete(i)) continue;
-//            if( (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
-//                EpochManager::IsShardingMergeComplete(i)
-//               ) {
-//                EpochManager::SetAbortSetMergeComplete(i, true);
-//                res = true;
-//            }
-//        }
-//        while(EpochManager::IsAbortSetMergeComplete(abort_set_epoch.load())
-//            && abort_set_epoch.load() < merge_epoch.load()) abort_set_epoch.fetch_add(1);
         return res;
     }
 
     bool EpochManager::CheckEpochCommitState() {
         auto res = false;
         if(commit_epoch.load() >= abort_set_epoch.load()) return true;
-        for(auto i = commit_epoch.load(); i < abort_set_epoch.load(); i ++) {
-            if(EpochManager::IsCommitComplete(i)) continue;
-            if(EpochManager::IsShardingMergeComplete(i) &&
-               EpochManager::IsAbortSetMergeComplete(i) &&
-                    Merger::CheckEpochCommitComplete(ctx, i) &&
-                    MessageReceiveHandler::IsEpochTxnHandleComplete(i)
-                ) {
-                EpochManager::SetCommitComplete(i, true);
-                res = true;
-            }
+        auto i = commit_epoch.load();
+        while( i < abort_set_epoch.load() && EpochManager::IsShardingMergeComplete(i) &&
+               EpochManager::IsAbortSetMergeComplete(i) && Merger::CheckEpochCommitComplete(ctx, i) &&
+               MessageReceiveHandler::IsEpochTxnHandleComplete(i) ) {
+
+            EpochManager::SetCommitComplete(i, true);
+            i ++;
+            commit_epoch.fetch_add(1);
+            res = true;
         }
-        while(EpochManager::IsCommitComplete(commit_epoch.load())
-            && commit_epoch.load() < abort_set_epoch.load()) commit_epoch.fetch_add(1);
         return res;
     }
 
@@ -257,7 +243,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         OUTPUTLOG(ctx, "=====start Epoch的合并===== ", epoch);
         while(!EpochManager::IsTimerStop()){
             while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(20);
-            EpochManager::CheckEpochMergeState();
+//            EpochManager::CheckEpochMergeState();
             while(!EpochManager::CheckEpochAbortSetState()) usleep(50);
             while(!EpochManager::CheckEpochCommitState()) usleep(50);
             EpochManager::CheckAndSetRedoLogPushDownState();
