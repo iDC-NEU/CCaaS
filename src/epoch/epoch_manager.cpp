@@ -257,8 +257,8 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         while(!EpochManager::IsTimerStop()){
             while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(20);
             EpochManager::CheckEpochMergeState();
-            while(EpochManager::CheckEpochAbortSetState()) usleep(50);
-            while(EpochManager::CheckEpochCommitState()) usleep(50);
+            while(!EpochManager::CheckEpochAbortSetState()) usleep(50);
+            while(!EpochManager::CheckEpochCommitState()) usleep(50);
             EpochManager::CheckAndSetRedoLogPushDownState();
 
 //            if(!EpochManager::CheckEpochAbortSetState()) usleep(20);
