@@ -18,14 +18,13 @@ namespace Taas {
         static bool SendTxnToServer(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn, proto::TxnType txn_type);
         static bool SendRemoteServerTxn(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn, proto::TxnType txn_type);
         static bool SendBackUpTxn(const Context &ctx, uint64_t& epoch, proto::Transaction& txn, proto::TxnType txn_type);
-        static bool SendACK(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction &txn, proto::TxnType txn_type);
+        static bool SendACK(const Context &ctx, uint64_t &epoch, uint64_t &to_whom, proto::TxnType txn_type);
         static bool SendMessageToAll(const Context& ctx, uint64_t& epoch, proto::TxnType txn_type);
 
         ///一下函数都由single one线程执行
         static void StaticInit(const Context& ctx);
         static void StaticClear(const Context& ctx, uint64_t& epoch);
-        static std::vector<std::vector<std::unique_ptr<std::atomic<bool>>>> sharding_send_epoch;
-        static std::vector<std::unique_ptr<std::atomic<bool>>> backup_send_epoch, abort_set_send_epoch, insert_set_send_epoch;
+        static std::vector<std::unique_ptr<std::atomic<uint64_t>>> sharding_send_epoch, backup_send_epoch, abort_set_send_epoch, insert_set_send_epoch;
         static uint64_t sharding_sent_epoch, backup_sent_epoch, abort_sent_epoch, insert_set_sent_epoch, abort_set_sent_epoch;
         static bool SendEpochEndMessage(const Context& ctx);
         static bool SendBackUpEpochEndMessage(const Context& ctx);

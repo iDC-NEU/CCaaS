@@ -27,11 +27,11 @@ namespace Taas {
 //        printf("State Checker\n");
         while (!EpochManager::IsTimerStop()) {
             sleep_flag = false;
-//            sleep_flag = sleep_flag | EpochManager::CheckEpochMergeState();
-            sleep_flag = sleep_flag | receiveHandler.CheckReceivedStatesAndReply();/// check and send ack
-            sleep_flag = sleep_flag | MessageSendHandler::SendEpochEndMessage(ctx);///send epoch end flag
-            sleep_flag = sleep_flag | MessageSendHandler::SendBackUpEpochEndMessage(ctx);///send epoch backup end message
-            sleep_flag = sleep_flag | MessageSendHandler::SendAbortSet(ctx); ///send abort set
+            sleep_flag = EpochManager::CheckEpochMergeState() | sleep_flag;
+            sleep_flag = receiveHandler.CheckReceivedStatesAndReply() | sleep_flag;/// check and send ack
+            sleep_flag = MessageSendHandler::SendEpochEndMessage(ctx) | sleep_flag;///send epoch end flag
+            sleep_flag = MessageSendHandler::SendBackUpEpochEndMessage(ctx) | sleep_flag;///send epoch backup end message
+            sleep_flag = MessageSendHandler::SendAbortSet(ctx) | sleep_flag; ///send abort set
             if(!sleep_flag) usleep(50);
         }
     }
