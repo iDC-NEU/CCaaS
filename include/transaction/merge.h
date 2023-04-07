@@ -51,6 +51,11 @@ namespace Taas {
                 epoch_local_txn_queue, ///epoch_local_txn_queue 本地接收到的完整的事务  txn receive from client (used to push log down to storage)
                 epoch_commit_queue;///epoch_commit_queue 当前epoch的涉及当前分片的要进行validate和commit的子事务 receive from servers and local sharding txn, wait to validate
 
+        static std::vector<std::unique_ptr<std::atomic<bool>>>
+                epoch_merge_complete,
+                epoch_commit_complete;
+
+
         static void StaticInit(const Context& ctx);
         static void ClearMergerEpochState(const Context& ctx, uint64_t &epoch);
 
@@ -62,25 +67,50 @@ namespace Taas {
         bool EpochCommit_RedoLog_ShardingMode();
 
 
-        static bool IsEpochMergeComplete(const Context& ctx, uint64_t& epoch) {
+        static bool CheckEpochMergeComplete(const Context &ctx, uint64_t& epoch) {
+            if(epoch_merge_complete[epoch % ctx.kCacheMaxLength]->load()) {
+                return true;
+            }
+            if (epoch < EpochManager::GetPhysicalEpoch() && IsMergeComplete(ctx, epoch)) {
+                epoch_merge_complete[epoch % ctx.kCacheMaxLength]->store(true);
+                return true;
+            }
+            return false;
+        }
+        static bool IsEpochMergeComplete(const Context &ctx, uint64_t& epoch) {
+            return epoch_merge_complete[epoch % ctx.kCacheMaxLength]->load();
+        }
+
+        static bool CheckEpochCommitComplete(const Context &ctx, uint64_t& epoch) {
+            if (epoch_commit_complete[epoch % ctx.kCacheMaxLength]->load()) return true;
+            if (epoch < EpochManager::GetPhysicalEpoch() && IsCommitComplete(ctx, epoch)) {
+                epoch_commit_complete[epoch % ctx.kCacheMaxLength]->store(true);
+                return true;
+            }
+            return false;
+        }
+        static bool IsEpochCommitComplete(const Context &ctx, uint64_t& epoch) {
+            return epoch_commit_complete[epoch % ctx.kCacheMaxLength]->load();
+        }
+
+        static bool IsMergeComplete(const Context& ctx, uint64_t& epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
                 if (epoch_should_merge_txn_num.GetCount(epoch, i) > epoch_merged_txn_num.GetCount(epoch, i))
                     return false;
             }
             return true;
         }
-        static bool IsEpochMergeComplete(uint64_t epoch, uint64_t server_id) {
+        static bool IsMergeComplete(uint64_t epoch, uint64_t server_id) {
             return epoch_should_merge_txn_num.GetCount(epoch, server_id) <= epoch_merged_txn_num.GetCount(epoch, server_id);
         }
-
-        static bool IsEpochCommitComplete(const Context& ctx, uint64_t& epoch) {
+        static bool IsCommitComplete(const Context& ctx, uint64_t& epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
                 if (epoch_should_commit_txn_num.GetCount(epoch, i) > epoch_committed_txn_num.GetCount(epoch, i))
                     return false;
             }
             return true;
         }
-        static bool IsEpochCommitComplete(uint64_t epoch, uint64_t server_id) {
+        static bool IsCommitComplete(uint64_t epoch, uint64_t server_id) {
             return epoch_should_commit_txn_num.GetCount(epoch, server_id) <= epoch_committed_txn_num.GetCount(epoch, server_id);
         }
 

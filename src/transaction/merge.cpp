@@ -38,7 +38,9 @@ namespace Taas {
             Merger::epoch_local_txn_queue,///存放epoch由client发送过来的事务，存放每个epoch要进行写日志的事务，整个事务写日志
             Merger::epoch_commit_queue;///存放每个epoch要进行写日志的事务，分片写日志
 
-
+    std::vector<std::unique_ptr<std::atomic<bool>>>
+            Merger::epoch_merge_complete,
+            Merger::epoch_commit_complete;
     void Merger::StaticInit(const Context &ctx) {
         auto max_length = ctx.kCacheMaxLength;
         auto pack_num = ctx.kIndexNum;
@@ -54,6 +56,9 @@ namespace Taas {
         epoch_local_txn_queue.resize(max_length);
         epoch_commit_queue.resize(max_length);
 
+        epoch_merge_complete.resize(max_length);
+        epoch_commit_complete.resize(max_length);
+
         epoch_should_merge_txn_num.Init(max_length, pack_num);
         epoch_merged_txn_num.Init(max_length, pack_num);
         epoch_should_commit_txn_num.Init(max_length, pack_num);
@@ -62,6 +67,8 @@ namespace Taas {
         epoch_record_committed_txn_num.Init(max_length, pack_num);
 
         for(int i = 0; i < static_cast<int>(max_length); i ++) {
+            epoch_merge_complete[i] = std::make_unique<std::atomic<bool>>(false);
+            epoch_commit_complete[i] = std::make_unique<std::atomic<bool>>(false);
             epoch_merge_map[i] = std::make_unique<concurrent_crdt_unordered_map<std::string, std::string, std::string>>();
             local_epoch_abort_txn_set[i] = std::make_unique<concurrent_crdt_unordered_map<std::string, std::string, std::string>>();
             epoch_abort_txn_set[i] = std::make_unique<concurrent_crdt_unordered_map<std::string, std::string, std::string>>();
@@ -107,6 +114,8 @@ namespace Taas {
 
     void Merger::ClearMergerEpochState(const Context& ctx, uint64_t& epoch) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        epoch_merge_complete[epoch_mod]->store(false);
+        epoch_commit_complete[epoch_mod]->store(false);
         epoch_merge_map[epoch_mod]->clear();
         epoch_insert_set[epoch_mod]->clear();
         epoch_abort_txn_set[epoch_mod]->clear();
@@ -139,6 +148,7 @@ namespace Taas {
             epoch_commit_queue[epoch_mod]->enqueue(nullptr);
         }
         epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
+        CheckEpochMergeComplete(ctx, epoch);
         return res;
     }
 
@@ -164,6 +174,7 @@ namespace Taas {
 
                 sleep_flag = true;
             }
+            CheckEpochMergeComplete(ctx, epoch);
         }
         return sleep_flag;
     }
@@ -200,6 +211,7 @@ namespace Taas {
                 epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
                 sleep_flag = true;
             }
+            CheckEpochCommitComplete(ctx, epoch);
         }
         //SI Isolation
 

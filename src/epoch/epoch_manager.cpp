@@ -117,7 +117,7 @@ namespace Taas {
         pushdown_mot                 %6lu, pushdownepoch                %6lu  \n\
         merge_epoch                  %6lu, abort_set_epoch              %6lu    \
         commit_epoch                 %6lu, redo_log_epoch               %6lu  \n\
-        clear_epoch                  %6lu,                                      \
+        clear_epoch                  %6lu,                                        \
         epoch_mod                    %6lu, disstance                    %6lu  \n\
         ShardingPackReceiveOK?       %6lu, ShardingTxnReceiveOK?        %6lu    \
         ShardingSendOK?              %6lu, ShardingACKReceiveOK?        %6lu  \n\
@@ -177,9 +177,9 @@ namespace Taas {
         for(auto i = epoch_; i < epoch_max; i ++) {
             if (EpochManager::IsShardingMergeComplete(i)) return true;
             if ((ctx.kTxnNodeNum == 1 ||
-                (MessageReceiveHandler::CheckEpochShardingSendComplete(ctx, i) &&
-                MessageReceiveHandler::CheckEpochShardingReceiveComplete(ctx, i) &&
-                MessageReceiveHandler::CheckEpochBackUpComplete(ctx, i)))
+                (MessageReceiveHandler::IsEpochShardingSendComplete(ctx, i) &&
+                MessageReceiveHandler::IsEpochShardingReceiveComplete(ctx, i) &&
+                MessageReceiveHandler::IsEpochBackUpComplete(ctx, i)))
                 && Merger::IsEpochMergeComplete(ctx, i)
                     ) {
                 EpochManager::SetShardingMergeComplete(i, true);
@@ -197,7 +197,7 @@ namespace Taas {
         if(epoch_ >= epoch_max) return false;
         for(auto i = epoch_; i < epoch_max; i ++) {
             if(EpochManager::IsAbortSetMergeComplete(i)) continue;
-            if( (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
+            if( (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::IsEpochAbortSetMergeComplete(ctx, i)) &&
                 EpochManager::IsShardingMergeComplete(i)
                ) {
                 EpochManager::SetAbortSetMergeComplete(i, true);
@@ -280,7 +280,7 @@ namespace Taas {
                 clear_epoch ++;
                 EpochManager::AddPushDownEpoch();
             }
-            if(!sleep_flag) usleep(200);
+            if(!sleep_flag) usleep(20);
         }
         printf("total commit txn num: %lu\n", total_commit_txn_num);
     }
