@@ -220,7 +220,6 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
                 ) {
                 EpochManager::SetCommitComplete(i, true);
                 res = true;
-                res = true;
             }
         }
         while(EpochManager::IsCommitComplete(commit_epoch.load())
@@ -242,17 +241,23 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
 
     void EpochLogicalTimerManagerThreadMain(const Context& ctx) {
         SetCPU();
+        auto sleep_flag = false;
         while(!EpochManager::IsInitOK()) usleep(1000);
         if(ctx.is_cache_server_available) {
             cache_server_available = 0;
         }
         OUTPUTLOG(ctx, "=====start Epoch的合并===== ", epoch);
         while(!EpochManager::IsTimerStop()){
+            sleep_flag = false;
             while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(20);
+            sleep_flag = sleep_flag | EpochManager::CheckEpochMergeState();
+            sleep_flag = sleep_flag | EpochManager::CheckEpochAbortSetState();
+            sleep_flag = sleep_flag | EpochManager::CheckEpochCommitState();
+            sleep_flag = sleep_flag | EpochManager::CheckAndSetRedoLogPushDownState();
 
-            if(!EpochManager::CheckEpochAbortSetState()) usleep(20);
-            if(!EpochManager::CheckEpochCommitState()) usleep(20);
-            if(!EpochManager::CheckAndSetRedoLogPushDownState()) usleep(20);
+//            if(!EpochManager::CheckEpochAbortSetState()) usleep(20);
+//            if(!EpochManager::CheckEpochCommitState()) usleep(20);
+//            if(!EpochManager::CheckAndSetRedoLogPushDownState()) usleep(20);
 
             while(epoch < commit_epoch) {
                 total_commit_txn_num += Merger::epoch_record_committed_txn_num.GetCount(epoch);
