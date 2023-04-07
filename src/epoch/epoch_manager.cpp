@@ -107,13 +107,18 @@ namespace Taas {
  * @param s 待输出的自定义字符串
  * @param epoch_mod epoch号
  */
+ static uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0,
+            merge_epoch = 1, abort_set_epoch = 1, commit_epoch = 1, redo_log_epoch = 1, clear_epoch = 1;
 
-    void OUTPUTLOG(const Context& ctx, const string& s, uint64_t& epoch){
-        auto epoch_mod = epoch % EpochManager::max_length;
+    void OUTPUTLOG(const Context& ctx, const string& s, uint64_t& epoch_){
+        auto epoch_mod = epoch_ % EpochManager::max_length;
         printf("%60s \n\
         physical                     %6lu, logical                      %6lu,   \
         pushdown_mot                 %6lu, pushdownepoch                %6lu  \n\
-        epoch_mod                    %6lu, disstance %6lu, \n\
+        merge_epoch                  %6lu, abort_set_epoch              %6lu    \
+        commit_epoch                 %6lu, redo_log_epoch               %6lu  \n\
+        clear_epoch                  %6lu,                                      \
+        epoch_mod                    %6lu, disstance                    %6lu  \n\
         ShardingPackReceiveOK?       %6lu, ShardingTxnReceiveOK?        %6lu    \
         ShardingSendOK?              %6lu, ShardingACKReceiveOK?        %6lu  \n\
         backupSendOK?                %6lu, backupACKReceiveOK?          %6lu,   \
@@ -134,9 +139,9 @@ namespace Taas {
         merge_num                    %6lu, time          %lu \n",
        s.c_str(),
        EpochManager::GetPhysicalEpoch(),                                                  EpochManager::GetLogicalEpoch(),
-       RedoLoger::GetPushedDownMOTEpoch(), EpochManager::GetPushDownEpoch(),
+       RedoLoger::GetPushedDownMOTEpoch(),                                                EpochManager::GetPushDownEpoch(),
+       merge_epoch, abort_set_epoch, commit_epoch, redo_log_epoch,clear_epoch,
        epoch_mod,                                                                         EpochManager::GetPhysicalEpoch() - EpochManager::GetLogicalEpoch(),
-
        (uint64_t)MessageReceiveHandler::IsShardingPackReceiveComplete(ctx, epoch_mod),(uint64_t)MessageReceiveHandler::IsShardingTxnReceiveComplete(ctx, epoch_mod),
        (uint64_t)MessageReceiveHandler::IsShardingSendFinish(epoch_mod),                        (uint64_t)MessageReceiveHandler::IsShardingACKReceiveComplete(ctx, epoch_mod),
        (uint64_t)MessageReceiveHandler::IsBackUpSendFinish(epoch_mod),                 (uint64_t)MessageReceiveHandler::IsBackUpACKReceiveComplete(ctx, epoch_mod),
@@ -165,11 +170,11 @@ namespace Taas {
 //        fflush(stdout);
     }
 
-    bool CheckEpochMergeState(uint64_t &epoch, Context& ctx) {
+    bool CheckEpochMergeState(uint64_t &epoch_, Context& ctx) {
         auto res = false;
         auto epoch_max = EpochManager::GetPhysicalEpoch();
-        if(epoch >= epoch_max) return false;
-        for(auto i = epoch; i < epoch_max; i ++) {
+        if(epoch_ >= epoch_max) return false;
+        for(auto i = epoch_; i < epoch_max; i ++) {
             if (EpochManager::IsShardingMergeComplete(i)) return true;
             if ((ctx.kTxnNodeNum == 1 ||
                 (MessageReceiveHandler::CheckEpochShardingSendComplete(ctx, i) &&
@@ -181,16 +186,16 @@ namespace Taas {
                 res = true;
             }
         }
-        while(EpochManager::IsShardingMergeComplete(epoch)) epoch ++;
+        while(EpochManager::IsShardingMergeComplete(epoch_) && epoch_ < epoch_max) epoch_ ++;
         return res;
 
     }
 
-    bool CheckEpochAbortSetState(uint64_t &epoch, Context& ctx) {
+    bool CheckEpochAbortSetState(uint64_t &epoch_, Context& ctx) {
         auto res = false;
         auto epoch_max = EpochManager::GetPhysicalEpoch();
-        if(epoch >= epoch_max) return false;
-        for(auto i = epoch; i < epoch_max; i ++) {
+        if(epoch_ >= epoch_max) return false;
+        for(auto i = epoch_; i < epoch_max; i ++) {
             if(EpochManager::IsAbortSetMergeComplete(i)) continue;
             if( (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
                 EpochManager::IsShardingMergeComplete(i)
@@ -199,36 +204,36 @@ namespace Taas {
                 res = true;
             }
         }
-        while(EpochManager::IsAbortSetMergeComplete(epoch) && epoch < epoch_max) epoch++;
+        while(EpochManager::IsAbortSetMergeComplete(epoch_) && epoch_ < epoch_max) epoch_++;
         return res;
     }
 
-    bool CheckEpochCommitState(uint64_t &epoch, Context& ctx) {
+    bool CheckEpochCommitState(uint64_t &epoch_, Context& ctx) {
         auto res = false;
         auto epoch_max = EpochManager::GetPhysicalEpoch();
-        if(epoch >= epoch_max) return false;
-        for(auto i = epoch; i < epoch_max; i ++) {
+        if(epoch_ >= epoch_max) return false;
+        for(auto i = epoch_; i < epoch_max; i ++) {
             if(EpochManager::IsCommitComplete(i)) continue;
-            if(EpochManager::IsShardingMergeComplete(epoch) &&
+            if(EpochManager::IsShardingMergeComplete(i) &&
                EpochManager::IsAbortSetMergeComplete(i) &&
                     MessageReceiveHandler::IsEpochTxnHandleComplete(i) &&
-               Merger::IsEpochCommitComplete(ctx, epoch)
+               Merger::IsEpochCommitComplete(ctx, i)
                 ) {
                 EpochManager::SetCommitComplete(i, true);
                 res = true;
             }
         }
-        while(EpochManager::IsCommitComplete(epoch) && epoch < epoch_max) epoch++;
+        while(EpochManager::IsCommitComplete(epoch_) && epoch_ < epoch_max) epoch_++;
         return res;
     }
 
-    bool CheckAndSetRedoLogPushDownState(uint64_t& epoch, Context& ctx) {
+    bool CheckAndSetRedoLogPushDownState(uint64_t& epoch_, Context& ctx) {
         auto res = false;
-        while(epoch < EpochManager::GetPhysicalEpoch() &&
-            EpochManager::IsCommitComplete(epoch) &&
-            MessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, epoch)) {
-            EpochManager::SetRecordCommitted(epoch, true);
-            epoch ++;
+        while(epoch_ < EpochManager::GetPhysicalEpoch() &&
+            EpochManager::IsCommitComplete(epoch_) &&
+            MessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, epoch_)) {
+            EpochManager::SetRecordCommitted(epoch_, true);
+            epoch_ ++;
             res = true;
         }
         return res;
@@ -236,8 +241,7 @@ namespace Taas {
 
     void EpochLogicalTimerManagerThreadMain(Context ctx) {
         SetCPU();
-        uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0,
-                merge_epoch = 1, abort_set_epoch = 1, commit_epoch = 1, redo_log_epoch = 1, clear_epoch = 1;
+
         bool sleep_flag;
         while(!EpochManager::IsInitOK()) usleep(1000);
         if(ctx.is_cache_server_available) {
@@ -303,7 +307,7 @@ namespace Taas {
             gettimeofday(&start_time, nullptr);
             start_time_ll = start_time.tv_sec * 1000000 + start_time.tv_usec;
         }
-        auto epoch = EpochManager::GetPhysicalEpoch(), logical = EpochManager::GetLogicalEpoch();
+        auto epoch_ = EpochManager::GetPhysicalEpoch(), logical = EpochManager::GetLogicalEpoch();
         test_start.store(true);
         is_epoch_advance_started.store(true);
 
@@ -311,8 +315,8 @@ namespace Taas {
         while(!EpochManager::IsTimerStop()){
             usleep(GetSleeptime(ctx));
             EpochManager::AddPhysicalEpoch();
-            epoch ++;
-            if(epoch % ctx.print_mode_size == 0) {
+            epoch_ ++;
+            if(epoch_ % ctx.print_mode_size == 0) {
                 logical = EpochManager::GetLogicalEpoch();
                 OUTPUTLOG(ctx, "=============start Epoch============= ", logical);
             }
@@ -322,26 +326,26 @@ namespace Taas {
     }
 
 
-    void EpochManager::SetServerOnLine(uint64_t& epoch, const std::string& ip) {
+    void EpochManager::SetServerOnLine(uint64_t& epoch_, const std::string& ip) {
         for(int i = 0; i < (int)ctx.kServerIp.size(); i++) {
             if(ip == ctx.kServerIp[i]) {
-                server_state.SetCount(epoch, i, 1);
-                    MessageReceiveHandler::sharding_should_receive_pack_num.Clear(epoch, 1);///relate to server state
-                    MessageReceiveHandler::backup_should_receive_pack_num.Clear(epoch, 1);///relate to server state
-                    MessageReceiveHandler::insert_set_should_receive_num.Clear(epoch, 1);///relate to server state
-                    MessageReceiveHandler::abort_set_should_receive_num.Clear(epoch, 1);///relate to server state
+                server_state.SetCount(epoch_, i, 1);
+                    MessageReceiveHandler::sharding_should_receive_pack_num.Clear(epoch_, 1);///relate to server state
+                    MessageReceiveHandler::backup_should_receive_pack_num.Clear(epoch_, 1);///relate to server state
+                    MessageReceiveHandler::insert_set_should_receive_num.Clear(epoch_, 1);///relate to server state
+                    MessageReceiveHandler::abort_set_should_receive_num.Clear(epoch_, 1);///relate to server state
             }
         }
     }
 
-    void EpochManager::SetServerOffLine(uint64_t& epoch, const std::string& ip) {
+    void EpochManager::SetServerOffLine(uint64_t& epoch_, const std::string& ip) {
         for(int i = 0; i < (int)ctx.kServerIp.size(); i++) {
             if(ip == ctx.kServerIp[i]) {
-                server_state.SetCount(epoch, i, 0);
-                    MessageReceiveHandler::sharding_should_receive_pack_num.Clear(epoch, 0);///relate to server state
-                    MessageReceiveHandler::backup_should_receive_pack_num.Clear(epoch, 0);///relate to server state
-                    MessageReceiveHandler::insert_set_should_receive_num.Clear(epoch, 0);///relate to server state
-                    MessageReceiveHandler::abort_set_should_receive_num.Clear(epoch, 0);///relate to server state
+                server_state.SetCount(epoch_, i, 0);
+                    MessageReceiveHandler::sharding_should_receive_pack_num.Clear(epoch_, 0);///relate to server state
+                    MessageReceiveHandler::backup_should_receive_pack_num.Clear(epoch_, 0);///relate to server state
+                    MessageReceiveHandler::insert_set_should_receive_num.Clear(epoch_, 0);///relate to server state
+                    MessageReceiveHandler::abort_set_should_receive_num.Clear(epoch_, 0);///relate to server state
             }
         }
     }
