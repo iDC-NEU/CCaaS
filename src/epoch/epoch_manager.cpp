@@ -265,8 +265,8 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
 //            if(!EpochManager::CheckEpochAbortSetState()) usleep(20);
 //            if(!EpochManager::CheckEpochCommitState()) usleep(20);
 //            if(!EpochManager::CheckAndSetRedoLogPushDownState()) usleep(20);
-
-            while(epoch < commit_epoch) {
+            epoch = EpochManager::GetLogicalEpoch();
+            while(epoch < commit_epoch.load()) {
                 total_commit_txn_num += Merger::epoch_record_committed_txn_num.GetCount(epoch);
                 if(epoch % ctx.print_mode_size == 0) {
                     printf("*************       完成一个Epoch的合并     Epoch: %8lu ClearEpoch: %8lu *************\n", epoch, clear_epoch.load());
