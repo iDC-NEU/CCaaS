@@ -196,10 +196,11 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         auto i = abort_set_epoch.load();
         if(i >= merge_epoch.load()) return true;
         if(EpochManager::IsAbortSetMergeComplete(i)) return true;
-        while( (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
+        while( i < merge_epoch.load() && (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
             EpochManager::IsShardingMergeComplete(i)) {
             EpochManager::SetAbortSetMergeComplete(i, true);
             abort_set_epoch.fetch_add(1);
+            i ++;
             res = true;
         }
 //        for(auto i = abort_set_epoch.load(); i < merge_epoch.load(); i ++) {
