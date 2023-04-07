@@ -183,6 +183,7 @@ namespace Taas {
                 && Merger::CheckEpochMergeComplete(ctx, i)
                     ) {
                 EpochManager::SetShardingMergeComplete(i, true);
+                printf("====Sharding Merge complete epoch %lu\n", i);
                 res = true;
             }
         }
@@ -201,6 +202,7 @@ namespace Taas {
                 EpochManager::IsShardingMergeComplete(i)
                ) {
                 EpochManager::SetAbortSetMergeComplete(i, true);
+                printf("====AbortSet Merge complete epoch %lu\n", i);
                 res = true;
             }
         }
@@ -220,6 +222,7 @@ namespace Taas {
                     MessageReceiveHandler::IsEpochTxnHandleComplete(i)
                 ) {
                 EpochManager::SetCommitComplete(i, true);
+                printf("====Commit complete epoch %lu\n", i);
                 res = true;
             }
         }

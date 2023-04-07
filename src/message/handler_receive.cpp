@@ -12,7 +12,7 @@
 
 
 namespace Taas {
-    const uint64_t PACKNUM = 1L<<63;///
+    const uint64_t PACKNUM = 1L<<32;///
 
     std::vector<uint64_t>
             MessageReceiveHandler::sharding_send_ack_epoch_num,
@@ -144,14 +144,16 @@ namespace Taas {
 
         sharding_should_receive_pack_num.Init(max_length, sharding_num, 1),
         sharding_received_pack_num.Init(max_length, sharding_num),
-        sharding_should_receive_txn_num.Init(max_length, sharding_num, PACKNUM),
+        sharding_should_receive_txn_num.Init(max_length, sharding_num, 0),
+//        sharding_should_receive_txn_num.Init(max_length, sharding_num, PACKNUM),
         sharding_received_txn_num.Init(max_length, sharding_num),
 
         backup_should_send_txn_num.Init(max_length, sharding_num),
         backup_send_txn_num.Init(max_length, sharding_num),
         backup_should_receive_pack_num.Init(max_length, sharding_num, 1),
         backup_received_pack_num.Init(max_length, sharding_num),
-        backup_should_receive_txn_num.Init(max_length, sharding_num, PACKNUM),
+        backup_should_receive_txn_num.Init(max_length, sharding_num, 0),
+//        backup_should_receive_txn_num.Init(max_length, sharding_num, PACKNUM),
         backup_received_txn_num.Init(max_length, sharding_num),
         backup_received_ack_num.Init(max_length, sharding_num),
 
@@ -176,7 +178,8 @@ namespace Taas {
         sharding_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
         sharding_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
 
-        sharding_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, PACKNUM),
+        sharding_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+//        sharding_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, PACKNUM),
         sharding_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
 
         sharding_should_handle_txn_num.Clear(cache_clear_epoch_num_mod, 0),
@@ -191,7 +194,8 @@ namespace Taas {
 
         backup_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
         backup_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
-        backup_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, PACKNUM),
+        backup_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+//        backup_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, PACKNUM),
         backup_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
         backup_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
 
@@ -319,7 +323,7 @@ namespace Taas {
             case proto::TxnType::EpochEndFlag : {
                 sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
-                sharding_received_txn_num.IncCount(message_epoch,message_server_id, PACKNUM);
+//                sharding_received_txn_num.IncCount(message_epoch,message_server_id, PACKNUM);
                 CheckEpochShardingReceiveComplete(ctx,message_epoch);
                 break;
             }
@@ -332,7 +336,7 @@ namespace Taas {
             case proto::TxnType::BackUpEpochEndFlag : {
                 backup_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 backup_received_pack_num.IncCount(message_epoch,message_server_id, 1);
-                backup_received_txn_num.IncCount(message_epoch,message_server_id, PACKNUM);
+//                backup_received_txn_num.IncCount(message_epoch,message_server_id, PACKNUM);
                 break;
             }
             case proto::TxnType::AbortSet : {
