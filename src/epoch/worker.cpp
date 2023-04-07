@@ -32,29 +32,33 @@ namespace Taas {
             sleep_flag = MessageSendHandler::SendEpochEndMessage(ctx) | sleep_flag;///send epoch end flag
             sleep_flag = MessageSendHandler::SendBackUpEpochEndMessage(ctx) | sleep_flag;///send epoch backup end message
             sleep_flag = MessageSendHandler::SendAbortSet(ctx) | sleep_flag; ///send abort set
-            if(!sleep_flag) usleep(50);
+            if(!sleep_flag) usleep(100);
         }
     }
+
+    void WorkerFroMessageThreadMain(const Context& ctx, uint64_t id) {
+        MessageReceiveHandler receiveHandler;
+        receiveHandler.Init(ctx, id);
+        while(!EpochManager::IsInitOK()) usleep(1000);
+        while(!EpochManager::IsTimerStop()) {
+            receiveHandler.HandleReceivedMessage_Block();
+        }
+    }
+
 
     void WorkerThreadMain(const Context& ctx, uint64_t id) {
         Merger merger;
         merger.Init(ctx, id);
         MessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, id);
-
         auto sleep_flag = false;
-        std::unique_ptr<pack_params> pack_param;
         std::unique_ptr<proto::Transaction> txn_ptr;
-
         while(!EpochManager::IsInitOK()) usleep(1000);
-
         while(!EpochManager::IsTimerStop()) {
             EpochManager::EpochCacheSafeCheck();
-            sleep_flag = sleep_flag | receiveHandler.HandleReceivedMessage();
-//            sleep_flag = sleep_flag | merger.EpochMerge();
             sleep_flag = sleep_flag | merger.EpochCommit_RedoLog_TxnMode();
             sleep_flag = sleep_flag | TiKV::sendTransactionToTiKV(EpochManager::GetPushDownEpoch() % ctx.kCacheMaxLength, txn_ptr);
-//            if(!sleep_flag) usleep(20);
+            if(!sleep_flag) usleep(100);
         }
     }
 

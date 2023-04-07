@@ -5,7 +5,6 @@
 #include <queue>
 #include "epoch/epoch_manager.h"
 #include "storage/tikv.h"
-#include "tools/utilities.h"
 #include "tikv_client.h"
 #include "storage/redo_loger.h"
 

@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 #include <cassert>
+#include <condition_variable>
 
 #include "tools/atomic_counters.h"
 #include "tools/context.h"
@@ -33,6 +34,7 @@ namespace Taas {
 
         static Context ctx;
         static uint64_t max_length;
+        static std::condition_variable commit_cv;
         static std::vector<std::unique_ptr<std::atomic<bool>>>
                     merge_complete, abort_set_merge_complete,
                     commit_complete, record_committed,

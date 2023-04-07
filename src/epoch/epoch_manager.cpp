@@ -19,6 +19,7 @@ namespace Taas {
     Context EpochManager::ctx;
     std::atomic<uint64_t> EpochManager::logical_epoch(1), EpochManager::physical_epoch(0), EpochManager::push_down_epoch(1);
     uint64_t EpochManager::max_length = 10000;
+    std::condition_variable EpochManager::commit_cv;
     //epoch merge state
     std::vector<std::unique_ptr<std::atomic<bool>>> EpochManager::merge_complete, EpochManager::abort_set_merge_complete,
             EpochManager::commit_complete, EpochManager::record_committed, EpochManager::is_current_epoch_abort;
@@ -199,6 +200,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         while( i < merge_epoch.load() && (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
             EpochManager::IsShardingMergeComplete(i)) {
             EpochManager::SetAbortSetMergeComplete(i, true);
+            EpochManager::commit_cv.notify_all();
             abort_set_epoch.fetch_add(1);
             i ++;
             res = true;
@@ -213,7 +215,6 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         while( i < abort_set_epoch.load() && EpochManager::IsShardingMergeComplete(i) &&
                EpochManager::IsAbortSetMergeComplete(i) && Merger::CheckEpochCommitComplete(ctx, i) &&
                MessageReceiveHandler::IsEpochTxnHandleComplete(i) ) {
-
             EpochManager::SetCommitComplete(i, true);
             i ++;
             commit_epoch.fetch_add(1);
@@ -243,7 +244,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         OUTPUTLOG(ctx, "=====start Epoch的合并===== ", epoch);
         while(!EpochManager::IsTimerStop()){
             while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(20);
-            while(!EpochManager::CheckEpochMergeState() && abort_set_epoch.load() >= merge_epoch.load()) usleep(50);
+            while((!EpochManager::CheckEpochMergeState()) && abort_set_epoch.load() >= merge_epoch.load()) usleep(50);
             while(!EpochManager::CheckEpochAbortSetState()) usleep(50);
             while(!EpochManager::CheckEpochCommitState()) usleep(50);
             EpochManager::CheckAndSetRedoLogPushDownState();
@@ -259,6 +260,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
                 }
                 epoch ++;
                 EpochManager::AddLogicalEpoch();
+                EpochManager::commit_cv.notify_all();
             }
 
             while(clear_epoch < merge_epoch.load() &&

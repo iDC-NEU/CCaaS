@@ -313,6 +313,8 @@ namespace Taas {
         }
 
         void CheckAdnSetEpochMergeState();
+
+        void HandleReceivedMessage_Block();
     };
 
 }

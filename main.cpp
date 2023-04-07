@@ -24,6 +24,9 @@ namespace Taas {
         threads.push_back(std::make_unique<std::thread>(EpochLogicalTimerManagerThreadMain, ctx));
         threads.push_back(std::make_unique<std::thread>(StateChecker, ctx));
         for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
+            threads.push_back(std::make_unique<std::thread>(WorkerFroMessageThreadMain, ctx, i));
+        }
+        for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
             threads.push_back(std::make_unique<std::thread>(WorkerThreadMain, ctx, i));
         }
         if(ctx.kTxnNodeNum > 1) {

@@ -185,7 +185,10 @@ namespace Taas {
         //RC or RR Isolation
         epoch = EpochManager::GetLogicalEpoch();
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
-        if(EpochManager::IsCommitComplete(epoch)) return sleep_flag;
+        if(CheckEpochCommitComplete(ctx, epoch)) {
+            std::unique_lock<std::mutex> lock;
+            EpochManager::commit_cv.wait(lock, [&]{return epoch < EpochManager::GetLogicalEpoch();});
+        }
         if(EpochManager::IsShardingMergeComplete(epoch)) {
             while (epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
                 //不对分片事务进行commit处理
@@ -212,6 +215,10 @@ namespace Taas {
                 sleep_flag = true;
             }
             CheckEpochCommitComplete(ctx, epoch);
+        }
+        else {
+            std::unique_lock<std::mutex> lock;
+            EpochManager::commit_cv.wait(lock, [&]{return EpochManager::IsShardingMergeComplete(epoch);});
         }
         //SI Isolation
 
