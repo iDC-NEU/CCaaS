@@ -249,14 +249,12 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
 
     void EpochLogicalTimerManagerThreadMain(const Context& ctx) {
         SetCPU();
-        auto sleep_flag = false;
         while(!EpochManager::IsInitOK()) usleep(1000);
         if(ctx.is_cache_server_available) {
             cache_server_available = 0;
         }
         OUTPUTLOG(ctx, "=====start Epoch的合并===== ", epoch);
         while(!EpochManager::IsTimerStop()){
-            sleep_flag = false;
             while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(20);
             EpochManager::CheckEpochMergeState();
             while(EpochManager::CheckEpochAbortSetState()) usleep(50);
