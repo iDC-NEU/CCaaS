@@ -173,8 +173,8 @@ namespace Taas {
     bool CheckEpochMergeState(uint64_t &epoch_, Context& ctx) {
         auto res = false;
         auto epoch_max = EpochManager::GetPhysicalEpoch();
-        if(epoch_ >= epoch_max) return false;
-        for(auto i = epoch_; i < epoch_max; i ++) {
+        if(merge_epoch >= epoch_max) return false;
+        for(auto i = merge_epoch; i < epoch_max; i ++) {
             if (EpochManager::IsShardingMergeComplete(i)) return true;
             if ((ctx.kTxnNodeNum == 1 ||
                 (MessageReceiveHandler::CheckEpochShardingSendComplete(ctx, i) &&
@@ -187,16 +187,15 @@ namespace Taas {
                 res = true;
             }
         }
-        while(EpochManager::IsShardingMergeComplete(epoch_) && epoch_ < epoch_max) epoch_ ++;
+        while(EpochManager::IsShardingMergeComplete(merge_epoch) && merge_epoch < epoch_max) merge_epoch ++;
         return res;
 
     }
 
     bool CheckEpochAbortSetState(uint64_t &epoch_, Context& ctx) {
         auto res = false;
-        auto epoch_max = EpochManager::GetPhysicalEpoch();
-        if(epoch_ >= epoch_max) return false;
-        for(auto i = epoch_; i < epoch_max; i ++) {
+        if(abort_set_epoch >= merge_epoch) return false;
+        for(auto i = abort_set_epoch; i < merge_epoch; i ++) {
             if(EpochManager::IsAbortSetMergeComplete(i)) continue;
             if( (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
                 EpochManager::IsShardingMergeComplete(i)
@@ -206,15 +205,14 @@ namespace Taas {
                 res = true;
             }
         }
-        while(EpochManager::IsAbortSetMergeComplete(epoch_) && epoch_ < epoch_max) epoch_++;
+        while(EpochManager::IsAbortSetMergeComplete(abort_set_epoch) && abort_set_epoch < merge_epoch) abort_set_epoch++;
         return res;
     }
 
     bool CheckEpochCommitState(uint64_t &epoch_, Context& ctx) {
         auto res = false;
-        auto epoch_max = EpochManager::GetPhysicalEpoch();
-        if(epoch_ >= epoch_max) return false;
-        for(auto i = epoch_; i < epoch_max; i ++) {
+        if(commit_epoch >= abort_set_epoch) return false;
+        for(auto i = commit_epoch; i < abort_set_epoch; i ++) {
             if(EpochManager::IsCommitComplete(i)) continue;
             if(EpochManager::IsShardingMergeComplete(i) &&
                EpochManager::IsAbortSetMergeComplete(i) &&
@@ -226,17 +224,17 @@ namespace Taas {
                 res = true;
             }
         }
-        while(EpochManager::IsCommitComplete(epoch_) && epoch_ < epoch_max) epoch_++;
+        while(EpochManager::IsCommitComplete(commit_epoch) && commit_epoch < abort_set_epoch) commit_epoch++;
         return res;
     }
 
     bool CheckAndSetRedoLogPushDownState(uint64_t& epoch_, Context& ctx) {
         auto res = false;
-        while(epoch_ < EpochManager::GetPhysicalEpoch() &&
-            EpochManager::IsCommitComplete(epoch_) &&
-            MessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, epoch_)) {
-            EpochManager::SetRecordCommitted(epoch_, true);
-            epoch_ ++;
+        while(redo_log_epoch < commit_epoch &&
+            EpochManager::IsCommitComplete(redo_log_epoch) &&
+            MessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, redo_log_epoch)) {
+            EpochManager::SetRecordCommitted(redo_log_epoch, true);
+            redo_log_epoch ++;
             res = true;
         }
         return res;
