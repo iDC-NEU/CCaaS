@@ -12,6 +12,8 @@
 
 
 namespace Taas {
+    const uint64_t PACKNUM = 1L<<63;///
+
     std::vector<uint64_t>
             MessageReceiveHandler::sharding_send_ack_epoch_num,
             MessageReceiveHandler::backup_send_ack_epoch_num,
@@ -142,14 +144,14 @@ namespace Taas {
 
         sharding_should_receive_pack_num.Init(max_length, sharding_num, 1),
         sharding_received_pack_num.Init(max_length, sharding_num),
-        sharding_should_receive_txn_num.Init(max_length, sharding_num),
+        sharding_should_receive_txn_num.Init(max_length, sharding_num, PACKNUM),
         sharding_received_txn_num.Init(max_length, sharding_num),
 
         backup_should_send_txn_num.Init(max_length, sharding_num),
         backup_send_txn_num.Init(max_length, sharding_num),
         backup_should_receive_pack_num.Init(max_length, sharding_num, 1),
         backup_received_pack_num.Init(max_length, sharding_num),
-        backup_should_receive_txn_num.Init(max_length, sharding_num),
+        backup_should_receive_txn_num.Init(max_length, sharding_num, PACKNUM),
         backup_received_txn_num.Init(max_length, sharding_num),
         backup_received_ack_num.Init(max_length, sharding_num),
 
@@ -173,7 +175,8 @@ namespace Taas {
         auto cache_clear_epoch_num_mod = epoch % ctx.kCacheMaxLength;
         sharding_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
         sharding_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
-        sharding_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+
+        sharding_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, PACKNUM),
         sharding_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
 
         sharding_should_handle_txn_num.Clear(cache_clear_epoch_num_mod, 0),
@@ -188,7 +191,7 @@ namespace Taas {
 
         backup_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
         backup_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
-        backup_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        backup_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, PACKNUM),
         backup_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
         backup_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
 
@@ -282,55 +285,6 @@ namespace Taas {
         return true;
     }
 
-    bool MessageReceiveHandler::CheckAndReplyEpochEndFlagACK(){
-        if(epoch < EpochManager::GetPhysicalEpoch() &&
-                IsShardingPackReceiveComplete(message_epoch, message_server_id) &&
-                IsShardingTxnReceiveComplete(message_epoch, message_server_id)) {
-            MessageSendHandler::SendTxnToServer(ctx, message_epoch,
-                                                message_server_id, empty_txn, proto::TxnType::EpochShardingACK);
-            return true;
-        }
-        return false;
-    }
-
-    bool MessageReceiveHandler::CheckAndReplyBackUpEndFlagACK(){
-        if(epoch < EpochManager::GetPhysicalEpoch() &&
-                IsBackUpPackReceiveComplete(message_epoch, message_server_id) &&
-                IsBackUpTxnReceiveComplete(message_epoch, message_server_id)) {
-            MessageSendHandler::SendTxnToServer(ctx, message_epoch,
-                                                message_server_id, empty_txn, proto::TxnType::BackUpACK);
-            return true;
-        }
-        return false;
-    }
-    bool MessageReceiveHandler::CheckAndReplyAbortSetACK(){
-        if(epoch < EpochManager::GetPhysicalEpoch() &&
-                IsAbortSetReceiveComplete(message_epoch, message_server_id)) {
-            MessageSendHandler::SendTxnToServer(ctx, message_epoch,
-                                                message_server_id, empty_txn, proto::TxnType::AbortSetACK);
-            return true;
-        }
-        return false;
-    }
-    bool MessageReceiveHandler::CheckAndReplyInsertACK(){
-        if(epoch < EpochManager::GetPhysicalEpoch() &&
-                IsInsertSetReceiveComplete(message_epoch, message_server_id)) {
-            MessageSendHandler::SendTxnToServer(ctx, message_epoch,
-                                                message_server_id, empty_txn, proto::TxnType::InsertSetACK);
-            return true;
-        }
-        return false;
-    }
-    bool MessageReceiveHandler::CheckAndReplyRedoLogPushDownACK(uint64_t& epoch){
-        if(epoch < EpochManager::GetPhysicalEpoch() &&
-                Merger::IsEpochCommitComplete(ctx, epoch) &&
-           IsShardingTxnReceiveComplete(ctx, epoch)) {
-            MessageSendHandler::SendMessageToAll(ctx, epoch, proto::TxnType::EpochLogPushDownComplete);
-            return true;
-        }
-        return false;
-    }
-
     bool MessageReceiveHandler::HandleReceivedTxn() {
         if(txn_ptr->txn_type() == proto::TxnType::ClientTxn) {
             txn_ptr->set_commit_epoch(EpochManager::GetPhysicalEpoch());
@@ -350,15 +304,14 @@ namespace Taas {
                 sharding_handled_txn_num.IncCount(message_epoch, thread_id, 1);
                 CheckEpochShardingSendComplete(ctx, message_epoch);
                 CheckEpochBackUpComplete(ctx, message_epoch);
-
                 break;
             }
             case proto::TxnType::RemoteServerTxn : {
                 sharding_should_handle_txn_num.IncCount(message_epoch, thread_id, 1);
                 Merger::epoch_should_merge_txn_num.IncCount(message_epoch, message_server_id, 1);
+                sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
 //                Merger::MergeQueueEnqueue(message_epoch, std::move(txn_ptr), ctx);
                 Merger::EpochMerge(ctx, message_epoch, std::move(txn_ptr));
-                sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
                 sharding_handled_txn_num.IncCount(message_epoch, thread_id, 1);
                 CheckEpochShardingReceiveComplete(ctx,message_epoch);
                 break;
@@ -366,8 +319,8 @@ namespace Taas {
             case proto::TxnType::EpochEndFlag : {
                 sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
+                sharding_received_txn_num.IncCount(message_epoch,message_server_id, PACKNUM);
                 CheckEpochShardingReceiveComplete(ctx,message_epoch);
-//                printf("receive a epoch end flag epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::BackUpTxn : {
@@ -379,7 +332,7 @@ namespace Taas {
             case proto::TxnType::BackUpEpochEndFlag : {
                 backup_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 backup_received_pack_num.IncCount(message_epoch,message_server_id, 1);
-//                printf("receive a buckup epoch end flag epoch %lu, server %lu\n", message_epoch, message_server_id);
+                backup_received_txn_num.IncCount(message_epoch,message_server_id, PACKNUM);
                 break;
             }
             case proto::TxnType::AbortSet : {
@@ -388,31 +341,34 @@ namespace Taas {
                 epoch_abort_set[message_epoch_mod]->enqueue(nullptr);
                 abort_set_received_num.IncCount(message_epoch,message_server_id, 1);
                 CheckEpochAbortSetMergeComplete(ctx, message_epoch);
-//                printf("receive a abort set epoch %lu, server %lu\n", message_epoch, message_server_id);
+                ///send abort set ack
+                MessageSendHandler::SendTxnToServer(ctx, message_epoch,
+                            message_server_id, empty_txn, proto::TxnType::AbortSetACK);
                 break;
             }
             case proto::TxnType::InsertSet : {
                 epoch_insert_set[message_epoch_mod]->enqueue(std::move(txn_ptr));
                 epoch_insert_set[message_epoch_mod]->enqueue(nullptr);
                 insert_set_received_num.IncCount(message_epoch,message_server_id, 1);
+                CheckEpochInsertSetMergeComplete(ctx, message_epoch);
+                ///send insert set ack
+                MessageSendHandler::SendTxnToServer(ctx, message_epoch,
+                            message_server_id, empty_txn, proto::TxnType::InsertSetACK);
                 break;
             }
             case proto::TxnType::EpochShardingACK : {
                 sharding_received_ack_num.IncCount(message_epoch,message_server_id, 1);
                 CheckEpochShardingSendComplete(ctx, message_epoch);
-//                printf("receive a epoch sharding ack epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::BackUpACK : {
                 backup_received_ack_num.IncCount(message_epoch,message_server_id, 1);
                 CheckEpochBackUpComplete(ctx, message_epoch);
-//                printf("receive a buckup ack epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::AbortSetACK : {
                 abort_set_received_ack_num.IncCount(message_epoch,message_server_id, 1);
                 CheckEpochAbortSetMergeComplete(ctx, message_epoch);
-//                printf("receive a abort set ack epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::InsertSetACK : {
@@ -421,7 +377,6 @@ namespace Taas {
             }
             case proto::TxnType::EpochLogPushDownComplete : {
                 redo_log_push_down_ack_num.IncCount(message_epoch,message_server_id, 1);
-//                printf("receive a log push down epoch %lu, server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::NullMark:
@@ -464,52 +419,30 @@ namespace Taas {
         if(Merger::IsEpochCommitComplete(ctx, redo_log_push_down_reply) &&
                 redo_log_push_down_reply < EpochManager::GetLogicalEpoch()) {
             MessageSendHandler::SendTxnToServer(ctx, redo_log_push_down_reply,
-                                                server_reply_ack_id, empty_txn, proto::TxnType::EpochLogPushDownComplete);
+                            server_reply_ack_id, empty_txn, proto::TxnType::EpochLogPushDownComplete);
             redo_log_push_down_reply ++;
+            res = true;
         }
 
         ///to single server  send ack
         if(id != ctx.txn_node_ip_index) {
             auto &sharding_epoch = sharding_send_ack_epoch_num[id];
             if(sharding_epoch < EpochManager::GetPhysicalEpoch() &&
-                    IsEpochTxnHandleComplete(sharding_epoch) &&
                     IsShardingPackReceiveComplete(sharding_epoch, id) &&
                IsShardingTxnReceiveComplete(sharding_epoch, id)) {
                 MessageSendHandler::SendTxnToServer(ctx, sharding_epoch,
-                                                    id, empty_txn, proto::TxnType::EpochShardingACK);
+                            id, empty_txn, proto::TxnType::EpochShardingACK);
                 sharding_epoch ++;
                 res = true;
             }
 
             auto& backup_epoch = backup_send_ack_epoch_num[id];
             if(backup_epoch < EpochManager::GetPhysicalEpoch() &&
-                    IsEpochTxnHandleComplete(backup_epoch) &&
                     IsBackUpPackReceiveComplete(backup_epoch, id) &&
                     IsBackUpTxnReceiveComplete(backup_epoch, id)) {
                 MessageSendHandler::SendTxnToServer(ctx, backup_epoch,
-                                                        id, empty_txn, proto::TxnType::BackUpACK);
+                            id, empty_txn, proto::TxnType::BackUpACK);
                 backup_epoch ++;
-                res = true;
-            }
-
-            auto& abort_set_epoch = abort_set_send_ack_epoch_num[id];
-            if(abort_set_epoch < EpochManager::GetPhysicalEpoch() &&
-               IsEpochTxnHandleComplete(abort_set_epoch) &&
-               IsAbortSetReceiveComplete(abort_set_epoch, id)) {
-
-                MessageSendHandler::SendTxnToServer(ctx, abort_set_epoch,
-                                                    id, empty_txn, proto::TxnType::AbortSetACK);
-                abort_set_epoch ++;
-                res = true;
-            }
-
-            auto& backup_insert_epoch = backup_insert_set_send_ack_epoch_num[id];
-            if(backup_insert_epoch < EpochManager::GetPhysicalEpoch() &&
-                    IsEpochTxnHandleComplete(backup_insert_epoch) &&
-                    IsInsertSetReceiveComplete(backup_insert_epoch, id)) {
-                MessageSendHandler::SendTxnToServer(ctx, backup_insert_epoch,
-                                                        id, empty_txn, proto::TxnType::InsertSetACK);
-                backup_insert_epoch ++;
                 res = true;
             }
 
