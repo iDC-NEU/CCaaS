@@ -18,6 +18,7 @@ namespace Taas {
  */
 
     void StateChecker(const Context& ctx) {
+        SetCPU();
         MessageSendHandler sendHandler;
         MessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, 0);
@@ -26,11 +27,12 @@ namespace Taas {
 //        printf("State Checker\n");
         while (!EpochManager::IsTimerStop()) {
             sleep_flag = false;
+            sleep_flag = sleep_flag | EpochManager::CheckEpochMergeState();
             sleep_flag = sleep_flag | receiveHandler.CheckReceivedStatesAndReply();/// check and send ack
             sleep_flag = sleep_flag | MessageSendHandler::SendEpochEndMessage(ctx);///send epoch end flag
             sleep_flag = sleep_flag | MessageSendHandler::SendBackUpEpochEndMessage(ctx);///send epoch backup end message
             sleep_flag = sleep_flag | MessageSendHandler::SendAbortSet(ctx); ///send abort set
-//            if(!sleep_flag) usleep(20);
+            if(!sleep_flag) usleep(50);
         }
     }
 

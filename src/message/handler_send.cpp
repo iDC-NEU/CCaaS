@@ -186,6 +186,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
 
     ///一下函数都由0号线程执行
     bool MessageSendHandler::SendEpochEndMessage(const Context &ctx) {
+        auto sleep_flag = false;
         for(auto epoch = sharding_sent_epoch; epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
             for(uint64_t sharding_id = 0; sharding_id < ctx.kTxnNodeNum; sharding_id ++) { /// send to everyone  sharding_num == TxnNodeNum
                 ///检查当前server(sharding_id)的第send_epoch的endFlag是否能够发送
@@ -207,6 +208,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
                     MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(sharding_id, 0, "", epoch,proto::TxnType::EpochEndFlag,std::move(serialized_txn_str_ptr),nullptr));
                     MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(sharding_id, 0, "", epoch, proto::TxnType::NullMark,nullptr, nullptr));
                     send_res.store(true);
+                    sleep_flag = true;
                 }
             }
         }
@@ -221,10 +223,11 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
             sharding_sent_epoch ++;
 
         }
-        return true;
+        return sleep_flag;
     }
 
     bool MessageSendHandler::SendBackUpEpochEndMessage(const Context &ctx) {
+        auto sleep_flag = false;
         for(auto epoch = backup_sent_epoch; epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
             if(backup_send_epoch[epoch % ctx.kCacheMaxLength]->load()) continue; ///已经发送过 不再发送
             if(MessageReceiveHandler::IsBackUpSendFinish(epoch)) {
@@ -248,16 +251,18 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
 //                printf("send epoch backup end flag epoch %lu\n",epoch);
                 MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_id, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
                 backup_send_epoch[epoch % ctx.kCacheMaxLength]->store(true);
+                sleep_flag = true;
             }
         }
         while(backup_sent_epoch < EpochManager::GetLogicalEpoch() && backup_send_epoch[backup_sent_epoch % ctx.kCacheMaxLength]->load()) {
             backup_send_epoch[backup_sent_epoch % ctx.kCacheMaxLength]->store(false);
             backup_sent_epoch ++;
         }
-        return true;
+        return sleep_flag;
     }
 
     bool MessageSendHandler::SendAbortSet(const Context &ctx) {
+        auto sleep_flag = false;
         for(auto epoch = abort_sent_epoch; epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
             if(abort_set_send_epoch[epoch % ctx.kCacheMaxLength]->load()) continue; ///已经发送过 不再发送
             if (Merger::IsEpochMergeComplete(ctx, epoch)) {
@@ -285,16 +290,18 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
 //                printf("send epoch abort set flag epoch %lu\n",epoch);
                 MessageQueue::send_to_server_queue->enqueue( std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
                 abort_set_send_epoch[epoch % ctx.kCacheMaxLength]->store(true);
+                sleep_flag = true;
             }
         }
         while(abort_sent_epoch < EpochManager::GetLogicalEpoch() && abort_set_send_epoch[abort_sent_epoch % ctx.kCacheMaxLength]->load()) {
             abort_set_send_epoch[abort_sent_epoch % ctx.kCacheMaxLength]->store(false);
             abort_sent_epoch ++;
         }
-        return true;
+        return sleep_flag;
     }
 
     bool MessageSendHandler::SendInsertSet(const Context &ctx) {
+        auto sleep_flag = false;
         for(auto epoch = insert_set_sent_epoch; epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
             auto msg = std::make_unique<proto::Message>();
             auto* txn_end = msg->mutable_txn();
@@ -319,12 +326,13 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
             }
             MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
             insert_set_send_epoch[epoch % ctx.kCacheMaxLength]->store(true);
+            sleep_flag = true;
         }
         while(insert_set_sent_epoch < EpochManager::GetLogicalEpoch() && insert_set_send_epoch[insert_set_sent_epoch % ctx.kCacheMaxLength]->load()) {
             insert_set_send_epoch[insert_set_sent_epoch % ctx.kCacheMaxLength]->store(false);
             insert_set_sent_epoch ++;
         }
-        return true;
+        return sleep_flag;
     }
 
 }

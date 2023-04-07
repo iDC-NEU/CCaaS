@@ -291,6 +291,18 @@ namespace Taas {
         return true;
     }
 
+//    void MessageReceiveHandler::CheckAdnSetEpochMergeState() {
+//        if (EpochManager::IsShardingMergeComplete(message_epoch)) return ;
+//        if ((ctx.kTxnNodeNum == 1 ||
+//             (MessageReceiveHandler::CheckEpochShardingSendComplete(ctx, message_epoch) &&
+//              MessageReceiveHandler::CheckEpochShardingReceiveComplete(ctx, message_epoch) &&
+//              MessageReceiveHandler::CheckEpochBackUpComplete(ctx, message_epoch)))
+//            && Merger::CheckEpochMergeComplete(ctx, message_epoch)
+//                ) {
+//            EpochManager::SetShardingMergeComplete(message_epoch, true);
+//        }
+//    }
+
     bool MessageReceiveHandler::HandleReceivedTxn() {
         if(txn_ptr->txn_type() == proto::TxnType::ClientTxn) {
             txn_ptr->set_commit_epoch(EpochManager::GetPhysicalEpoch());
@@ -326,7 +338,7 @@ namespace Taas {
                 sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
 //                sharding_received_txn_num.IncCount(message_epoch,message_server_id, PACKNUM);
-//                CheckEpochShardingReceiveComplete(ctx,message_epoch);
+                CheckEpochShardingReceiveComplete(ctx,message_epoch);
                 break;
             }
             case proto::TxnType::BackUpTxn : {
@@ -364,17 +376,17 @@ namespace Taas {
             }
             case proto::TxnType::EpochShardingACK : {
                 sharding_received_ack_num.IncCount(message_epoch,message_server_id, 1);
-//                CheckEpochShardingSendComplete(ctx, message_epoch);
+                CheckEpochShardingSendComplete(ctx, message_epoch);
                 break;
             }
             case proto::TxnType::BackUpACK : {
                 backup_received_ack_num.IncCount(message_epoch,message_server_id, 1);
-//                CheckEpochBackUpComplete(ctx, message_epoch);
+                CheckEpochBackUpComplete(ctx, message_epoch);
                 break;
             }
             case proto::TxnType::AbortSetACK : {
                 abort_set_received_ack_num.IncCount(message_epoch,message_server_id, 1);
-//                CheckEpochAbortSetMergeComplete(ctx, message_epoch);
+                CheckEpochAbortSetMergeComplete(ctx, message_epoch);
                 break;
             }
             case proto::TxnType::InsertSetACK : {

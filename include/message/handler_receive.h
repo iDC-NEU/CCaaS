@@ -108,8 +108,9 @@ namespace Taas {
                 return true;
             }
             if (epoch < EpochManager::GetPhysicalEpoch() &&
-                    IsShardingSendFinish(epoch) &&
-                    IsShardingACKReceiveComplete(ctx, epoch)) {
+                    IsShardingACKReceiveComplete(ctx, epoch) &&
+                    IsShardingSendFinish(epoch)
+                    ) {
                 epoch_sharding_send_complete[epoch % ctx.kCacheMaxLength]->store(true);
                 return true;
             }
@@ -135,8 +136,8 @@ namespace Taas {
 
         static bool CheckEpochBackUpComplete(const Context &ctx, uint64_t& epoch) {
             if (epoch_back_up_complete[epoch % ctx.kCacheMaxLength]->load()) return true;
-            if(epoch < EpochManager::GetPhysicalEpoch() && IsBackUpSendFinish(epoch) &&
-                    IsBackUpACKReceiveComplete(ctx, epoch)) {
+            if(epoch < EpochManager::GetPhysicalEpoch() && IsBackUpACKReceiveComplete(ctx, epoch)
+                &&IsBackUpSendFinish(epoch)) {
                 epoch_back_up_complete[epoch % ctx.kCacheMaxLength]->store(true);
                 return true;
             }

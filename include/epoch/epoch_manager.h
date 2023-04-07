@@ -22,7 +22,7 @@ namespace Taas {
     extern std::atomic<int> init_ok_num;
     extern std::atomic<bool> is_epoch_advance_started, test_start;
     extern void InitEpochTimerManager(const Context& ctx);
-    extern void EpochLogicalTimerManagerThreadMain(Context ctx);
+    extern void EpochLogicalTimerManagerThreadMain(const Context& ctx);
     extern void EpochPhysicalTimerManagerThreadMain(Context ctx);
     void OUTPUTLOG(const Context& ctx, const std::string& s, uint64_t& epoch);
     class EpochManager {
@@ -126,6 +126,10 @@ namespace Taas {
             return init_ok_num.load() >= 1;
         }
 
+        static bool CheckEpochMergeState();
+        static bool CheckEpochAbortSetState();
+        static bool CheckEpochCommitState();
+        static bool CheckAndSetRedoLogPushDownState();
     };
 }
 
