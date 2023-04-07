@@ -194,7 +194,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
     bool EpochManager::CheckEpochAbortSetState() {
         auto res = false;
         auto i = abort_set_epoch.load();
-        if(i >= merge_epoch.load()) return false;
+        if(i >= merge_epoch.load()) return true;
         if(EpochManager::IsAbortSetMergeComplete(i)) return true;
         while( (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
             EpochManager::IsShardingMergeComplete(i)) {
@@ -218,7 +218,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
 
     bool EpochManager::CheckEpochCommitState() {
         auto res = false;
-        if(commit_epoch.load() >= abort_set_epoch.load()) return false;
+        if(commit_epoch.load() >= abort_set_epoch.load()) return true;
         for(auto i = commit_epoch.load(); i < abort_set_epoch.load(); i ++) {
             if(EpochManager::IsCommitComplete(i)) continue;
             if(EpochManager::IsShardingMergeComplete(i) &&
@@ -257,10 +257,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         while(!EpochManager::IsTimerStop()){
             while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(20);
             EpochManager::CheckEpochMergeState();
-            while(EpochManager::CheckEpochAbortSetState()) {
-                usleep(50);
-                EpochManager::CheckEpochMergeState();
-            }
+            while(EpochManager::CheckEpochAbortSetState()) usleep(50);
             while(EpochManager::CheckEpochCommitState()) usleep(50);
             EpochManager::CheckAndSetRedoLogPushDownState();
 
