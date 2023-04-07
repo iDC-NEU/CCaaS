@@ -30,7 +30,7 @@ namespace Taas {
             sleep_flag = sleep_flag | MessageSendHandler::SendEpochEndMessage(ctx);///send epoch end flag
             sleep_flag = sleep_flag | MessageSendHandler::SendBackUpEpochEndMessage(ctx);///send epoch backup end message
             sleep_flag = sleep_flag | MessageSendHandler::SendAbortSet(ctx); ///send abort set
-            if(!sleep_flag) usleep(50);
+//            if(!sleep_flag) usleep(20);
         }
     }
 
@@ -52,9 +52,8 @@ namespace Taas {
 //            sleep_flag = sleep_flag | merger.EpochMerge();
             sleep_flag = sleep_flag | merger.EpochCommit_RedoLog_TxnMode();
             sleep_flag = sleep_flag | TiKV::sendTransactionToTiKV(EpochManager::GetPushDownEpoch() % ctx.kCacheMaxLength, txn_ptr);
-            if(!sleep_flag) usleep(50);
+//            if(!sleep_flag) usleep(20);
         }
-
     }
 
 }

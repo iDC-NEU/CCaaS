@@ -250,7 +250,7 @@ namespace Taas {
         }
         OUTPUTLOG(ctx, "=====start Epoch的合并===== ", epoch);
         while(!EpochManager::IsTimerStop()){
-            while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(100);
+            while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(20);
             sleep_flag = false;
             sleep_flag = sleep_flag | CheckEpochMergeState(merge_epoch, ctx);
             sleep_flag = sleep_flag | CheckEpochAbortSetState(abort_set_epoch, ctx);
@@ -281,7 +281,7 @@ namespace Taas {
                 clear_epoch ++;
                 EpochManager::AddPushDownEpoch();
             }
-            if(!sleep_flag) usleep(100);
+//            if(!sleep_flag) usleep(20);
         }
         printf("total commit txn num: %lu\n", total_commit_txn_num);
     }
