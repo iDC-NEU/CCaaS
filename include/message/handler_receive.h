@@ -72,7 +72,8 @@ namespace Taas {
         ///sharding txns
         ///接收到来自client的事务，进行分片并将事务发送到指定的txn node
         static AtomicCounters_Cache ///epoch, index, num
-            sharding_should_handle_txn_num, sharding_handled_txn_num,
+            sharding_should_handle_local_txn_num, sharding_handled_local_txn_num,
+            sharding_should_handle_remote_txn_num, sharding_handled_remote_txn_num,
             sharding_should_send_txn_num, sharding_send_txn_num;
 
         ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
@@ -177,14 +178,14 @@ namespace Taas {
 
         ///local txn sharding send check
         static bool IsShardingSendFinish(uint64_t epoch, uint64_t sharding_id) {
-            return sharding_send_txn_num.GetCount(epoch, sharding_id) >= sharding_should_send_txn_num.GetCount(epoch, sharding_id) &&
-                    sharding_handled_txn_num.GetCount(epoch) >= sharding_should_handle_txn_num.GetCount(epoch) &&
-                    epoch < EpochManager::GetPhysicalEpoch();
+            return epoch < EpochManager::GetPhysicalEpoch() &&
+                    sharding_send_txn_num.GetCount(epoch, sharding_id) >= sharding_should_send_txn_num.GetCount(epoch, sharding_id) &&
+                    sharding_handled_local_txn_num.GetCount(epoch) >= sharding_should_handle_local_txn_num.GetCount(epoch);
         }
         static bool IsShardingSendFinish(uint64_t epoch) {
-            return sharding_send_txn_num.GetCount(epoch) >= sharding_should_send_txn_num.GetCount(epoch) &&
-                   sharding_handled_txn_num.GetCount(epoch) >= sharding_should_handle_txn_num.GetCount(epoch) &&
-                   epoch < EpochManager::GetPhysicalEpoch();
+            return epoch < EpochManager::GetPhysicalEpoch() &&
+                    sharding_send_txn_num.GetCount(epoch) >= sharding_should_send_txn_num.GetCount(epoch) &&
+                    sharding_handled_local_txn_num.GetCount(epoch) >= sharding_should_handle_local_txn_num.GetCount(epoch);
         }
         static bool IsShardingACKReceiveComplete(const Context &ctx, uint64_t epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i ++) {
@@ -194,8 +195,9 @@ namespace Taas {
             return true;
         }
         static bool IsEpochTxnHandleComplete(uint64_t epoch) {
-            return sharding_handled_txn_num.GetCount(epoch) >= sharding_should_handle_txn_num.GetCount(epoch)
-                && epoch < EpochManager::GetPhysicalEpoch();
+            return epoch < EpochManager::GetPhysicalEpoch() &&
+                sharding_handled_local_txn_num.GetCount(epoch) >= sharding_should_handle_local_txn_num.GetCount(epoch) &&
+                    sharding_handled_remote_txn_num.GetCount(epoch) >= sharding_should_handle_remote_txn_num.GetCount(epoch);
         }
         ///remote txn receive check
         static bool IsShardingPackReceiveComplete(const Context &ctx, uint64_t epoch) {
@@ -224,9 +226,9 @@ namespace Taas {
 
         ///backup check
         static bool IsBackUpSendFinish(uint64_t epoch) {
-            return backup_send_txn_num.GetCount(epoch) >= backup_should_send_txn_num.GetCount(epoch) &&
-                    sharding_handled_txn_num.GetCount(epoch) >= sharding_should_handle_txn_num.GetCount(epoch) &&
-                    epoch < EpochManager::GetPhysicalEpoch();
+            return epoch < EpochManager::GetPhysicalEpoch() &&
+                    backup_send_txn_num.GetCount(epoch) >= backup_should_send_txn_num.GetCount(epoch) &&
+                    sharding_handled_local_txn_num.GetCount(epoch) >= sharding_should_handle_local_txn_num.GetCount(epoch);
         }
         static bool IsBackUpACKReceiveComplete(const Context &ctx, uint64_t epoch) {
             auto to_id = ctx.txn_node_ip_index + 1;

@@ -38,8 +38,8 @@ namespace Taas {
     ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
     AtomicCounters_Cache ///epoch, server_id, value
         ///epoch txn counters
-        MessageReceiveHandler::sharding_should_handle_txn_num(10, 1),
-        MessageReceiveHandler::sharding_handled_txn_num(10, 1),
+        MessageReceiveHandler::sharding_should_handle_local_txn_num(10, 1), MessageReceiveHandler::sharding_handled_local_txn_num(10, 1),
+        MessageReceiveHandler::sharding_should_handle_remote_txn_num(10, 1), MessageReceiveHandler::sharding_handled_remote_txn_num(10, 1),
         ///local txn counters
         MessageReceiveHandler::sharding_should_send_txn_num(10, 1),
         MessageReceiveHandler::sharding_send_txn_num(10, 1),
@@ -135,8 +135,10 @@ namespace Taas {
             epoch_abort_set[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
         }
 
-        sharding_should_handle_txn_num.Init(max_length, sharding_num),
-        sharding_handled_txn_num.Init(max_length, sharding_num),
+
+        sharding_should_handle_local_txn_num.Init(max_length, sharding_num),sharding_handled_local_txn_num.Init(max_length, sharding_num),
+        sharding_should_handle_remote_txn_num.Init(max_length, sharding_num),sharding_handled_remote_txn_num.Init(max_length, sharding_num),
+                ///local txn counters
 
         sharding_should_send_txn_num.Init(max_length, sharding_num),
         sharding_send_txn_num.Init(max_length, sharding_num),
@@ -182,8 +184,13 @@ namespace Taas {
 //        sharding_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, PACKNUM),
         sharding_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
 
-        sharding_should_handle_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-        sharding_handled_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        sharding_should_handle_local_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        sharding_handled_local_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        sharding_should_handle_remote_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+        sharding_handled_remote_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+
+
+
         sharding_should_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
         sharding_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
 
@@ -314,23 +321,23 @@ namespace Taas {
         switch (txn_ptr->txn_type()) {
             ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
             case proto::TxnType::ClientTxn : {/// sql node --> txn node
-                sharding_should_handle_txn_num.IncCount(message_epoch, thread_id, 1);
+                sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
                 Sharding();
                 assert(txn_ptr != nullptr);
                 Merger::epoch_should_commit_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
                 Merger::LocalTxnCommitQueueEnqueue(ctx, message_epoch, std::move(txn_ptr));
-                sharding_handled_txn_num.IncCount(message_epoch, thread_id, 1);
+                sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
 //                CheckEpochShardingSendComplete(ctx, message_epoch);
 //                CheckEpochBackUpComplete(ctx, message_epoch);
                 break;
             }
             case proto::TxnType::RemoteServerTxn : {
-                sharding_should_handle_txn_num.IncCount(message_epoch, thread_id, 1);
+                sharding_should_handle_remote_txn_num.IncCount(message_epoch, thread_id, 1);
                 Merger::epoch_should_merge_txn_num.IncCount(message_epoch, message_server_id, 1);
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
 //                Merger::MergeQueueEnqueue(message_epoch, std::move(txn_ptr), ctx);
                 Merger::EpochMerge(ctx, message_epoch, std::move(txn_ptr));
-                sharding_handled_txn_num.IncCount(message_epoch, thread_id, 1);
+                sharding_handled_remote_txn_num.IncCount(message_epoch, thread_id, 1);
 //                CheckEpochShardingReceiveComplete(ctx,message_epoch);
                 break;
             }
