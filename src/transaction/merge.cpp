@@ -153,29 +153,29 @@ namespace Taas {
     }
 
     bool Merger::EpochMerge() {
-        sleep_flag = false;
-        for(epoch = EpochManager::GetLogicalEpoch(); epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
-            auto epoch_mod = epoch % ctx.kCacheMaxLength;
-            while (MergeQueueTryDequeue(ctx, epoch, txn_ptr) && txn_ptr != nullptr) {
-                txn_server_id = txn_ptr->server_id();
-                res = true;
-                if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
-                    res = false;
-                }
-                if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
-                    res = false;
-                }
-                if (res) {
-                    epoch_should_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                    epoch_commit_queue[epoch_mod]->enqueue(std::move(txn_ptr));
-                    epoch_commit_queue[epoch_mod]->enqueue(nullptr);
-                }
-                epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
-
-                sleep_flag = true;
-            }
-            CheckEpochMergeComplete(ctx, epoch);
-        }
+//        sleep_flag = false;
+//        for(epoch = EpochManager::GetLogicalEpoch(); epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
+//            auto epoch_mod = epoch % ctx.kCacheMaxLength;
+//            while (MergeQueueTryDequeue(ctx, epoch, txn_ptr) && txn_ptr != nullptr) {
+//                txn_server_id = txn_ptr->server_id();
+//                res = true;
+//                if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
+//                    res = false;
+//                }
+//                if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
+//                    res = false;
+//                }
+//                if (res) {
+//                    epoch_should_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+//                    epoch_commit_queue[epoch_mod]->enqueue(std::move(txn_ptr));
+//                    epoch_commit_queue[epoch_mod]->enqueue(nullptr);
+//                }
+//                epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
+//
+//                sleep_flag = true;
+//            }
+//            CheckEpochMergeComplete(ctx, epoch);
+//        }
         return sleep_flag;
     }
 
