@@ -62,7 +62,7 @@ namespace Taas {
         void Init(const Context& ctx_, uint64_t id);
 
         static bool EpochMerge(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
-        bool EpochMerge();
+        void EpochCommit_RedoLog_TxnMode_Wait();
         bool EpochCommit_RedoLog_TxnMode();
         bool EpochCommit_RedoLog_ShardingMode();
 
@@ -93,6 +93,8 @@ namespace Taas {
             return epoch_commit_complete[epoch % ctx.kCacheMaxLength]->load();
         }
 
+
+
         static bool IsMergeComplete(const Context& ctx, uint64_t& epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
                 if (epoch_should_merge_txn_num.GetCount(epoch, i) > epoch_merged_txn_num.GetCount(epoch, i))
@@ -112,6 +114,17 @@ namespace Taas {
         }
         static bool IsCommitComplete(uint64_t epoch, uint64_t server_id) {
             return epoch_should_commit_txn_num.GetCount(epoch, server_id) <= epoch_committed_txn_num.GetCount(epoch, server_id);
+        }
+
+        static bool IsRedoLogComplete(const Context& ctx, uint64_t& epoch) {
+            for(uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
+                if (epoch_record_commit_txn_num.GetCount(epoch, i) > epoch_record_committed_txn_num.GetCount(epoch, i))
+                    return false;
+            }
+            return true;
+        }
+        static bool IsRedoLogComplete(uint64_t epoch, uint64_t server_id) {
+            return epoch_record_commit_txn_num.GetCount(epoch, server_id) <= epoch_record_committed_txn_num.GetCount(epoch, server_id);
         }
 
         static void MergeQueueEnqueue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);

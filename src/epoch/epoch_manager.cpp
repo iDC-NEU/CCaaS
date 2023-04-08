@@ -10,6 +10,7 @@
 #include "message/handler_receive.h"
 #include "storage/redo_loger.h"
 #include "transaction/merge.h"
+#include "storage/tikv.h"
 
 namespace Taas {
 
@@ -19,7 +20,7 @@ namespace Taas {
     Context EpochManager::ctx;
     std::atomic<uint64_t> EpochManager::logical_epoch(1), EpochManager::physical_epoch(0), EpochManager::push_down_epoch(1);
     uint64_t EpochManager::max_length = 10000;
-    std::condition_variable EpochManager::commit_cv;
+    std::condition_variable EpochManager::commit_cv, EpochManager::redo_log_cv;
     //epoch merge state
     std::vector<std::unique_ptr<std::atomic<bool>>> EpochManager::merge_complete, EpochManager::abort_set_merge_complete,
             EpochManager::commit_complete, EpochManager::record_committed, EpochManager::is_current_epoch_abort;
@@ -225,11 +226,15 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
 
     bool EpochManager::CheckAndSetRedoLogPushDownState() {
         auto res = false;
+        auto i = commit_epoch.load();
         while(redo_log_epoch.load() < commit_epoch.load() &&
-            EpochManager::IsCommitComplete(redo_log_epoch.load()) &&
-            MessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, redo_log_epoch.load())) {
-            EpochManager::SetRecordCommitted(redo_log_epoch.load(), true);
+            EpochManager::IsCommitComplete(i) &&
+            RedoLoger::IsMOTPushDownComplete(i) &&
+            TiKV::CheckEpochPushDownComplete(ctx, i) &&
+            MessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) {
             redo_log_epoch.fetch_add(1);
+            i ++;
+            redo_log_cv.notify_all();
             res = true;
         }
         return res;
@@ -248,10 +253,6 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
             while(!EpochManager::CheckEpochAbortSetState()) usleep(50);
             while(!EpochManager::CheckEpochCommitState()) usleep(50);
             EpochManager::CheckAndSetRedoLogPushDownState();
-
-//            if(!EpochManager::CheckEpochAbortSetState()) usleep(20);
-//            if(!EpochManager::CheckEpochCommitState()) usleep(20);
-//            if(!EpochManager::CheckAndSetRedoLogPushDownState()) usleep(20);
             epoch = EpochManager::GetLogicalEpoch();
             while(epoch < commit_epoch.load()) {
                 total_commit_txn_num += Merger::epoch_record_committed_txn_num.GetCount(epoch);
@@ -261,6 +262,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
                 epoch ++;
                 EpochManager::AddLogicalEpoch();
                 EpochManager::commit_cv.notify_all();
+                EpochManager::redo_log_cv.notify_all();
             }
 
             while(clear_epoch < merge_epoch.load() &&

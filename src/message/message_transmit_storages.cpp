@@ -132,30 +132,26 @@ namespace Taas {
             if (epoch < EpochManager::GetLogicalEpoch()) {
                 auto push_msg = std::make_unique<proto::Message>();
                 auto push_response = push_msg->mutable_storage_push_response();
-                assert(push_response != nullptr);
                 auto s = std::to_string(epoch) + ":";
                 auto epoch_mod = epoch % EpochManager::max_length;
                 auto total_num = RedoLoger::epoch_log_lsn.GetCount(epoch);
                 for (uint64_t i = 0; i < total_num; i++) {
                     auto key = s + std::to_string(i);
                     auto *ptr = push_response->add_txns();
-                    assert(ptr != nullptr);
-                    auto res = RedoLoger::committed_txn_cache[epoch_mod]->getValue(key, (*ptr)); //copy
-//                    assert(res);
+                    RedoLoger::committed_txn_cache[epoch_mod]->getValue(key, (*ptr)); //copy
                 }
                 push_response->set_result(proto::Success);
                 push_response->set_epoch_id(epoch);
                 push_response->set_txn_num(total_num);
                 auto serialized_pull_resp_str = std::make_unique<std::string>();
                 auto res = Gzip(push_msg.get(), serialized_pull_resp_str.get());
-                assert(res);
                 auto send_message = std::make_unique<zmq::message_t>(*serialized_pull_resp_str);
                 socket_send.send((*send_message), sendFlags);
-
                 epoch++;
                 RedoLoger::IncPushedDownMOTEpoch();
             } else {
-                usleep(2000);
+                std::unique_lock<std::mutex> lock;
+                EpochManager::redo_log_cv.wait(lock);
             }
         }
         socket_send.send((zmq::message_t &) "end", sendFlags);

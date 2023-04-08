@@ -41,6 +41,7 @@ namespace Taas {
     std::vector<std::unique_ptr<std::atomic<bool>>>
             Merger::epoch_merge_complete,
             Merger::epoch_commit_complete;
+
     void Merger::StaticInit(const Context &ctx) {
         auto max_length = ctx.kCacheMaxLength;
         auto pack_num = ctx.kIndexNum;
@@ -152,36 +153,7 @@ namespace Taas {
         return res;
     }
 
-    bool Merger::EpochMerge() {
-//        sleep_flag = false;
-//        for(epoch = EpochManager::GetLogicalEpoch(); epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
-//            auto epoch_mod = epoch % ctx.kCacheMaxLength;
-//            while (MergeQueueTryDequeue(ctx, epoch, txn_ptr) && txn_ptr != nullptr) {
-//                txn_server_id = txn_ptr->server_id();
-//                res = true;
-//                if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
-//                    res = false;
-//                }
-//                if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
-//                    res = false;
-//                }
-//                if (res) {
-//                    epoch_should_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-//                    epoch_commit_queue[epoch_mod]->enqueue(std::move(txn_ptr));
-//                    epoch_commit_queue[epoch_mod]->enqueue(nullptr);
-//                }
-//                epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
-//
-//                sleep_flag = true;
-//            }
-//            CheckEpochMergeComplete(ctx, epoch);
-//        }
-        return sleep_flag;
-    }
-
-    ///日志存储为整个事务模式
-    bool Merger::EpochCommit_RedoLog_TxnMode() {
-        sleep_flag = false;
+    void Merger::EpochCommit_RedoLog_TxnMode_Wait() {
         //RC or RR Isolation
         epoch = EpochManager::GetLogicalEpoch();
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
@@ -194,7 +166,6 @@ namespace Taas {
                 //不对分片事务进行commit处理
                 epoch = txn_ptr->commit_epoch();
                 epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                sleep_flag = true;
             }
             ///validation phase
             while (epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
@@ -212,7 +183,6 @@ namespace Taas {
                     MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
                 }
                 epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                sleep_flag = true;
             }
             CheckEpochCommitComplete(ctx, epoch);
         }
@@ -223,49 +193,49 @@ namespace Taas {
         //SI Isolation
 
         //SER Isolation
+    }
+
+    ///日志存储为整个事务模式
+    bool Merger::EpochCommit_RedoLog_TxnMode() {
+        sleep_flag = false;
+        //RC or RR Isolation
+        epoch = EpochManager::GetLogicalEpoch();
+        for(; epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
+            auto epoch_mod = epoch % ctx.kCacheMaxLength;
+            if(EpochManager::IsCommitComplete(epoch)) continue;
+            if(EpochManager::IsShardingMergeComplete(epoch)) {
+                while (epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
+                    //不对分片事务进行commit处理
+                    epoch = txn_ptr->commit_epoch();
+                    epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+                    sleep_flag = true;
+                }
+                ///validation phase
+                while (epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
+                    epoch = txn_ptr->commit_epoch();
+                    if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
+                        auto key = std::to_string(txn_ptr->client_txn_id());
+                        abort_txn_set.insert(key,key);
+                        MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Abort);
+                    }
+                    else {
+                        epoch_record_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+                        CRDTMerge::Commit(ctx, *(txn_ptr));
+                        RedoLoger::RedoLog(ctx, *(txn_ptr));
+                        epoch_record_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+                        MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
+                    }
+                    epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+                    sleep_flag = true;
+                }
+            }
+        }
+        //SI Isolation
+
+        //SER Isolation
 
         return sleep_flag;
     }
-//    bool Merger::EpochCommit_RedoLog_TxnMode() {
-//        sleep_flag = false;
-//        //RC or RR Isolation
-//        epoch = EpochManager::GetLogicalEpoch();
-//        for(; epoch < EpochManager::GetPhysicalEpoch(); epoch ++) {
-//            auto epoch_mod = epoch % ctx.kCacheMaxLength;
-//            if(EpochManager::IsCommitComplete(epoch)) continue;
-//            if(EpochManager::IsShardingMergeComplete(epoch)) {
-//                while (epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
-//                    //不对分片事务进行commit处理
-//                    epoch = txn_ptr->commit_epoch();
-//                    epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-//                    sleep_flag = true;
-//                }
-//                ///validation phase
-//                while (epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
-//                    epoch = txn_ptr->commit_epoch();
-//                    if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
-//                        auto key = std::to_string(txn_ptr->client_txn_id());
-//                        abort_txn_set.insert(key,key);
-//                        MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Abort);
-//                    }
-//                    else {
-//                        epoch_record_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-//                        CRDTMerge::Commit(ctx, *(txn_ptr));
-//                        RedoLoger::RedoLog(ctx, *(txn_ptr));
-//                        epoch_record_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-//                        MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
-//                    }
-//                    epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-//                    sleep_flag = true;
-//                }
-//            }
-//        }
-//        //SI Isolation
-//
-//        //SER Isolation
-//
-//        return sleep_flag;
-//    }
 
     ///日志存储为分片模式
     bool Merger::EpochCommit_RedoLog_ShardingMode() {
