@@ -41,7 +41,7 @@ namespace Taas {
         if(ctx.is_tikv_enable) {
             TiKV::tikv_epoch_should_push_down_txn_num.IncCount(epoch_id, txn.server_id(), 1);
             TiKV::TiKVRedoLogQueueEnqueue(ctx, epoch_id, std::make_unique<proto::Transaction>(txn));
-            EpochManager::redo_log_cv.notify_one();
+            EpochManager::redo_log_cv->notify_one();
         }
         return true;
     }

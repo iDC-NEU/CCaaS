@@ -20,7 +20,7 @@ namespace Taas {
     Context EpochManager::ctx;
     std::atomic<uint64_t> EpochManager::logical_epoch(1), EpochManager::physical_epoch(0), EpochManager::push_down_epoch(1);
     uint64_t EpochManager::max_length = 10000;
-    std::condition_variable EpochManager::commit_cv, EpochManager::redo_log_cv;
+    std::unique_ptr<std::condition_variable> EpochManager::commit_cv, EpochManager::redo_log_cv;
     //epoch merge state
     std::vector<std::unique_ptr<std::atomic<bool>>> EpochManager::merge_complete, EpochManager::abort_set_merge_complete,
             EpochManager::commit_complete, EpochManager::record_committed, EpochManager::is_current_epoch_abort;
@@ -46,6 +46,8 @@ namespace Taas {
 
         EpochManager::max_length = ctx.kCacheMaxLength;
         //==========Logical Epoch Merge State=============
+        EpochManager::commit_cv = std::make_unique<std::condition_variable>();
+        EpochManager::redo_log_cv  = std::make_unique<std::condition_variable>();
         EpochManager::merge_complete.resize(EpochManager::max_length);
         EpochManager::abort_set_merge_complete.resize(EpochManager::max_length);
         EpochManager::commit_complete.resize(EpochManager::max_length);
@@ -194,34 +196,32 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
     }
 
     bool EpochManager::CheckEpochAbortSetState() {
-        auto res = false;
         auto i = abort_set_epoch.load();
         if(i >= merge_epoch.load()) return true;
         if(EpochManager::IsAbortSetMergeComplete(i)) return true;
-        while( i < merge_epoch.load() && (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
+        if( i < merge_epoch.load() && (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
             EpochManager::IsShardingMergeComplete(i)) {
             EpochManager::SetAbortSetMergeComplete(i, true);
-            EpochManager::commit_cv.notify_all();
+            EpochManager::commit_cv->notify_all();
             abort_set_epoch.fetch_add(1);
             i ++;
-            res = true;
+            return true;
         }
-        return res;
+        return false;
     }
 
     bool EpochManager::CheckEpochCommitState() {
-        auto res = false;
         if(commit_epoch.load() >= abort_set_epoch.load()) return true;
         auto i = commit_epoch.load();
-        while( i < abort_set_epoch.load() && EpochManager::IsShardingMergeComplete(i) &&
+        if( i < abort_set_epoch.load() && EpochManager::IsShardingMergeComplete(i) &&
                EpochManager::IsAbortSetMergeComplete(i) && Merger::CheckEpochCommitComplete(ctx, i) &&
                MessageReceiveHandler::IsEpochTxnHandleComplete(i) ) {
             EpochManager::SetCommitComplete(i, true);
             i ++;
             commit_epoch.fetch_add(1);
-            res = true;
+            return true;
         }
-        return res;
+        return false;
     }
 
     bool EpochManager::CheckAndSetRedoLogPushDownState() {
@@ -234,7 +234,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
             MessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) {
             redo_log_epoch.fetch_add(1);
             i ++;
-            redo_log_cv.notify_all();
+            redo_log_cv->notify_all();
             res = true;
         }
         return res;
@@ -261,12 +261,13 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
                 }
                 epoch ++;
                 EpochManager::AddLogicalEpoch();
-                EpochManager::commit_cv.notify_all();
-                EpochManager::redo_log_cv.notify_all();
+                EpochManager::commit_cv->notify_all();
+                EpochManager::redo_log_cv->notify_all();
             }
 
             while(clear_epoch < merge_epoch.load() &&
-                    clear_epoch < abort_set_epoch.load() && clear_epoch < commit_epoch.load() && clear_epoch < RedoLoger::GetPushedDownMOTEpoch()) {
+                    clear_epoch < abort_set_epoch.load() && clear_epoch < commit_epoch.load() &&
+                    clear_epoch < RedoLoger::GetPushedDownMOTEpoch()) {
                 if(clear_epoch % ctx.print_mode_size == 0) {
                     printf("=-=-=-=-=-=-=完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", epoch, clear_epoch.load());
                 }

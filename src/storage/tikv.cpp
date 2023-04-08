@@ -6,7 +6,6 @@
 #include "epoch/epoch_manager.h"
 #include "storage/tikv.h"
 #include "tikv_client.h"
-#include "storage/redo_loger.h"
 
 namespace Taas {
 
@@ -39,10 +38,11 @@ namespace Taas {
 
     void TiKV::sendTransactionToTiKV(const Context& ctx) {
         std::unique_ptr<proto::Transaction> txn_ptr;
-        auto epoch = EpochManager::GetPushDownEpoch();
+        uint64_t epoch;
         while(!EpochManager::IsTimerStop()) {
-            std::unique_lock<std::mutex> lock;
-            EpochManager::redo_log_cv.wait(lock);
+            std::mutex m;
+            std::unique_lock<std::mutex> lock(m);
+            EpochManager::redo_log_cv->wait(lock);
             epoch = EpochManager::GetPushDownEpoch();
             auto epoch_mod = epoch % ctx.kCacheMaxLength;
             while(tikv_epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr)) {

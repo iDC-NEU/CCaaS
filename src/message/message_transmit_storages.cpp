@@ -150,8 +150,9 @@ namespace Taas {
                 epoch++;
                 RedoLoger::IncPushedDownMOTEpoch();
             } else {
-                std::unique_lock<std::mutex> lock;
-                EpochManager::redo_log_cv.wait(lock);
+                std::mutex m;
+                std::unique_lock<std::mutex> lock(m);
+                EpochManager::redo_log_cv->wait(lock);
             }
         }
         socket_send.send((zmq::message_t &) "end", sendFlags);

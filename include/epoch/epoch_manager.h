@@ -34,7 +34,7 @@ namespace Taas {
 
         static Context ctx;
         static uint64_t max_length;
-        static std::condition_variable commit_cv, redo_log_cv;
+        static std::unique_ptr<std::condition_variable> commit_cv, redo_log_cv;
         static std::vector<std::unique_ptr<std::atomic<bool>>>
                     merge_complete, abort_set_merge_complete,
                     commit_complete, record_committed,

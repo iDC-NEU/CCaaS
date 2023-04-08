@@ -225,7 +225,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
 
     bool MessageSendHandler::SendAbortSet(const Context &ctx) {
         auto sleep_flag = false;
-        if (Merger::IsEpochMergeComplete(ctx, abort_sent_epoch)) {
+        if (Merger::CheckEpochMergeComplete(ctx, abort_sent_epoch)) {
             auto msg = std::make_unique<proto::Message>();
             auto *txn_end = msg->mutable_txn();
             txn_end->set_server_id(ctx.txn_node_ip_index);
