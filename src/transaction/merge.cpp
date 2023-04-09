@@ -97,6 +97,7 @@ namespace Taas {
     }
 
     void Merger::LocalTxnCommitQueueEnqueue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr) {
+        Merger::epoch_should_commit_txn_num.IncCount(epoch, ctx.txn_node_ip_index, 1);
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_local_txn_queue[epoch_mod]->enqueue(std::move(txn_ptr));
         epoch_local_txn_queue[epoch_mod]->enqueue(nullptr);
@@ -139,6 +140,7 @@ namespace Taas {
     bool Merger::EpochMerge(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         auto txn_server_id = txn_ptr->server_id();
+        epoch_should_merge_txn_num.IncCount(epoch, txn_server_id, 1);
         auto res = true;
         if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
             res = false;
@@ -146,11 +148,12 @@ namespace Taas {
         if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
             res = false;
         }
-        if (res) {
-            epoch_should_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-            epoch_commit_queue[epoch_mod]->enqueue(std::move(txn_ptr));
-            epoch_commit_queue[epoch_mod]->enqueue(nullptr);
-        }
+        //不对分片事务进行commit处理
+//        if (res) {
+//            epoch_should_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+//            epoch_commit_queue[epoch_mod]->enqueue(std::move(txn_ptr));
+//            epoch_commit_queue[epoch_mod]->enqueue(nullptr);
+//        }
         epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
         CheckEpochMergeComplete(ctx, epoch);
         return res;
@@ -194,12 +197,12 @@ namespace Taas {
                     }
                     epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
 
-                    epoch_mod = epoch % ctx.kCacheMaxLength;
-                    while (epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
-                        //不对分片事务进行commit处理
-                        epoch = txn_ptr->commit_epoch();
-                        epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                    }
+                    //不对分片事务进行commit处理
+//                    epoch_mod = epoch % ctx.kCacheMaxLength;
+//                    while (epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
+//                        epoch = txn_ptr->commit_epoch();
+//                        epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+//                    }
                     CheckEpochCommitComplete(ctx, epoch);
                 }
             }
@@ -226,13 +229,12 @@ namespace Taas {
             }
             epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
 
-            epoch_mod = epoch % ctx.kCacheMaxLength;
-            while (epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
-                //不对分片事务进行commit处理
-                epoch = txn_ptr->commit_epoch();
-                epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-            }
-
+            //不对分片事务进行commit处理
+//            epoch_mod = epoch % ctx.kCacheMaxLength;
+//            while (epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
+//                epoch = txn_ptr->commit_epoch();
+//                epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+//            }
         }
     }
 

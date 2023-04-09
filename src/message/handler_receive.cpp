@@ -256,12 +256,11 @@ namespace Taas {
             if(sharding_row_vector[i]->row_size() > 0) {
                 ///sharding sending
                 if(i == ctx.txn_node_ip_index) {
-                    Merger::epoch_should_merge_txn_num.IncCount(message_epoch, i, 1);
+                    continue;
                 }
                 else {
                     sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
                     MessageSendHandler::SendTxnToServer(ctx, message_epoch, i, *(sharding_row_vector[i]), proto::TxnType::RemoteServerTxn);
-                    MessageReceiveHandler::sharding_send_txn_num.IncCount(message_epoch, i, 1);
                     sharding_send_txn_num.IncCount(message_epoch, i, 1);
                 }
             }
@@ -275,8 +274,12 @@ namespace Taas {
             epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
         }
 //        Merger::MergeQueueEnqueue(message_epoch, std::move(sharding_row_vector[i]), ctx);
-        if(sharding_row_vector[ctx.txn_node_ip_index]->row_size() > 0)
-            Merger::EpochMerge(ctx, message_epoch, std::move(sharding_row_vector[ctx.txn_node_ip_index]));
+        if(sharding_row_vector[ctx.txn_node_ip_index]->row_size() > 0) {
+            res = Merger::EpochMerge(ctx, message_epoch, std::move(sharding_row_vector[ctx.txn_node_ip_index]));
+            if(!res) {
+                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(sharding_row_vector[ctx.txn_node_ip_index]), proto::TxnState::Abort);
+            }
+        }
 
         return true;
     }
@@ -324,14 +327,12 @@ namespace Taas {
                 sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
                 Sharding();
                 assert(txn_ptr != nullptr);
-                Merger::epoch_should_commit_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
                 Merger::LocalTxnCommitQueueEnqueue(ctx, message_epoch, std::move(txn_ptr));
                 sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
                 break;
             }
             case proto::TxnType::RemoteServerTxn : {
                 sharding_should_handle_remote_txn_num.IncCount(message_epoch, thread_id, 1);
-                Merger::epoch_should_merge_txn_num.IncCount(message_epoch, message_server_id, 1);
                 Merger::EpochMerge(ctx, message_epoch, std::move(txn_ptr));
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
                 sharding_handled_remote_txn_num.IncCount(message_epoch, thread_id, 1);
