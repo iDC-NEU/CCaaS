@@ -170,12 +170,14 @@ namespace Taas {
             if(txn_ptr != nullptr) {
                 epoch = txn_ptr->commit_epoch();
                 epoch_mod = epoch % ctx.kCacheMaxLength;
-                while(epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+                /// dequeue from local txn queue a complete txn
+                while(epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                     commit_queue->enqueue(std::move(txn_ptr));
                 }
                 commit_queue->enqueue(nullptr);
                 while(commit_queue->try_dequeue(txn_ptr)) {
                     if(txn_ptr == nullptr) continue;
+                    epoch = txn_ptr->commit_epoch();
                     ///validation phase
                     if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
                         auto key = std::to_string(txn_ptr->client_txn_id());
@@ -209,7 +211,6 @@ namespace Taas {
             commit_queue->wait_dequeue(txn_ptr);
             if(txn_ptr == nullptr) return;
             epoch = txn_ptr->commit_epoch();
-
             ///validation phase
             if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
                 auto key = std::to_string(txn_ptr->client_txn_id());
