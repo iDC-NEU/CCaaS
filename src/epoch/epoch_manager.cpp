@@ -199,7 +199,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
 
     bool EpochManager::CheckEpochAbortMergeState() {
         auto i = abort_set_epoch.load();
-        if(i >= merge_epoch.load()) return false;
+        if(i >= merge_epoch.load() && commit_epoch.load() >= abort_set_epoch.load()) return false;
         if(EpochManager::IsAbortSetMergeComplete(i)) return true;
         if( i < merge_epoch.load() && (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
             EpochManager::IsShardingMergeComplete(i)) {
