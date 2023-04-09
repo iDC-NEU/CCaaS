@@ -28,7 +28,6 @@ namespace Taas {
 //        printf("State Checker\n");
         while (!EpochManager::IsTimerStop()) {
             sleep_flag = false;
-//            sleep_flag = EpochManager::CheckEpochMergeState() | sleep_flag;
             sleep_flag = receiveHandler.CheckReceivedStatesAndReply() | sleep_flag;/// check and send ack
             sleep_flag = MessageSendHandler::SendEpochEndMessage(ctx) | sleep_flag;///send epoch end flag
             sleep_flag = MessageSendHandler::SendBackUpEpochEndMessage(ctx) | sleep_flag;///send epoch backup end message
@@ -56,7 +55,14 @@ namespace Taas {
 //            merger.EpochCommit_RedoLog_TxnMode_Commit_Queue();
             while(!EpochManager::IsTimerStop()) {
                 epoch = EpochManager::GetLogicalEpoch();
-                while(!EpochManager::IsAbortSetMergeComplete(epoch)) usleep(50);
+                while(!EpochManager::IsShardingMergeComplete(epoch)) {
+                    EpochManager::CheckEpochMergeState();
+                    usleep(50);
+                }
+                while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
+                    EpochManager::CheckEpochAbortMergeState();
+                    usleep(50);
+                }
                 merger.EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep();
             }
         }

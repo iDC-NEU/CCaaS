@@ -197,9 +197,9 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         return res;
     }
 
-    bool EpochManager::CheckEpochAbortSetState() {
+    bool EpochManager::CheckEpochAbortMergeState() {
         auto i = abort_set_epoch.load();
-        if(i >= merge_epoch.load()) return true;
+        if(i >= merge_epoch.load()) return false;
         if(EpochManager::IsAbortSetMergeComplete(i)) return true;
         if( i < merge_epoch.load() && (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
             EpochManager::IsShardingMergeComplete(i)) {
@@ -213,7 +213,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
     }
 
     bool EpochManager::CheckEpochCommitState() {
-        if(commit_epoch.load() >= abort_set_epoch.load()) return true;
+        if(commit_epoch.load() >= abort_set_epoch.load()) return false;
         auto i = commit_epoch.load();
         if( i < abort_set_epoch.load() && EpochManager::IsShardingMergeComplete(i) &&
                EpochManager::IsAbortSetMergeComplete(i) &&
@@ -266,9 +266,14 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         OUTPUTLOG(ctx, "=====start Epoch的合并===== ", epoch);
         while(!EpochManager::IsTimerStop()){
             while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(20);
-            while((!EpochManager::CheckEpochMergeState()) && abort_set_epoch.load() >= merge_epoch.load()) usleep(50);
-            while(!EpochManager::CheckEpochAbortSetState() && abort_set_epoch.load() < merge_epoch.load()) usleep(50);
-            while(!EpochManager::CheckEpochCommitState() && commit_epoch.load() < abort_set_epoch.load()) usleep(50);
+            while(!EpochManager::CheckEpochAbortMergeState()) {
+                EpochManager::CheckEpochMergeState();
+                usleep(50);
+            }
+            while(!EpochManager::CheckEpochCommitState()) {
+                EpochManager::CheckEpochAbortMergeState();
+                usleep(50);
+            }
             EpochManager::CheckRedoLogPushDownState();
         }
         printf("total commit txn num: %lu\n", total_commit_txn_num);
