@@ -100,6 +100,9 @@ namespace Taas {
         epoch_should_commit_txn_num.IncCount(epoch, ctx.txn_node_ip_index, 1);
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_local_txn_queue[epoch_mod]->enqueue(std::move(txn_ptr));
+        auto txn = std::make_unique<proto::Transaction>();
+        txn->set_txn_type(proto::TxnType::NullMark);
+        epoch_local_txn_queue[epoch_mod]->enqueue(std::move(txn));
         epoch_local_txn_queue[epoch_mod]->enqueue(nullptr);
     }
     bool Merger::LocalTxnCommitQueueTryDequeue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr) {
@@ -171,13 +174,14 @@ namespace Taas {
         epoch = EpochManager::GetLogicalEpoch();
         epoch_mod = epoch % ctx.kCacheMaxLength;
         /// dequeue from local txn queue a complete txn
+        epoch_local_txn_queue[epoch_mod]->enqueue(nullptr);
         while(epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr)) {
             commit_queue->enqueue(std::move(txn_ptr));
         }
         commit_queue->enqueue(nullptr);
 
         while(commit_queue->try_dequeue(txn_ptr)) {
-            if(txn_ptr == nullptr) continue;
+            if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) continue;
             epoch = txn_ptr->commit_epoch();
             ///validation phase
             if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
@@ -211,7 +215,7 @@ namespace Taas {
 
                 commit_queue->enqueue(nullptr);
                 while(commit_queue->try_dequeue(txn_ptr)) {
-                    if(txn_ptr == nullptr) continue;
+                    if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) continue;
                     epoch = txn_ptr->commit_epoch();
                     ///validation phase
                     if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
@@ -236,7 +240,7 @@ namespace Taas {
     void Merger::EpochCommit_RedoLog_TxnMode_Commit_Queue_Wait() {
         while(!EpochManager::IsTimerStop()) {
             commit_queue->wait_dequeue(txn_ptr);
-            if(txn_ptr == nullptr) return;
+            if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) continue;
             epoch = txn_ptr->commit_epoch();
             ///validation phase
             if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
