@@ -276,9 +276,9 @@ namespace Taas {
 //        Merger::MergeQueueEnqueue(message_epoch, std::move(sharding_row_vector[i]), ctx);
         if(sharding_row_vector[ctx.txn_node_ip_index]->row_size() > 0) {
             res = Merger::EpochMerge(ctx, message_epoch, std::move(sharding_row_vector[ctx.txn_node_ip_index]));
-            if(!res) {
-                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(sharding_row_vector[ctx.txn_node_ip_index]), proto::TxnState::Abort);
-            }
+//            if(!res) {
+//                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(sharding_row_vector[ctx.txn_node_ip_index]), proto::TxnState::Abort);
+//            }
         }
 
         return true;

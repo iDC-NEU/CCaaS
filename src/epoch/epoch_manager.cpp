@@ -218,22 +218,37 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
                 ) {
             EpochManager::SetCommitComplete(i, true);
 //            RedoLoger::GeneratePushDownTask(ctx, i);
+            total_commit_txn_num += Merger::epoch_record_committed_txn_num.GetCount(i);
+            if(i % ctx.print_mode_size == 0) {
+                printf("*************       完成一个Epoch的合并     Epoch: %8lu ClearEpoch: %8lu *************\n", i, clear_epoch.load());
+            }
             i ++;
             commit_epoch.fetch_add(1);
+            EpochManager::AddLogicalEpoch();
             return true;
         }
         return false;
     }
 
-    bool EpochManager::CheckAndSetRedoLogPushDownState() {
+    bool EpochManager::CheckRedoLogPushDownState() {
         auto res = false;
         auto i = commit_epoch.load();
         while(redo_log_epoch.load() < commit_epoch.load() &&
             EpochManager::IsCommitComplete(i) &&
             RedoLoger::CheckPushDownComplete(ctx, i) &&
             MessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) {
+            if(i % ctx.print_mode_size == 0) {
+                printf("=-=-=-=-=-=-=完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", commit_epoch.load(), i);
+            }
+            EpochManager::ClearMergeEpochState(i); //清空当前epoch的merge信息
+            MessageReceiveHandler::StaticClear(ctx, i);//清空current epoch的receive cache num信息
+            Merger::ClearMergerEpochState(ctx, i);
+            RedoLoger::ClearRedoLog(ctx, i);
+
             redo_log_epoch.fetch_add(1);
             i ++;
+            clear_epoch.fetch_add(1);
+            EpochManager::AddPushDownEpoch();
             res = true;
         }
         return res;
@@ -249,36 +264,9 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         while(!EpochManager::IsTimerStop()){
             while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) usleep(20);
             while((!EpochManager::CheckEpochMergeState()) && abort_set_epoch.load() >= merge_epoch.load()) usleep(50);
-            while(!EpochManager::CheckEpochAbortSetState()) usleep(50);
-            while(!EpochManager::CheckEpochCommitState()) usleep(50);
-            EpochManager::CheckAndSetRedoLogPushDownState();
-            epoch = EpochManager::GetLogicalEpoch();
-            while(epoch < commit_epoch.load()) {
-                total_commit_txn_num += Merger::epoch_record_committed_txn_num.GetCount(epoch);
-                if(epoch % ctx.print_mode_size == 0) {
-                    printf("*************       完成一个Epoch的合并     Epoch: %8lu ClearEpoch: %8lu *************\n", epoch, clear_epoch.load());
-                }
-                epoch ++;
-                EpochManager::AddLogicalEpoch();
-            }
-
-            while(clear_epoch < merge_epoch.load() &&
-                    clear_epoch < abort_set_epoch.load() && clear_epoch < commit_epoch.load() &&
-                    clear_epoch < MOT::GetPushedDownMOTEpoch()) {
-                if(clear_epoch % ctx.print_mode_size == 0) {
-                    printf("=-=-=-=-=-=-=完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", epoch, clear_epoch.load());
-                }
-                auto epoch_ = clear_epoch.load();
-                EpochManager::ClearMergeEpochState(epoch_); //清空当前epoch的merge信息
-                MessageReceiveHandler::StaticClear(ctx, epoch_);//清空current epoch的receive cache num信息
-                Merger::ClearMergerEpochState(ctx, epoch_);
-                RedoLoger::ClearRedoLog(ctx, epoch_);
-
-//                EpochManager::SetCacheServerStored(epoch_, cache_server_available);
-                clear_epoch ++;
-                EpochManager::AddPushDownEpoch();
-            }
-//            if(!sleep_flag) usleep(200);
+            while(!EpochManager::CheckEpochAbortSetState() && abort_set_epoch.load() < merge_epoch.load()) usleep(50);
+            while(!EpochManager::CheckEpochCommitState() && commit_epoch.load() < abort_set_epoch.load()) usleep(50);
+            EpochManager::CheckRedoLogPushDownState();
         }
         printf("total commit txn num: %lu\n", total_commit_txn_num);
     }

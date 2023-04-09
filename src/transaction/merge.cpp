@@ -97,7 +97,7 @@ namespace Taas {
     }
 
     void Merger::LocalTxnCommitQueueEnqueue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr) {
-        Merger::epoch_should_commit_txn_num.IncCount(epoch, ctx.txn_node_ip_index, 1);
+        epoch_should_commit_txn_num.IncCount(epoch, ctx.txn_node_ip_index, 1);
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_local_txn_queue[epoch_mod]->enqueue(std::move(txn_ptr));
         epoch_local_txn_queue[epoch_mod]->enqueue(nullptr);
@@ -174,8 +174,8 @@ namespace Taas {
         while(epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr)) {
             commit_queue->enqueue(std::move(txn_ptr));
         }
-
         commit_queue->enqueue(nullptr);
+
         while(commit_queue->try_dequeue(txn_ptr)) {
             if(txn_ptr == nullptr) continue;
             epoch = txn_ptr->commit_epoch();
@@ -227,13 +227,6 @@ namespace Taas {
                         MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
                     }
                     epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-
-                    //不对分片事务进行commit处理
-//                    epoch_mod = epoch % ctx.kCacheMaxLength;
-//                    while (epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
-//                        epoch = txn_ptr->commit_epoch();
-//                        epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-//                    }
                     CheckEpochCommitComplete(ctx, epoch);
                 }
             }

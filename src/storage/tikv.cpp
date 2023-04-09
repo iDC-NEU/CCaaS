@@ -52,7 +52,7 @@ namespace Taas {
     void TiKV::sendTransactionToTiKV_usleep() {
         std::unique_ptr<proto::Transaction> txn_ptr;
         uint64_t epoch, epoch_mod;
-        epoch = epoch = EpochManager::GetPushDownEpoch();
+        epoch = EpochManager::GetPushDownEpoch();
         epoch_mod = epoch % ctx.kCacheMaxLength;
         while(!TiKV::tikv_epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr)) {
             TiKV::redo_log_queue->enqueue(std::move(txn_ptr));

@@ -130,7 +130,7 @@ namespace Taas {
         static bool CheckEpochMergeState();
         static bool CheckEpochAbortSetState();
         static bool CheckEpochCommitState();
-        static bool CheckAndSetRedoLogPushDownState();
+        static bool CheckRedoLogPushDownState();
     };
 }
 
