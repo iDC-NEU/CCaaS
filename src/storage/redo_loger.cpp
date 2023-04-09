@@ -55,7 +55,6 @@ namespace Taas {
     }
 
     bool RedoLoger::CheckPushDownComplete(const Context &ctx, uint64_t &epoch) {
-        return MOT::IsMOTPushDownComplete(epoch) &&
-                TiKV::CheckEpochPushDownComplete(epoch);
+        return MOT::IsMOTPushDownComplete(epoch) && (ctx.is_tikv_enable == 0 || TiKV::CheckEpochPushDownComplete(epoch));
     }
 }
