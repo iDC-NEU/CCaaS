@@ -12,6 +12,7 @@ namespace Taas {
     extern void WorkerFroMessageThreadMain(const Context& ctx, uint64_t id);
     extern void WorkerFroCommitThreadMain(const Context& ctx, uint64_t id);
     extern void WorkerFroTiKVStorageThreadMain(uint64_t id);
+    extern void WorkerFroMOTStorageThreadMain(const Context& ctx);
     extern void WorkerThreadMain(const Context& ctx, uint64_t id);
 }
 

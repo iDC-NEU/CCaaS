@@ -201,7 +201,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         if( i < merge_epoch.load() && (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
             EpochManager::IsShardingMergeComplete(i)) {
             EpochManager::SetAbortSetMergeComplete(i, true);
-            Merger::GenerateCommitTask(ctx, i);
+//            Merger::GenerateCommitTask(ctx, i);
             abort_set_epoch.fetch_add(1);
             i ++;
             return true;
@@ -217,7 +217,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
                Merger::CheckEpochCommitComplete(ctx, i)
                 ) {
             EpochManager::SetCommitComplete(i, true);
-            RedoLoger::GeneratePushDownTask(ctx, i);
+//            RedoLoger::GeneratePushDownTask(ctx, i);
             i ++;
             commit_epoch.fetch_add(1);
             return true;

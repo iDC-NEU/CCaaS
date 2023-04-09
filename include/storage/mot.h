@@ -13,8 +13,6 @@
 
 namespace Taas {
 
-    extern void SendToMOThreadMain([[maybe_unused]] const Context& ctx);
-
     class MOT {
         public:
         static Context ctx;
@@ -23,6 +21,9 @@ namespace Taas {
 
         static bool StaticInit(const Context &ctx_);
         static bool GeneratePushDownTask(uint64_t &epoch);
+        static void SendToMOThreadMain_usleep();
+        static void SendToMOThreadMain();
+
         static bool IsMOTPushDownComplete(uint64_t& epoch) {
             return epoch < pushed_down_mot_epoch.load();
         }

@@ -27,6 +27,7 @@ namespace Taas {
 
         static bool GeneratePushDownTask(uint64_t &epoch);
 
+        static void sendTransactionToTiKV_usleep();
         static void sendTransactionToTiKV();
         static void sendTransactionToTiKV_Wait();
 

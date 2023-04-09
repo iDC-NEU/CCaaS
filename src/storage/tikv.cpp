@@ -49,6 +49,32 @@ namespace Taas {
         return true;
     }
 
+    void TiKV::sendTransactionToTiKV_usleep() {
+        std::unique_ptr<proto::Transaction> txn_ptr;
+        uint64_t epoch, epoch_mod;
+        epoch = epoch = EpochManager::GetPushDownEpoch();
+        epoch_mod = epoch % ctx.kCacheMaxLength;
+        while(!TiKV::tikv_epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+            TiKV::redo_log_queue->enqueue(std::move(txn_ptr));
+        }
+        TiKV::redo_log_queue->enqueue(nullptr);
+        while(redo_log_queue->try_dequeue(txn_ptr)) {
+            if(txn_ptr == nullptr) continue;
+            if(tikv_client_ptr == nullptr) continue;
+            auto tikv_txn = tikv_client_ptr->begin();
+            for (auto i = 0; i < txn_ptr->row_size(); i++) {
+                const auto& row = txn_ptr->row(i);
+                if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
+                    tikv_txn.put(row.key(), row.data());
+                }
+            }
+            tikv_txn.commit();
+            tikv_epoch_pushed_down_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+        }
+        CheckEpochPushDownComplete(epoch);
+    }
+
+
     void TiKV::sendTransactionToTiKV() {
         std::unique_ptr<proto::Transaction> txn_ptr;
         uint64_t epoch, epoch_mod;
@@ -119,8 +145,5 @@ namespace Taas {
         }
         return false;
     }
-
-
-
 
 }

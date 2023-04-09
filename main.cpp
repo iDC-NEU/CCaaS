@@ -39,7 +39,7 @@ namespace Taas {
                 threads.push_back(std::make_unique<std::thread>(WorkerFroTiKVStorageThreadMain, i));///tikv push down
             }
         }
-        threads.push_back(std::make_unique<std::thread>(SendToMOThreadMain, ctx)); ///mot push down
+        threads.push_back(std::make_unique<std::thread>(WorkerFroMOTStorageThreadMain, ctx)); ///mot push down
 
         if(ctx.kTxnNodeNum > 1) {
             threads.push_back(std::make_unique<std::thread>(SendServerThreadMain, ctx));

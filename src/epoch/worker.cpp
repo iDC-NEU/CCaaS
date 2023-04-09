@@ -6,6 +6,7 @@
 #include "message/message.h"
 #include "transaction/merge.h"
 #include "storage/tikv.h"
+#include "storage/mot.h"
 
 namespace Taas {
 
@@ -48,15 +49,16 @@ namespace Taas {
     void WorkerFroCommitThreadMain(const Context& ctx, uint64_t id) {
         Merger merger;
         merger.Init(ctx, id);
-//        auto epoch = EpochManager::GetLogicalEpoch();
+        auto epoch = EpochManager::GetLogicalEpoch();
         auto txn_ptr = std::make_unique<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(1000);
         if(id == 0) {
-//            while(!EpochManager::IsTimerStop()) {
-//                epoch = EpochManager::GetLogicalEpoch();
-//                while(!EpochManager::IsAbortSetMergeComplete(epoch)) usleep(50);
-                merger.EpochCommit_RedoLog_TxnMode_Commit_Queue();
-//            }
+//            merger.EpochCommit_RedoLog_TxnMode_Commit_Queue();
+            while(!EpochManager::IsTimerStop()) {
+                epoch = EpochManager::GetLogicalEpoch();
+                while(!EpochManager::IsAbortSetMergeComplete(epoch)) usleep(50);
+                merger.EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep();
+            }
         }
         else {
             merger.EpochCommit_RedoLog_TxnMode_Commit_Queue_Wait();
@@ -64,21 +66,27 @@ namespace Taas {
     }
 
     void WorkerFroTiKVStorageThreadMain(uint64_t id) {
-//        uint64_t epoch;
-//        auto txn_ptr = std::make_unique<proto::Transaction>();
+        uint64_t epoch;
+        auto txn_ptr = std::make_unique<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(1000);
         if(id == 0) {
-//            while(!EpochManager::IsTimerStop()) {
-//                epoch = EpochManager::GetPushDownEpoch();
-//                while(!EpochManager::IsCommitComplete(epoch)) usleep(50);
-                TiKV::sendTransactionToTiKV();
-//            }
+//            TiKV::sendTransactionToTiKV();
+            while(!EpochManager::IsTimerStop()) {
+                epoch = EpochManager::GetPushDownEpoch();
+                while(!EpochManager::IsCommitComplete(epoch)) usleep(50);
+                TiKV::sendTransactionToTiKV_usleep();
+            }
         }
         else {
             while (!EpochManager::IsTimerStop()) {
                 TiKV::sendTransactionToTiKV_Wait();
             }
         }
+    }
+
+    void WorkerFroMOTStorageThreadMain(const Context& ctx) {
+        MOT::SendToMOThreadMain_usleep();
+//        MOT::SendToMOThreadMain();
     }
 
 }
