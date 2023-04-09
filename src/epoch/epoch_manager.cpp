@@ -271,10 +271,12 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
                 usleep(50);
             }
             while(!EpochManager::CheckEpochCommitState()) {
+                EpochManager::CheckEpochMergeState();
                 EpochManager::CheckEpochAbortMergeState();
                 usleep(50);
             }
-            EpochManager::CheckRedoLogPushDownState();
+//            EpochManager::CheckRedoLogPushDownState();
+//            //clear cache  move to mot.cpp  MOT::SendToMOThreadMain_usleep();
         }
         printf("total commit txn num: %lu\n", total_commit_txn_num);
     }

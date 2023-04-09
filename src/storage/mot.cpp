@@ -70,6 +70,7 @@ namespace Taas {
             else {
                 usleep(50);
             }
+            EpochManager::CheckRedoLogPushDownState();
         }
         socket_send.send((zmq::message_t &) "end", sendFlags);
     }

@@ -55,12 +55,7 @@ namespace Taas {
 //            merger.EpochCommit_RedoLog_TxnMode_Commit_Queue();
             while(!EpochManager::IsTimerStop()) {
                 epoch = EpochManager::GetLogicalEpoch();
-                while(!EpochManager::IsShardingMergeComplete(epoch)) {
-                    EpochManager::CheckEpochMergeState();
-                    usleep(50);
-                }
                 while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
-                    EpochManager::CheckEpochAbortMergeState();
                     usleep(50);
                 }
                 merger.EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep();
