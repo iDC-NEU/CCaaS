@@ -8,6 +8,7 @@
 #include "epoch/worker.h"
 #include "message/message.h"
 #include "storage/tikv.h"
+#include "storage/mot.h"
 #include "test/test.h"
 using namespace std;
 
@@ -29,18 +30,21 @@ namespace Taas {
         for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
             threads.push_back(std::make_unique<std::thread>(WorkerFroCommitThreadMain, ctx, i));///commit
         }
+
+        threads.push_back(std::make_unique<std::thread>(SendClientThreadMain, ctx));///client
+        threads.push_back(std::make_unique<std::thread>(ListenClientThreadMain, ctx));
+
         if(ctx.is_tikv_enable) {
             for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
-                threads.push_back(std::make_unique<std::thread>(WorkerFroTiKVStorageThreadMain, ctx, i));///push down
+                threads.push_back(std::make_unique<std::thread>(WorkerFroTiKVStorageThreadMain, i));///tikv push down
             }
         }
+        threads.push_back(std::make_unique<std::thread>(SendToMOThreadMain, ctx)); ///mot push down
+
         if(ctx.kTxnNodeNum > 1) {
             threads.push_back(std::make_unique<std::thread>(SendServerThreadMain, ctx));
             threads.push_back(std::make_unique<std::thread>(ListenServerThreadMain, ctx));
         }
-        threads.push_back(std::make_unique<std::thread>(SendClientThreadMain, ctx));///reply to client
-        threads.push_back(std::make_unique<std::thread>(ListenClientThreadMain, ctx));
-        threads.push_back(std::make_unique<std::thread>(SendStoragePUBThreadMain2, ctx));
 
 
         for(int i = 0; i < (int)ctx.kTestClientNum; i ++) {

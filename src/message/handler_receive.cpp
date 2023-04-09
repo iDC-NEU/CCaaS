@@ -327,24 +327,19 @@ namespace Taas {
                 Merger::epoch_should_commit_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
                 Merger::LocalTxnCommitQueueEnqueue(ctx, message_epoch, std::move(txn_ptr));
                 sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
-//                CheckEpochShardingSendComplete(ctx, message_epoch);
-//                CheckEpochBackUpComplete(ctx, message_epoch);
                 break;
             }
             case proto::TxnType::RemoteServerTxn : {
                 sharding_should_handle_remote_txn_num.IncCount(message_epoch, thread_id, 1);
                 Merger::epoch_should_merge_txn_num.IncCount(message_epoch, message_server_id, 1);
-                sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
-//                Merger::MergeQueueEnqueue(message_epoch, std::move(txn_ptr), ctx);
                 Merger::EpochMerge(ctx, message_epoch, std::move(txn_ptr));
+                sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
                 sharding_handled_remote_txn_num.IncCount(message_epoch, thread_id, 1);
-//                CheckEpochShardingReceiveComplete(ctx,message_epoch);
                 break;
             }
             case proto::TxnType::EpochEndFlag : {
                 sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
-//                sharding_received_txn_num.IncCount(message_epoch,message_server_id, PACKNUM);
                 CheckEpochShardingReceiveComplete(ctx,message_epoch);
                 CheckAdnSetEpochMergeState();
                 break;
@@ -358,7 +353,6 @@ namespace Taas {
             case proto::TxnType::BackUpEpochEndFlag : {
                 backup_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 backup_received_pack_num.IncCount(message_epoch,message_server_id, 1);
-//                backup_received_txn_num.IncCount(message_epoch,message_server_id, PACKNUM);
                 break;
             }
             case proto::TxnType::AbortSet : {
@@ -366,7 +360,6 @@ namespace Taas {
                 epoch_abort_set[message_epoch_mod]->enqueue(std::move(txn_ptr));
                 epoch_abort_set[message_epoch_mod]->enqueue(nullptr);
                 abort_set_received_num.IncCount(message_epoch,message_server_id, 1);
-//                CheckEpochAbortSetMergeComplete(ctx, message_epoch);
                 ///send abort set ack
                 MessageSendHandler::SendTxnToServer(ctx, message_epoch,
                             message_server_id, empty_txn, proto::TxnType::AbortSetACK);
@@ -376,7 +369,6 @@ namespace Taas {
                 epoch_insert_set[message_epoch_mod]->enqueue(std::move(txn_ptr));
                 epoch_insert_set[message_epoch_mod]->enqueue(nullptr);
                 insert_set_received_num.IncCount(message_epoch,message_server_id, 1);
-//                CheckEpochInsertSetMergeComplete(ctx, message_epoch);
                 ///send insert set ack
                 MessageSendHandler::SendTxnToServer(ctx, message_epoch,
                             message_server_id, empty_txn, proto::TxnType::InsertSetACK);
@@ -402,6 +394,7 @@ namespace Taas {
             }
             case proto::TxnType::InsertSetACK : {
                 insert_set_received_ack_num.IncCount(message_epoch,message_server_id, 1);
+                CheckAdnSetEpochMergeState();
                 break;
             }
             case proto::TxnType::EpochLogPushDownComplete : {

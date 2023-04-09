@@ -23,7 +23,7 @@ namespace Taas {
         std::unique_ptr<proto::Transaction> txn_ptr;
         std::unique_ptr<pack_params> pack_param;
         std::string csn_temp, key_temp, key_str, table_name, csn_result;
-        uint64_t thread_id = 0, epoch = 0, txn_server_id = 0;
+        uint64_t thread_id = 0, epoch = 0, epoch_mod = 0, txn_server_id = 0;
         bool res, sleep_flag;
         Context ctx;
         CRDTMerge merger;
@@ -45,7 +45,9 @@ namespace Taas {
         static concurrent_unordered_map<std::string, std::string> read_version_map, insert_set, abort_txn_set;
 
         ///queues
+        static std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> task_queue;
 //        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> merge_queue;///merge_queue 存放需要进行merge的子事务 不区分epoch
+        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> commit_queue;
         static std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
                 epoch_merge_queue,///merge_queue 存放需要进行merge的子事务 不区分epoch
                 epoch_local_txn_queue, ///epoch_local_txn_queue 本地接收到的完整的事务  txn receive from client (used to push log down to storage)
@@ -62,9 +64,9 @@ namespace Taas {
         void Init(const Context& ctx_, uint64_t id);
 
         static bool EpochMerge(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
-        void EpochCommit_RedoLog_TxnMode_Wait();
-        bool EpochCommit_RedoLog_TxnMode();
-        bool EpochCommit_RedoLog_ShardingMode();
+        static bool GenerateCommitTask(const Context& ctx_, uint64_t& epoch);
+        void EpochCommit_RedoLog_TxnMode_Commit_Queue_Wait();
+        void EpochCommit_RedoLog_TxnMode_Commit_Queue();
 
 
         static bool CheckEpochMergeComplete(const Context &ctx, uint64_t& epoch) {

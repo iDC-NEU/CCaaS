@@ -11,6 +11,7 @@
 #include "storage/redo_loger.h"
 #include "transaction/merge.h"
 #include "storage/tikv.h"
+#include "storage/mot.h"
 
 namespace Taas {
 
@@ -20,7 +21,6 @@ namespace Taas {
     Context EpochManager::ctx;
     std::atomic<uint64_t> EpochManager::logical_epoch(1), EpochManager::physical_epoch(0), EpochManager::push_down_epoch(1);
     uint64_t EpochManager::max_length = 10000;
-    std::unique_ptr<std::condition_variable> EpochManager::commit_cv, EpochManager::redo_log_cv;
     //epoch merge state
     std::vector<std::unique_ptr<std::atomic<bool>>> EpochManager::merge_complete, EpochManager::abort_set_merge_complete,
             EpochManager::commit_complete, EpochManager::record_committed, EpochManager::is_current_epoch_abort;
@@ -43,11 +43,10 @@ namespace Taas {
         MessageQueue::StaticInitMessageQueue(ctx);
         MessageSendHandler::StaticInit(ctx);
         MessageReceiveHandler::StaticInit(ctx);
+        RedoLoger::StaticInit(ctx);
 
         EpochManager::max_length = ctx.kCacheMaxLength;
         //==========Logical Epoch Merge State=============
-        EpochManager::commit_cv = std::make_unique<std::condition_variable>();
-        EpochManager::redo_log_cv  = std::make_unique<std::condition_variable>();
         EpochManager::merge_complete.resize(EpochManager::max_length);
         EpochManager::abort_set_merge_complete.resize(EpochManager::max_length);
         EpochManager::commit_complete.resize(EpochManager::max_length);
@@ -144,7 +143,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         merge_num                    %6lu, time          %lu \n",
        s.c_str(),
        EpochManager::GetPhysicalEpoch(),                                                  EpochManager::GetLogicalEpoch(),
-       RedoLoger::GetPushedDownMOTEpoch(),                                                EpochManager::GetPushDownEpoch(),
+       MOT::GetPushedDownMOTEpoch(),                                                EpochManager::GetPushDownEpoch(),
        merge_epoch.load(), abort_set_epoch.load(), commit_epoch.load(), redo_log_epoch.load(),clear_epoch.load(),
        epoch_mod,                                                                         EpochManager::GetPhysicalEpoch() - EpochManager::GetLogicalEpoch(),
        (uint64_t)MessageReceiveHandler::IsShardingPackReceiveComplete(ctx, epoch_mod),(uint64_t)MessageReceiveHandler::IsShardingTxnReceiveComplete(ctx, epoch_mod),
@@ -202,7 +201,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         if( i < merge_epoch.load() && (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i)) &&
             EpochManager::IsShardingMergeComplete(i)) {
             EpochManager::SetAbortSetMergeComplete(i, true);
-            EpochManager::commit_cv->notify_all();
+            Merger::GenerateCommitTask(ctx, i);
             abort_set_epoch.fetch_add(1);
             i ++;
             return true;
@@ -214,9 +213,11 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         if(commit_epoch.load() >= abort_set_epoch.load()) return true;
         auto i = commit_epoch.load();
         if( i < abort_set_epoch.load() && EpochManager::IsShardingMergeComplete(i) &&
-               EpochManager::IsAbortSetMergeComplete(i) && Merger::CheckEpochCommitComplete(ctx, i) &&
-               MessageReceiveHandler::IsEpochTxnHandleComplete(i) ) {
+               EpochManager::IsAbortSetMergeComplete(i) &&
+               Merger::CheckEpochCommitComplete(ctx, i)
+                ) {
             EpochManager::SetCommitComplete(i, true);
+            RedoLoger::GeneratePushDownTask(ctx, i);
             i ++;
             commit_epoch.fetch_add(1);
             return true;
@@ -229,12 +230,10 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         auto i = commit_epoch.load();
         while(redo_log_epoch.load() < commit_epoch.load() &&
             EpochManager::IsCommitComplete(i) &&
-            RedoLoger::IsMOTPushDownComplete(i) &&
-            TiKV::CheckEpochPushDownComplete(ctx, i) &&
+            RedoLoger::CheckPushDownComplete(ctx, i) &&
             MessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) {
             redo_log_epoch.fetch_add(1);
             i ++;
-            redo_log_cv->notify_all();
             res = true;
         }
         return res;
@@ -261,25 +260,21 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
                 }
                 epoch ++;
                 EpochManager::AddLogicalEpoch();
-                EpochManager::commit_cv->notify_all();
-                EpochManager::redo_log_cv->notify_all();
             }
 
             while(clear_epoch < merge_epoch.load() &&
                     clear_epoch < abort_set_epoch.load() && clear_epoch < commit_epoch.load() &&
-                    clear_epoch < RedoLoger::GetPushedDownMOTEpoch()) {
+                    clear_epoch < MOT::GetPushedDownMOTEpoch()) {
                 if(clear_epoch % ctx.print_mode_size == 0) {
                     printf("=-=-=-=-=-=-=完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", epoch, clear_epoch.load());
                 }
                 auto epoch_ = clear_epoch.load();
                 EpochManager::ClearMergeEpochState(epoch_); //清空当前epoch的merge信息
-                EpochManager::SetCacheServerStored(epoch_, cache_server_available);
-
                 MessageReceiveHandler::StaticClear(ctx, epoch_);//清空current epoch的receive cache num信息
                 Merger::ClearMergerEpochState(ctx, epoch_);
-
                 RedoLoger::ClearRedoLog(ctx, epoch_);
 
+//                EpochManager::SetCacheServerStored(epoch_, cache_server_available);
                 clear_epoch ++;
                 EpochManager::AddPushDownEpoch();
             }

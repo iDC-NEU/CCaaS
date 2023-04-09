@@ -7,12 +7,12 @@
         <txn_ip>202.199.13.253</txn_ip>
     </txn_node_ip>
     <sync_start>1</sync_start>
-    <epoch_size_us>10000</epoch_size_us><!-- us -->
+    <epoch_size_us>5000</epoch_size_us><!-- us -->
     <cache_max_length>5000</cache_max_length> <!-- 10 min  600s 600000ms 60000 epochs-->
     <worker_thread_num>10</worker_thread_num>
     <!--    test config   -->
     <duration_time_us>0</duration_time_us>
-    <test_client_num>5</test_client_num>
+    <test_client_num>1</test_client_num>
     <test_key_range>10000</test_key_range>
     <test_txn_op_num>5</test_txn_op_num>
     <!--    tikv config -->

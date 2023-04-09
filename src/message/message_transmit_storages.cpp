@@ -113,49 +113,4 @@ namespace Taas {
         socket_send.send((zmq::message_t &) "end", sendFlags);
     }
 
-    void SendStoragePUBThreadMain2(const Context& ctx) {//PUB PACK
-        SetCPU();
-        int queue_length = 0;
-        zmq::context_t context(1);
-        zmq::message_t reply(5);
-        zmq::send_flags sendFlags = zmq::send_flags::none;
-        zmq::socket_t socket_send(context, ZMQ_PUB);
-        socket_send.set(zmq::sockopt::sndhwm, queue_length);
-        socket_send.set(zmq::sockopt::rcvhwm, queue_length);
-        socket_send.bind("tcp://*:5556");//to server
-        printf("线程开始工作 SendStorage PUBServerThread ZMQ_PUB tcp://*:5556\n");
-        std::unique_ptr<send_params> params;
-        std::unique_ptr<zmq::message_t> msg;
-        uint64_t epoch = 1;
-        while(!EpochManager::IsInitOK()) usleep(1000);
-        while (!EpochManager::IsTimerStop()) {
-            if (epoch < EpochManager::GetLogicalEpoch()) {
-                auto push_msg = std::make_unique<proto::Message>();
-                auto push_response = push_msg->mutable_storage_push_response();
-                auto s = std::to_string(epoch) + ":";
-                auto epoch_mod = epoch % EpochManager::max_length;
-                auto total_num = RedoLoger::epoch_log_lsn.GetCount(epoch);
-                for (uint64_t i = 0; i < total_num; i++) {
-                    auto key = s + std::to_string(i);
-                    auto *ptr = push_response->add_txns();
-                    RedoLoger::committed_txn_cache[epoch_mod]->getValue(key, (*ptr)); //copy
-                }
-                push_response->set_result(proto::Success);
-                push_response->set_epoch_id(epoch);
-                push_response->set_txn_num(total_num);
-                auto serialized_pull_resp_str = std::make_unique<std::string>();
-                auto res = Gzip(push_msg.get(), serialized_pull_resp_str.get());
-                auto send_message = std::make_unique<zmq::message_t>(*serialized_pull_resp_str);
-                socket_send.send((*send_message), sendFlags);
-                epoch++;
-                RedoLoger::IncPushedDownMOTEpoch();
-            } else {
-                std::mutex m;
-                std::unique_lock<std::mutex> lock(m);
-                EpochManager::redo_log_cv->wait(lock);
-            }
-        }
-        socket_send.send((zmq::message_t &) "end", sendFlags);
-    }
-
 }

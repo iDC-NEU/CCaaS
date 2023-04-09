@@ -34,7 +34,6 @@ namespace Taas {
 
         static Context ctx;
         static uint64_t max_length;
-        static std::unique_ptr<std::condition_variable> commit_cv, redo_log_cv;
         static std::vector<std::unique_ptr<std::atomic<bool>>>
                     merge_complete, abort_set_merge_complete,
                     commit_complete, record_committed,
@@ -96,7 +95,7 @@ namespace Taas {
         static void EpochCacheSafeCheck() {
             if(((GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength)) ||
                     ((GetPushDownEpoch() % ctx.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength))) {
-                auto i = 0;
+                uint64_t i = 0;
                 OUTPUTLOG(ctx, "Assert", reinterpret_cast<uint64_t &>(i));
                 printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
                 printf("+++++++++++++++Fata : Cache Size exceeded!!! +++++++++++++++++++++\n");

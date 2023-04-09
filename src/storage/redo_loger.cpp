@@ -5,12 +5,12 @@
 #include "storage/redo_loger.h"
 #include "epoch/epoch_manager.h"
 #include "storage/tikv.h"
+#include "storage/mot.h"
 
 namespace Taas {
 
     AtomicCounters RedoLoger::epoch_log_lsn(10);
     std::vector<std::unique_ptr<concurrent_unordered_map<std::string, proto::Transaction>>> RedoLoger::committed_txn_cache;
-    std::atomic<uint64_t> RedoLoger::pushed_down_mot_epoch(1);
     void RedoLoger::StaticInit(const Context& ctx) {
         auto max_length = ctx.kCacheMaxLength;
         epoch_log_lsn.Init(max_length);
@@ -21,6 +21,7 @@ namespace Taas {
         if(ctx.is_tikv_enable) {
             TiKV::StaticInit(ctx);
         }
+        MOT::StaticInit(ctx);
     }
 
     void RedoLoger::ClearRedoLog(const Context& ctx, uint64_t& epoch) {
@@ -28,7 +29,7 @@ namespace Taas {
         committed_txn_cache[epoch_mod]->clear();
         epoch_log_lsn.SetCount(epoch_mod, 0);
         if(ctx.is_tikv_enable) {
-            TiKV::StaticClear(ctx, epoch);
+            TiKV::StaticClear(epoch);
         }
     }
 
@@ -40,10 +41,21 @@ namespace Taas {
         committed_txn_cache[epoch_id % ctx.kCacheMaxLength]->insert(key, txn);
         if(ctx.is_tikv_enable) {
             TiKV::tikv_epoch_should_push_down_txn_num.IncCount(epoch_id, txn.server_id(), 1);
-            TiKV::TiKVRedoLogQueueEnqueue(ctx, epoch_id, std::make_unique<proto::Transaction>(txn));
-            EpochManager::redo_log_cv->notify_one();
+            TiKV::TiKVRedoLogQueueEnqueue(epoch_id, std::make_unique<proto::Transaction>(txn));
         }
         return true;
     }
 
+    bool RedoLoger::GeneratePushDownTask(const Context &ctx, uint64_t &epoch) {
+        if(ctx.is_tikv_enable) {
+            TiKV::GeneratePushDownTask(epoch);
+        }
+        MOT::GeneratePushDownTask(epoch);
+        return true;
+    }
+
+    bool RedoLoger::CheckPushDownComplete(const Context &ctx, uint64_t &epoch) {
+        return MOT::IsMOTPushDownComplete(epoch) &&
+                TiKV::CheckEpochPushDownComplete(epoch);
+    }
 }

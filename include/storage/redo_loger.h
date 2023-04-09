@@ -17,19 +17,14 @@ namespace Taas {
     public:
         static AtomicCounters epoch_log_lsn;///epoch, value        for epoch log (each epoch has single one counter)
         static std::vector<std::unique_ptr<concurrent_unordered_map<std::string, proto::Transaction>>> committed_txn_cache;
-        static std::atomic<uint64_t> pushed_down_mot_epoch;
         static void StaticInit(const Context& ctx);
         static void ClearRedoLog(const Context& ctx, uint64_t& epoch_mod);
         static bool RedoLog(const Context& ctx, proto::Transaction& txn);
-        static bool IsMOTPushDownComplete(uint64_t& epoch) {
-            return epoch <= pushed_down_mot_epoch.load();
-        }
-        static uint64_t IncPushedDownMOTEpoch() {
-            return pushed_down_mot_epoch.fetch_add(1);
-        }
-        static uint64_t GetPushedDownMOTEpoch() {
-            return pushed_down_mot_epoch.load();
-        }
+
+        static bool GeneratePushDownTask(const Context& ctx, uint64_t& epoch);
+
+        static bool CheckPushDownComplete(const Context& ctx, uint64_t& epoch);
+
     };
 }
 

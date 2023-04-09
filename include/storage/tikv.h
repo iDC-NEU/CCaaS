@@ -13,20 +13,29 @@
 namespace Taas {
     class TiKV {
     public:
+        static Context ctx;
         static tikv_client::TransactionClient* tikv_client_ptr;
         static AtomicCounters_Cache
                 tikv_epoch_should_push_down_txn_num, tikv_epoch_pushed_down_txn_num;
+        static std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> task_queue, redo_log_queue;
         static std::vector<std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
             tikv_epoch_redo_log_queue; ///store transactions receive from clients, wait to push down
         static std::vector<std::unique_ptr<std::atomic<bool>>> epoch_redo_log_complete;
 
-        static void StaticInit(const Context& ctx);
-        static void StaticClear(const Context& ctx, uint64_t &epoch);
-        static void sendTransactionToTiKV(const Context& ctx);
-        static bool sendTransactionToTiKV(const Context& ctx, uint64_t epoch_mod, std::unique_ptr<proto::Transaction> &txn_ptr);
-        static bool CheckEpochPushDownComplete(const Context& ctx, uint64_t& epoch);
-        static void TiKVRedoLogQueueEnqueue(const Context &ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
-        static bool TiKVRedoLogQueueTryDequeue(const Context &ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
+        static void StaticInit(const Context& ctx_);
+        static void StaticClear(uint64_t &epoch);
+
+        static bool GeneratePushDownTask(uint64_t &epoch);
+
+        static void sendTransactionToTiKV();
+        static void sendTransactionToTiKV_Wait();
+
+        static bool CheckEpochPushDownComplete(uint64_t &epoch);
+        static void TiKVRedoLogQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
+        static bool TiKVRedoLogQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
+
+
+
     };
 }
 
