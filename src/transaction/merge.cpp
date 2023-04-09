@@ -175,13 +175,8 @@ namespace Taas {
                 }
                 commit_queue->enqueue(nullptr);
                 while(commit_queue->try_dequeue(txn_ptr)) {
-                    while (epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
-                        //不对分片事务进行commit处理
-                        epoch = txn_ptr->commit_epoch();
-                        epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                    }
-                    ///validation phase
                     if(txn_ptr == nullptr) continue;
+                    ///validation phase
                     if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
                         auto key = std::to_string(txn_ptr->client_txn_id());
                         abort_txn_set.insert(key,key);
@@ -195,6 +190,14 @@ namespace Taas {
                         MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
                     }
                     epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+
+
+                    while (epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
+                        //不对分片事务进行commit处理
+                        epoch = txn_ptr->commit_epoch();
+                        epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+                    }
+
                 }
                 CheckEpochCommitComplete(ctx, epoch);
             }
@@ -206,12 +209,7 @@ namespace Taas {
             commit_queue->wait_dequeue(txn_ptr);
             if(txn_ptr == nullptr) return;
             epoch = txn_ptr->commit_epoch();
-            epoch_mod = epoch % ctx.kCacheMaxLength;
-            while (epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
-                //不对分片事务进行commit处理
-                epoch = txn_ptr->commit_epoch();
-                epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-            }
+
             ///validation phase
             if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
                 auto key = std::to_string(txn_ptr->client_txn_id());
@@ -226,6 +224,14 @@ namespace Taas {
                 MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
             }
             epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+
+            epoch_mod = epoch % ctx.kCacheMaxLength;
+            while (epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr) && txn_ptr != nullptr) {
+                //不对分片事务进行commit处理
+                epoch = txn_ptr->commit_epoch();
+                epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+            }
+
         }
     }
 
