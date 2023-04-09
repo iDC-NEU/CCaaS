@@ -176,7 +176,10 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
 
     bool EpochManager::CheckEpochMergeState() {
         auto res = false;
-        while (EpochManager::IsShardingMergeComplete(merge_epoch.load())) merge_epoch.fetch_add(1);
+        while (EpochManager::IsShardingMergeComplete(merge_epoch.load()) &&
+                merge_epoch.load() < EpochManager::GetPhysicalEpoch()) {
+            merge_epoch.fetch_add(1);
+        }
         auto i = merge_epoch.load();
         while(i < EpochManager::GetPhysicalEpoch() &&
                 (ctx.kTxnNodeNum == 1 ||
@@ -232,7 +235,7 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
 
     bool EpochManager::CheckRedoLogPushDownState() {
         auto res = false;
-        auto i = commit_epoch.load();
+        auto i = redo_log_epoch.load();
         while(redo_log_epoch.load() < commit_epoch.load() &&
             EpochManager::IsCommitComplete(i) &&
             RedoLoger::CheckPushDownComplete(ctx, i) &&
