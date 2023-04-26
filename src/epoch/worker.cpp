@@ -39,9 +39,18 @@ namespace Taas {
     void WorkerFroMessageThreadMain(const Context& ctx, uint64_t id) {
         MessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, id);
+        auto sleep_flag = false;
         while(!EpochManager::IsInitOK()) usleep(1000);
-        while(!EpochManager::IsTimerStop()) {
-            receiveHandler.HandleReceivedMessage_Block();
+        if(id == 0) {
+            while(!EpochManager::IsTimerStop()) {
+                sleep_flag = receiveHandler.HandleReceivedMessage();
+                if(!sleep_flag) usleep(50);
+            }
+        }
+        else {
+            while(!EpochManager::IsTimerStop()) {
+                receiveHandler.HandleReceivedMessage_Block();
+            }
         }
     }
 
@@ -57,6 +66,7 @@ namespace Taas {
                 epoch = EpochManager::GetLogicalEpoch();
                 while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
                     usleep(50);
+                    EpochManager::CheckEpochMergeState();
                 }
                 merger.EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep();
             }
@@ -74,7 +84,10 @@ namespace Taas {
 //            TiKV::sendTransactionToTiKV();
             while(!EpochManager::IsTimerStop()) {
                 epoch = EpochManager::GetPushDownEpoch();
-                while(!EpochManager::IsCommitComplete(epoch)) usleep(50);
+                while(!EpochManager::IsCommitComplete(epoch)) {
+                    usleep(50);
+                    EpochManager::CheckRedoLogPushDownState();
+                }
                 TiKV::sendTransactionToTiKV_usleep();
             }
         }

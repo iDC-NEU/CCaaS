@@ -158,7 +158,6 @@ namespace Taas {
 //            epoch_commit_queue[epoch_mod]->enqueue(nullptr);
 //        }
         epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
-        CheckEpochMergeComplete(ctx, epoch);
         return res;
     }
 
