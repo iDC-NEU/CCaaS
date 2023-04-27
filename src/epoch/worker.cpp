@@ -18,75 +18,214 @@ namespace Taas {
  * @return false
  */
 
-    void StateChecker(const Context& ctx) {
+    void WorkerForPhysicalThreadMain(const Context &ctx) {
+        std::string name = "EpochPhysical";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         SetCPU();
-        MessageSendHandler sendHandler;
+        EpochPhysicalTimerManagerThreadMain(ctx);
+    }
+
+    void WorkerForLogicalThreadMain(const Context& ctx) {
+        SetCPU();
+        EpochLogicalTimerManagerThreadMain(ctx);
+    }
+
+    void WorkerForLogicalTxnMergeCheckThreadMain(const Context& ctx) {
+        std::string name = "EpochTxnMergeCheck";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while(!EpochManager::IsTimerStop()){
+            while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum ||
+                    !EpochManager::CheckEpochMergeState()) {
+                usleep(logical_sleep_timme);
+            }
+        }
+    }
+
+    void WorkerForLogicalAbortSetMergeCheckThreadMain(const Context& ctx) {
+        std::string name = "EpochAbortSetMergeCheck";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while(!EpochManager::IsTimerStop()){
+            while(!EpochManager::CheckEpochAbortMergeState()) {
+                usleep(logical_sleep_timme);
+            }
+        }
+    }
+
+    void WorkerForLogicalCommitCheckThreadMain(const Context& ctx) {
+        std::string name = "EpochTCommitCheck";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while(!EpochManager::IsTimerStop()){
+            while(!EpochManager::CheckEpochCommitState()) {
+                usleep(logical_sleep_timme);
+            }
+        }
+    }
+
+    void WorkerForLogicalRedoLogPushDownCheckThreadMain(const Context& ctx) {
+        SetCPU();
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while(!EpochManager::IsTimerStop()){
+            while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum ||
+                  !EpochManager::CheckRedoLogPushDownState()) {
+                usleep(logical_sleep_timme);
+            }
+        }
+    }
+
+    void WorkerForLogicalReceiveAndReplyCheckThreadMain(const Context& ctx) {
+        SetCPU();
+        bool sleep_flag;
         MessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, 0);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while(!EpochManager::IsTimerStop()){
+            sleep_flag = receiveHandler.CheckReceivedStatesAndReply();/// check and send EpochShardingACK BackUpACK ack /// check and send EpochLogPushDownComplete ack
+            if(!sleep_flag) usleep(sleep_time);
+        }
+    }
+
+    void WorkerForEpochAbortSendThreadMain(const Context& ctx) {
+        SetCPU();
         bool sleep_flag;
-        while(!EpochManager::IsInitOK()) usleep(1000);
-//        printf("State Checker\n");
-        while (!EpochManager::IsTimerStop()) {
-            sleep_flag = false;
-            sleep_flag = receiveHandler.CheckReceivedStatesAndReply() | sleep_flag;/// check and send ack
-            sleep_flag = MessageSendHandler::SendEpochEndMessage(ctx) | sleep_flag;///send epoch end flag
-            sleep_flag = MessageSendHandler::SendBackUpEpochEndMessage(ctx) | sleep_flag;///send epoch backup end message
-            sleep_flag = MessageSendHandler::SendAbortSet(ctx) | sleep_flag; ///send abort set
-            if(!sleep_flag) usleep(100);
+        MessageReceiveHandler receiveHandler;
+        receiveHandler.Init(ctx, 0);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while(!EpochManager::IsTimerStop()){
+            sleep_flag = MessageSendHandler::SendAbortSet(ctx); ///check and send abort set
+            if(!sleep_flag) usleep(sleep_time);
+        }
+    }
+
+    void WorkerForEpochEndFlagSendThreadMain(const Context& ctx) {
+        SetCPU();
+        bool sleep_flag;
+        MessageReceiveHandler receiveHandler;
+        receiveHandler.Init(ctx, 0);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while(!EpochManager::IsTimerStop()){
+            sleep_flag = MessageSendHandler::SendEpochEndMessage(ctx); ///send epoch end flag
+            if(!sleep_flag) usleep(sleep_time);
+        }
+    }
+
+    void WorkerForEpochBackUpEndFlagSendThreadMain(const Context& ctx) {
+        SetCPU();
+        bool sleep_flag;
+        MessageReceiveHandler receiveHandler;
+        receiveHandler.Init(ctx, 0);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while(!EpochManager::IsTimerStop()){
+            sleep_flag = MessageSendHandler::SendBackUpEpochEndMessage(ctx); ///send epoch backup end message
+            if(!sleep_flag) usleep(sleep_time);
         }
     }
 
     void WorkerFroMessageThreadMain(const Context& ctx, uint64_t id) {
+        std::string name = "EpochMessage-" + std::to_string(id);
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         MessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, id);
-        auto sleep_flag = false;
-        while(!EpochManager::IsInitOK()) usleep(1000);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
         if(id == 0) {
+            SetCPU();
+            bool sleep_flag;
             while(!EpochManager::IsTimerStop()) {
                 sleep_flag = receiveHandler.HandleReceivedMessage();
-                if(!sleep_flag) usleep(50);
+                sleep_flag = receiveHandler.CheckReceivedStatesAndReply() | sleep_flag; /// check and send EpochShardingACK BackUpACK ack /// check and send EpochLogPushDownComplete ack
+                if(!sleep_flag) usleep(sleep_time);
             }
         }
-        else {
+        else if(id == 1) {
+            SetCPU();
+            bool sleep_flag;
             while(!EpochManager::IsTimerStop()) {
-                receiveHandler.HandleReceivedMessage_Block();
+                sleep_flag = receiveHandler.HandleReceivedMessage();
+                sleep_flag = MessageSendHandler::SendEpochEndMessage(ctx)| sleep_flag; ///check and send abort set
+                sleep_flag = MessageSendHandler::SendBackUpEpochEndMessage(ctx)| sleep_flag; ///check and send abort set
+                if(!sleep_flag) usleep(sleep_time);
             }
         }
+        else if(id < 5) {
+            receiveHandler.HandleReceivedMessage_usleep();
+        }
+        receiveHandler.HandleReceivedMessage_Block();
+//        receiveHandler.HandleReceivedMessage_usleep();
     }
 
     void WorkerFroCommitThreadMain(const Context& ctx, uint64_t id) {
+        std::string name = "EpochCommit-" + std::to_string(id);
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         Merger merger;
         merger.Init(ctx, id);
-        auto epoch = EpochManager::GetLogicalEpoch();
+        uint64_t  epoch;
         auto txn_ptr = std::make_unique<proto::Transaction>();
-        while(!EpochManager::IsInitOK()) usleep(1000);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
         if(id == 0) {
-//            merger.EpochCommit_RedoLog_TxnMode_Commit_Queue();
+            SetCPU();
             while(!EpochManager::IsTimerStop()) {
                 epoch = EpochManager::GetLogicalEpoch();
                 while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
-                    usleep(50);
-                    EpochManager::CheckEpochMergeState();
+                    usleep(sleep_time);
+                    MessageSendHandler::SendAbortSet(ctx); ///check and send abort set
                 }
                 merger.EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep();
             }
         }
+        else if(id < 5) {
+            merger.EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep_1();
+        }
         else {
-            merger.EpochCommit_RedoLog_TxnMode_Commit_Queue_Wait();
+            merger.EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep_1();
         }
     }
 
-    void WorkerFroTiKVStorageThreadMain(uint64_t id) {
+    void WorkerForClientListenThreadMain(const Context& ctx) {
+        std::string name = "EpochClientListen";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
+        ListenClientThreadMain(ctx);
+    }
+
+    void WorkerForClientSendThreadMain(const Context& ctx) {
+        std::string name = "EpochClientSend";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
+        SendClientThreadMain(ctx);
+    }
+
+    void WorkerForServerListenThreadMain(const Context& ctx) {
+        std::string name = "EpochServerListen";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
+        ListenServerThreadMain(ctx);
+    }
+
+    void WorkerForServerSendThreadMain(const Context& ctx) {
+        std::string name = "EpochServerSend";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
+        SendServerThreadMain(ctx);
+    }
+
+    void WorkerFroTiKVStorageThreadMain(const Context& ctx, uint64_t id) {
+        std::string name = "EpochTikv-" + std::to_string(id);
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         uint64_t epoch;
+        MessageReceiveHandler receiveHandler;
+        receiveHandler.Init(ctx, id);
         auto txn_ptr = std::make_unique<proto::Transaction>();
-        while(!EpochManager::IsInitOK()) usleep(1000);
-        if(id == 0) {
-//            TiKV::sendTransactionToTiKV();
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        if(id < 5) {
             while(!EpochManager::IsTimerStop()) {
                 epoch = EpochManager::GetPushDownEpoch();
                 while(!EpochManager::IsCommitComplete(epoch)) {
-                    usleep(50);
-                    EpochManager::CheckRedoLogPushDownState();
+                    usleep(sleep_time);
                 }
                 TiKV::sendTransactionToTiKV_usleep();
             }
@@ -98,8 +237,11 @@ namespace Taas {
         }
     }
 
-    void WorkerFroMOTStorageThreadMain(const Context& ctx) {
-        MOT::SendToMOThreadMain_usleep();
+    void WorkerFroMOTStorageThreadMain() {
+        std::string name = "EpochMOT";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
+        MOT::SendToMOThreadMain_usleep(); ///EpochManager::CheckRedoLogPushDownState(); in this function
 //        MOT::SendToMOThreadMain();
     }
 

@@ -8,12 +8,30 @@
 #include "tools/context.h"
 
 namespace Taas {
-    extern void StateChecker(const Context& ctx);
+    extern void WorkerForPhysicalThreadMain(const Context &ctx);
+    extern void WorkerForLogicalThreadMain(const Context& ctx);
+
+    extern void WorkerForLogicalTxnMergeCheckThreadMain(const Context& ctx);
+    extern void WorkerForLogicalAbortSetMergeCheckThreadMain(const Context& ctx);
+    extern void WorkerForLogicalCommitCheckThreadMain(const Context& ctx);
+    extern void WorkerForLogicalRedoLogPushDownCheckThreadMain(const Context& ctx);
+
+    extern void WorkerForLogicalReceiveAndReplyCheckThreadMain(const Context& ctx) ;
+    extern void WorkerForEpochAbortSendThreadMain(const Context& ctx);
+    extern void WorkerForEpochEndFlagSendThreadMain(const Context& ctx) ;
+    extern void WorkerForEpochBackUpEndFlagSendThreadMain(const Context& ctx);
+
     extern void WorkerFroMessageThreadMain(const Context& ctx, uint64_t id);
     extern void WorkerFroCommitThreadMain(const Context& ctx, uint64_t id);
-    extern void WorkerFroTiKVStorageThreadMain(uint64_t id);
-    extern void WorkerFroMOTStorageThreadMain(const Context& ctx);
-    extern void WorkerThreadMain(const Context& ctx, uint64_t id);
+
+    extern void WorkerForClientListenThreadMain(const Context& ctx);
+    extern void WorkerForClientSendThreadMain(const Context& ctx);
+    extern void WorkerForServerListenThreadMain(const Context& ctx);
+    extern void WorkerForServerSendThreadMain(const Context& ctx);
+    extern void WorkerFroTiKVStorageThreadMain(const Context& ctx, uint64_t id);
+    extern void WorkerFroMOTStorageThreadMain();
+
+    extern void StateChecker(const Context& ctx);
 }
 
 

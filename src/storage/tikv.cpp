@@ -59,8 +59,8 @@ namespace Taas {
         }
         TiKV::redo_log_queue->enqueue(nullptr);
         while(redo_log_queue->try_dequeue(txn_ptr)) {
-            if(txn_ptr == nullptr) continue;
-            if(tikv_client_ptr == nullptr) continue;
+            if(txn_ptr == nullptr) continue ;
+            if(tikv_client_ptr == nullptr) continue ;
             auto tikv_txn = tikv_client_ptr->begin();
             for (auto i = 0; i < txn_ptr->row_size(); i++) {
                 const auto& row = txn_ptr->row(i);

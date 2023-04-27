@@ -30,7 +30,6 @@ namespace Taas {
     }
 
     void MOT::SendToMOThreadMain_usleep() {
-        SetCPU();
         int queue_length = 0;
         zmq::context_t context(1);
         zmq::message_t reply(5);
@@ -44,7 +43,7 @@ namespace Taas {
         std::unique_ptr<zmq::message_t> msg;
         std::unique_ptr<proto::Transaction> txn_ptr;
         uint64_t epoch = 1;
-        while(!EpochManager::IsInitOK()) usleep(1000);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
             if(epoch < EpochManager::GetLogicalEpoch()) {
                 auto push_msg = std::make_unique<proto::Message>();
@@ -68,15 +67,14 @@ namespace Taas {
                 epoch ++;
             }
             else {
-                usleep(50);
+                EpochManager::CheckRedoLogPushDownState();
+                usleep(sleep_time);
             }
-            EpochManager::CheckRedoLogPushDownState();
         }
         socket_send.send((zmq::message_t &) "end", sendFlags);
     }
 
     void MOT::SendToMOThreadMain() {//PUB PACK
-        SetCPU();
         int queue_length = 0;
         zmq::context_t context(1);
         zmq::message_t reply(5);
@@ -90,7 +88,7 @@ namespace Taas {
         std::unique_ptr<zmq::message_t> msg;
         std::unique_ptr<proto::Transaction> txn_ptr;
         uint64_t epoch;
-        while(!EpochManager::IsInitOK()) usleep(1000);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
             MOT::task_queue->wait_dequeue(txn_ptr);
             if(txn_ptr != nullptr) {

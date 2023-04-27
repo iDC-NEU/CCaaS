@@ -117,9 +117,6 @@ namespace Taas {
             }
             return false;
         }
-        static bool IsEpochShardingSendComplete(const Context &ctx, uint64_t& epoch) {
-            return epoch_sharding_send_complete[epoch % ctx.kCacheMaxLength]->load();
-        }
 
         static bool CheckEpochShardingReceiveComplete(const Context &ctx, uint64_t& epoch) {
             if (epoch_sharding_receive_complete[epoch % ctx.kCacheMaxLength]->load()) return true;
@@ -131,9 +128,6 @@ namespace Taas {
             }
             return false;
         }
-        static bool IsEpochShardingReceiveComplete(const Context &ctx, uint64_t& epoch) {
-            return epoch_sharding_receive_complete[epoch % ctx.kCacheMaxLength]->load();
-        }
 
         static bool CheckEpochBackUpComplete(const Context &ctx, uint64_t& epoch) {
             if (epoch_back_up_complete[epoch % ctx.kCacheMaxLength]->load()) return true;
@@ -144,9 +138,7 @@ namespace Taas {
             }
             return false;
         }
-        static bool IsEpochBackUpComplete(const Context &ctx, uint64_t& epoch) {
-            return epoch_back_up_complete[epoch % ctx.kCacheMaxLength]->load();
-        }
+
         static bool CheckEpochAbortSetMergeComplete(const Context &ctx, uint64_t& epoch) {
             if(epoch_abort_set_merge_complete[epoch % ctx.kCacheMaxLength]->load()) return true;
             if(epoch < EpochManager::GetPhysicalEpoch() &&
@@ -158,9 +150,7 @@ namespace Taas {
             }
             return false;
         }
-        static bool IsEpochAbortSetMergeComplete(const Context &ctx, uint64_t& epoch) {
-            return epoch_abort_set_merge_complete[epoch % ctx.kCacheMaxLength]->load();
-        }
+
         static bool CheckEpochInsertSetMergeComplete(const Context &ctx, uint64_t& epoch) {
             if(epoch_insert_set_complete[epoch % ctx.kCacheMaxLength]->load()) return true;
             if(epoch < EpochManager::GetPhysicalEpoch() &&
@@ -172,9 +162,7 @@ namespace Taas {
             }
             return false;
         }
-        static bool IsEpochInsertSetMergeComplete(const Context &ctx, uint64_t& epoch) {
-            return epoch_insert_set_complete[epoch % ctx.kCacheMaxLength]->load();
-        }
+
 
         ///local txn sharding send check
         static bool IsShardingSendFinish(uint64_t epoch, uint64_t sharding_id) {
@@ -312,9 +300,9 @@ namespace Taas {
             return true;
         }
 
-        void CheckAdnSetEpochMergeState();
-
         void HandleReceivedMessage_Block();
+        void HandleReceivedMessage_usleep();
+
     };
 
 }

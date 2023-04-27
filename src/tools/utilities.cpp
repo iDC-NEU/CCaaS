@@ -28,17 +28,19 @@ namespace Taas {
 
     std::atomic<int> cpu_index(1);
     void SetCPU(){
-//        #ifdef _WIN32
-//        #elif __linux__
-//            cpu_set_t logicalEpochSet;
-//            CPU_ZERO(&logicalEpochSet);
-//            CPU_SET(cpu_index.fetch_add(1), &logicalEpochSet); //2就是核心号
-//            int rc = sched_setaffinity(0, sizeof(cpu_set_t), &logicalEpochSet);
-//            if (rc == -1) {
-//                assert(false);
-//            }
-//        #elif __APPLE__
-//        #endif
+        #ifdef _WIN32
+        #elif __linux__
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);
+            CPU_SET(cpu_index.fetch_add(1), &cpuset);
+            int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset);
+//            int rc = sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
+            if (rc != 0) {
+                std::cout << "Set CPU Error!!!" << std::endl;
+                assert(false);
+            }
+        #elif __APPLE__
+        #endif
     }
 
 

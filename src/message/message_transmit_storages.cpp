@@ -43,7 +43,7 @@ namespace Taas {
         send_socket.set(zmq::sockopt::sndhwm, queue_length);
         send_socket.set(zmq::sockopt::rcvhwm, queue_length);
         recv_socket.bind("tcp://*:" + std::to_string(recv_port));
-        while(!EpochManager::IsInitOK()) usleep(1000);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
 
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> recv_message = std::make_unique<zmq::message_t>();
@@ -103,7 +103,7 @@ namespace Taas {
         printf("线程开始工作 SendStoragePUBServerThread ZMQ_PUB tcp:// ip + :5556\n");
         std::unique_ptr<send_params> params;
         std::unique_ptr<zmq::message_t> msg;
-        while(!EpochManager::IsInitOK()) usleep(1000);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
             MessageQueue::send_to_storage_queue->wait_dequeue(params);
             if (params == nullptr || params->type == proto::TxnType::NullMark) continue;

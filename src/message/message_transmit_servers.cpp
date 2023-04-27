@@ -25,7 +25,6 @@ namespace Taas {
  * @param ctx 暂未使用
  */
     void SendServerThreadMain(const Context& ctx) {
-        SetCPU();
         zmq::context_t context(1);
         zmq::message_t reply(5);
         zmq::send_flags sendFlags = zmq::send_flags::none;
@@ -43,7 +42,7 @@ namespace Taas {
             printf("Send Server connect ZMQ_PUSH %s", ("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(20000+i) + "\n").c_str());
         }
         printf("线程开始工作 SendServerThread\n");
-        while(!EpochManager::IsInitOK()) usleep(1000);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
             MessageQueue::send_to_server_queue->wait_dequeue(params);
             if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
@@ -64,7 +63,7 @@ namespace Taas {
 //            printf("Send Server connect ZMQ_PUSH %s", ("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(20000+i) + "\n").c_str());
 //        }
 //        printf("线程开始工作 SendServerThread\n");
-//        while(!EpochManager::IsInitOK()) usleep(1000);
+//        while(!EpochManager::IsInitOK()) usleep(sleep_time);
 //        while (!EpochManager::IsTimerStop()) {
 //            MessageQueue::send_to_server_queue->wait_dequeue(params);
 //            if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
@@ -81,7 +80,6 @@ namespace Taas {
  * @param ctx XML的配置信息
  */
     void ListenServerThreadMain(const Context& ctx) {///监听远端txn node写集
-        SetCPU();
         // 设置ZeroMQ的相关变量，监听其他txn node是否有写集发来
         zmq::context_t listen_context(1);
         zmq::recv_flags recvFlags = zmq::recv_flags::none;
@@ -92,7 +90,7 @@ namespace Taas {
         socket_listen.set(zmq::sockopt::sndhwm, queue_length);
         socket_listen.set(zmq::sockopt::rcvhwm, queue_length);
         printf("线程开始工作 ListenServerThread ZMQ_PULL tcp://*:%s\n", std::to_string(20000+ctx.txn_node_ip_index).c_str());
-        while(!EpochManager::IsInitOK()) usleep(1000);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);//防止上次遗留消息造成message cache出现问题
@@ -117,7 +115,7 @@ namespace Taas {
 //        auto server = util::ZMQInstance::NewServer<zmq::socket_type::sub>(20000+ctx.txn_node_ip_index);
 //        CHECK(server != nullptr);
 //        printf("线程开始工作 ListenServerThread ZMQ_PULL tcp://*:%s\n", std::to_string(20000+ctx.txn_node_ip_index).c_str());
-//        while(!EpochManager::IsInitOK()) usleep(1000);
+//        while(!EpochManager::IsInitOK()) usleep(sleep_time);
 //        while (!EpochManager::IsTimerStop()) {
 //            auto ret = server->receive();
 //            CHECK(ret != std::nullopt);

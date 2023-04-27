@@ -20,6 +20,7 @@
 
 namespace Taas {
 
+    extern uint64_t sleep_time, logical_sleep_timme;
     extern std::atomic<int> init_ok_num;
     extern std::atomic<bool> is_epoch_advance_started, test_start;
     extern void InitEpochTimerManager(const Context& ctx);

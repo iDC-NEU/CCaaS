@@ -23,7 +23,6 @@ namespace Taas {
  * @param ctx 暂时未使用
  */
     void ListenClientThreadMain(const Context& ctx) {///监听client 写集
-        SetCPU();
         // 设置ZeroMQ的相关变量，并监听5555端口，接受client发来的写集
         int queue_length = 0;
         zmq::context_t listen_context(1);
@@ -34,7 +33,7 @@ namespace Taas {
         socket_listen.set(zmq::sockopt::rcvhwm, queue_length);
         socket_listen.bind("tcp://*:5551");
         printf("线程开始工作 ListenClientThread ZMQ_PULL tcp://*:5551\n");
-        while(!EpochManager::IsInitOK()) usleep(1000);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);//防止上次遗留消息造成message cache出现问题
@@ -64,7 +63,6 @@ namespace Taas {
  * @param ctx
  */
     void SendClientThreadMain(const Context& ctx) {
-        SetCPU();
         // 设置ZeroMQ的相关变量，通过5556端口发送Reply给client
         zmq::context_t context(1);
         zmq::send_flags sendFlags = zmq::send_flags::none;
@@ -73,7 +71,7 @@ namespace Taas {
         std::unique_ptr<send_params> params;
         std::unique_ptr<zmq::message_t> msg;
         printf("线程开始工作 SendClientThread ZMQ_PUSH tcp://ip+:5552 \n");
-        while(!EpochManager::IsInitOK()) usleep(1000);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
         std::unordered_map<std::string, std::unique_ptr<zmq::socket_t>> socket_map;
         // 测试用，如果设置了会丢弃发送给client的Reply
         if (ctx.kTestClientNum > 0) {

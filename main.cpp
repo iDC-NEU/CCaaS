@@ -21,9 +21,19 @@ namespace Taas {
         printf("System Start\n");
         std::vector<std::unique_ptr<std::thread>> threads;
 
-        threads.push_back(std::make_unique<std::thread>(EpochPhysicalTimerManagerThreadMain, ctx));
-        threads.push_back(std::make_unique<std::thread>(EpochLogicalTimerManagerThreadMain, ctx));
-        threads.push_back(std::make_unique<std::thread>(StateChecker, ctx));
+        threads.push_back(std::make_unique<std::thread>(WorkerForPhysicalThreadMain, ctx));
+
+//        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalThreadMain, ctx));
+        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalTxnMergeCheckThreadMain, ctx));
+        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalAbortSetMergeCheckThreadMain, ctx));
+        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalCommitCheckThreadMain, ctx));
+//        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalRedoLogPushDownCheckThreadMain, ctx));
+
+//        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalReceiveAndReplyCheckThreadMain, ctx));
+//        threads.push_back(std::make_unique<std::thread>(WorkerForEpochAbortSendThreadMain, ctx));
+//        threads.push_back(std::make_unique<std::thread>(WorkerForEpochEndFlagSendThreadMain, ctx));
+//        threads.push_back(std::make_unique<std::thread>(WorkerForEpochBackUpEndFlagSendThreadMain, ctx));
+
         for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
             threads.push_back(std::make_unique<std::thread>(WorkerFroMessageThreadMain, ctx, i));///merge
         }
@@ -31,20 +41,20 @@ namespace Taas {
             threads.push_back(std::make_unique<std::thread>(WorkerFroCommitThreadMain, ctx, i));///commit
         }
 
-        threads.push_back(std::make_unique<std::thread>(SendClientThreadMain, ctx));///client
-        threads.push_back(std::make_unique<std::thread>(ListenClientThreadMain, ctx));
-
+        threads.push_back(std::make_unique<std::thread>(WorkerForClientListenThreadMain, ctx));///client
+        threads.push_back(std::make_unique<std::thread>(WorkerForClientSendThreadMain, ctx));
+        if(ctx.kTxnNodeNum > 1) {
+            threads.push_back(std::make_unique<std::thread>(WorkerForServerListenThreadMain, ctx));
+            threads.push_back(std::make_unique<std::thread>(WorkerForServerSendThreadMain, ctx));
+        }
         if(ctx.is_tikv_enable) {
             for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
-                threads.push_back(std::make_unique<std::thread>(WorkerFroTiKVStorageThreadMain, i));///tikv push down
+                threads.push_back(std::make_unique<std::thread>(WorkerFroTiKVStorageThreadMain, ctx, i));///tikv push down
             }
         }
-        threads.push_back(std::make_unique<std::thread>(WorkerFroMOTStorageThreadMain, ctx)); ///mot push down
+        threads.push_back(std::make_unique<std::thread>(WorkerFroMOTStorageThreadMain)); ///mot push down
 
-        if(ctx.kTxnNodeNum > 1) {
-            threads.push_back(std::make_unique<std::thread>(SendServerThreadMain, ctx));
-            threads.push_back(std::make_unique<std::thread>(ListenServerThreadMain, ctx));
-        }
+
 
 
         for(int i = 0; i < (int)ctx.kTestClientNum; i ++) {
@@ -57,7 +67,7 @@ namespace Taas {
 
 
         if(ctx.kDurationTime_us != 0) {
-            while(!test_start.load()) usleep(10000);
+            while(!test_start.load()) usleep(sleep_time);
             usleep(ctx.kDurationTime_us);
             EpochManager::SetTimerStop(true);
             MessageQueue::send_to_client_queue->enqueue(nullptr);

@@ -21,8 +21,8 @@ namespace Taas {
             key_range_dis(1,static_cast<int>(ctx.kTestTxnOpNum)),
             sleep_dis(1, 20000);
 
-        while(!EpochManager::IsInitOK() || EpochManager::GetLogicalEpoch() < 10) usleep(10000);
-        usleep(10000);
+        while(!EpochManager::IsInitOK() || EpochManager::GetLogicalEpoch() < 10) usleep(sleep_time);
+        usleep(sleep_time);
         while(!EpochManager::IsTimerStop()) {
             auto message_ptr = std::make_unique<proto::Message>();
             auto* txn_ptr = message_ptr->mutable_txn();
