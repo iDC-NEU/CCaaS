@@ -373,6 +373,7 @@ namespace Taas {
             }
             case proto::TxnType::BackUpACK : {
                 backup_received_ack_num.IncCount(message_epoch,message_server_id, 1);
+                printf("=== receive backup ack from %lu epoch %lu\n", message_server_id, message_epoch);
                 CheckEpochBackUpComplete(ctx, message_epoch);
                 break;
             }
@@ -495,7 +496,7 @@ namespace Taas {
                     IsBackUpTxnReceiveComplete(backup_epoch, id)) {
                 MessageSendHandler::SendTxnToServer(ctx, backup_epoch,
                             id, empty_txn, proto::TxnType::BackUpACK);
-//                printf(" == send backup ack epoch, %lu server_id %lu\n", backup_epoch, id);
+                printf(" == send backup ack epoch, %lu server_id %lu\n", backup_epoch, id);
                 backup_epoch ++;
                 res = true;
             }
