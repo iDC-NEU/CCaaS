@@ -115,9 +115,9 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());
         assert(!serialized_txn_str_ptr->empty());
-        auto to_id = ctx.txn_node_ip_index + 1;
+        auto to_id = ctx.txn_node_ip_index;
         for (uint64_t i = 0; i < ctx.kBackUpNum; i++) {
-            to_id = (to_id + i) % ctx.kTxnNodeNum;
+            to_id = (to_id + 1) % ctx.kTxnNodeNum;
             if (to_id == ctx.txn_node_ip_index) continue;
             MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_id, 0, "",epoch, txn_type,std::make_unique<std::string>(*serialized_txn_str_ptr), nullptr));
 //            MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_id, 0, "",epoch, proto::TxnType::NullMark,nullptr, nullptr));
@@ -151,9 +151,9 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
         txn_end->set_sharding_id(0);
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());
-        auto to_id = ctx.txn_node_ip_index + 1;
+        auto to_id = ctx.txn_node_ip_index;
         for (uint64_t i = 0; i < ctx.kBackUpNum; i++) {
-            to_id = (to_id + i) % ctx.kTxnNodeNum;
+            to_id = (to_id + 1) % ctx.kTxnNodeNum;
             if (to_id == ctx.txn_node_ip_index) continue;/// send to everyone
             MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_id, 0, "", epoch, proto::TxnType::InsertSet, std::move(serialized_txn_str_ptr), nullptr));
         }
@@ -201,9 +201,9 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
             txn_end->set_csn(static_cast<uint64_t>(MessageReceiveHandler::backup_should_send_txn_num.GetCount(backup_sent_epoch)));
             auto serialized_txn_str_ptr = std::make_unique<std::string>();
             Gzip(msg.get(), serialized_txn_str_ptr.get());
-            auto to_id = ctx.txn_node_ip_index + 1;
+            auto to_id = ctx.txn_node_ip_index;
             for(uint64_t i = 0; i < ctx.kBackUpNum; i ++) { /// send to i+1, i+2...i+kBackNum-1
-                to_id = (to_id + i) % ctx.kTxnNodeNum;
+                to_id = (to_id + 1) % ctx.kTxnNodeNum;
                 if(to_id == ctx.txn_node_ip_index) continue;
                 auto str_copy = std::make_unique<std::string>(*serialized_txn_str_ptr);
                 MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_id, 0, "", backup_sent_epoch, proto::TxnType::BackUpEpochEndFlag, std::move(str_copy), nullptr));

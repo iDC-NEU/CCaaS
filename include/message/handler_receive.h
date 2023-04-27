@@ -219,18 +219,18 @@ namespace Taas {
                     sharding_handled_local_txn_num.GetCount(epoch) >= sharding_should_handle_local_txn_num.GetCount(epoch);
         }
         static bool IsBackUpACKReceiveComplete(const Context &ctx, uint64_t epoch) {
-            auto to_id = ctx.txn_node_ip_index + 1;
+            auto to_id = ctx.txn_node_ip_index ;
             for(uint64_t i = 0; i < ctx.kBackUpNum; i ++) { /// send to i+1, i+2...i+kBackNum-1
-                to_id = (to_id + i) % ctx.kTxnNodeNum;
+                to_id = (to_id + 1) % ctx.kTxnNodeNum;
                 if(to_id == (uint64_t)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, to_id) == 0) continue;
                 if(backup_received_ack_num.GetCount(epoch, to_id) < backup_should_receive_pack_num.GetCount(epoch, to_id)) return false;
             }
             return true;
         }
         static bool IsBackUpPackReceiveComplete(const Context &ctx, uint64_t epoch) {
-            auto to_id = ctx.txn_node_ip_index + 1;
+            auto to_id = ctx.txn_node_ip_index;
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i ++) {
-                to_id = (to_id + i) % ctx.kTxnNodeNum;
+                to_id = (to_id + 1) % ctx.kTxnNodeNum;
                 if(to_id == ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, to_id) == 0) continue;
                 if(backup_received_pack_num.GetCount(epoch, to_id) < backup_should_receive_pack_num.GetCount(epoch, to_id)) return false;
             }
@@ -240,9 +240,9 @@ namespace Taas {
             return backup_received_pack_num.GetCount(epoch, id) >= backup_should_receive_pack_num.GetCount(epoch, id);
         }
         static bool IsBackUpTxnReceiveComplete(const Context &ctx, uint64_t epoch) {
-            auto to_id = ctx.txn_node_ip_index + 1;
+            auto to_id = ctx.txn_node_ip_index;
             for(uint64_t i = 0; i < ctx.kBackUpNum; i ++) { /// send to i+1, i+2...i+kBackNum-1
-                to_id = (to_id + i) % ctx.kTxnNodeNum;
+                to_id = (to_id + 1) % ctx.kTxnNodeNum;
                 if(to_id == ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, to_id) == 0) continue;
                 if(backup_received_txn_num.GetCount(epoch, to_id) < backup_received_txn_num.GetCount(epoch, to_id)) return false;
             }
