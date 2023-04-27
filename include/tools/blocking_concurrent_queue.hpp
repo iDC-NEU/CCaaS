@@ -43,7 +43,7 @@ namespace moodycamel
         static const size_t INITIAL_IMPLICIT_PRODUCER_HASH_SIZE = ConcurrentQueue::INITIAL_IMPLICIT_PRODUCER_HASH_SIZE;
         static const std::uint32_t EXPLICIT_CONSUMER_CONSUMPTION_QUOTA_BEFORE_ROTATE = ConcurrentQueue::EXPLICIT_CONSUMER_CONSUMPTION_QUOTA_BEFORE_ROTATE;
 //        static const size_t MAX_SUBQUEUE_SIZE = ConcurrentQueue::MAX_SUBQUEUE_SIZE;
-        static const size_t MAX_SUBQUEUE_SIZE = 64;
+        static const size_t MAX_SUBQUEUE_SIZE = 16;
 
     public:
         // Creates a queue with at least `capacity` element slots; note that the
@@ -56,7 +56,7 @@ namespace moodycamel
         // queue is fully constructed before it starts being used by other threads (this
         // includes making the memory effects of construction visible, possibly with a
         // memory barrier).
-        explicit BlockingConcurrentQueue(size_t capacity = 128 * BLOCK_SIZE)
+        explicit BlockingConcurrentQueue(size_t capacity = 256 * BLOCK_SIZE)
                 : inner(capacity), sema(create<LightweightSemaphore, ssize_t, int>(0, (int)Traits::MAX_SEMA_SPINS), &BlockingConcurrentQueue::template destroy<LightweightSemaphore>)
         {
             assert(reinterpret_cast<ConcurrentQueue*>((BlockingConcurrentQueue*)1) == &((BlockingConcurrentQueue*)1)->inner && "BlockingConcurrentQueue must have ConcurrentQueue as its first member");

@@ -48,7 +48,7 @@ namespace Taas {
             if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
             if(params->id == ctx.txn_node_ip_index) assert(false);
             if(params->type == proto::TxnType::BackUpACK) {
-                printf("send thread a backup ack message epoch %ld server_id %lu\n", params->epoch, params->id);
+//                printf("send thread a backup ack message epoch %ld server_id %lu\n", params->epoch, params->id);
             }
             msg = std::make_unique<zmq::message_t>(*(params->str));
             socket_map[params->id]->send(*msg, sendFlags);
