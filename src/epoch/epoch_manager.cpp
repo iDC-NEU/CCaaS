@@ -4,6 +4,7 @@
 
 #include "sys/time.h"
 #include "string"
+#include "algorithm"
 #include "tools/utilities.h"
 #include "epoch/epoch_manager.h"
 #include "message/message.h"
@@ -56,7 +57,7 @@ namespace Taas {
         //cluster state
         EpochManager::online_server_num.reserve(EpochManager::max_length + 1);
 //        EpochManager::should_receive_pack_num.reserve(EpochManager::max_length + 1);
-        EpochManager::server_state.Init(EpochManager::max_length,(int)ctx.kServerIp.size() + 2, 1);
+        EpochManager::server_state.Init(EpochManager::max_length,ctx.kTxnNodeNum + 2, 1);
         //cache server
         EpochManager::cache_server_received_epoch.reserve(EpochManager::max_length + 1);
         uint64_t val = 1;
