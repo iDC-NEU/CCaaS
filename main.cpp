@@ -35,7 +35,7 @@ namespace Taas {
 //        threads.push_back(std::make_unique<std::thread>(WorkerForEpochBackUpEndFlagSendThreadMain, ctx));
 
         for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
-            threads.push_back(std::make_unique<std::thread>(WorkerFroMessageThreadMain, ctx, i));///merge
+            threads.push_back(std::make_unique<std::thread>(WorkerFroTxnMessageThreadMain, ctx, i));///merge
         }
         for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
             threads.push_back(std::make_unique<std::thread>(WorkerFroCommitThreadMain, ctx, i));///commit
@@ -44,17 +44,19 @@ namespace Taas {
         threads.push_back(std::make_unique<std::thread>(WorkerForClientListenThreadMain, ctx));///client
         threads.push_back(std::make_unique<std::thread>(WorkerForClientSendThreadMain, ctx));
         if(ctx.kTxnNodeNum > 1) {
+            for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
+                threads.push_back(std::make_unique<std::thread>(WorkerFroEpochMessageThreadMain, ctx, i));///Epoch message
+            }
             threads.push_back(std::make_unique<std::thread>(WorkerForServerListenThreadMain, ctx));
+            threads.push_back(std::make_unique<std::thread>(WorkerForServerListenThreadMain_Epoch, ctx));
             threads.push_back(std::make_unique<std::thread>(WorkerForServerSendThreadMain, ctx));
         }
         if(ctx.is_tikv_enable) {
-            for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
-                threads.push_back(std::make_unique<std::thread>(WorkerFroTiKVStorageThreadMain, ctx, i));///tikv push down
-            }
+//            for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
+                threads.push_back(std::make_unique<std::thread>(WorkerFroTiKVStorageThreadMain, ctx, 0));///tikv push down
+//            }
         }
         threads.push_back(std::make_unique<std::thread>(WorkerFroMOTStorageThreadMain)); ///mot push down
-
-
 
 
         for(int i = 0; i < (int)ctx.kTestClientNum; i ++) {

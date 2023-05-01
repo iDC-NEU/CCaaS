@@ -79,7 +79,7 @@ namespace Taas {
             message_ptr->SerializeToZeroCopyStream(&gzipStream);
             gzipStream.Close();
             void *data = static_cast<void*>(const_cast<char*>(serialized_txn_str.data()));
-            MessageQueue::listen_message_queue->enqueue(std::make_unique<zmq::message_t>(data, serialized_txn_str.size()));
+            MessageQueue::listen_message_txn_queue->enqueue(std::make_unique<zmq::message_t>(data, serialized_txn_str.size()));
 
             usleep(sleep_dis(gen) % 2000);
         }

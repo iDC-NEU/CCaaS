@@ -224,8 +224,10 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
             EpochManager::SetCommitComplete(i, true);
 //            RedoLoger::GeneratePushDownTask(ctx, i);
             total_commit_txn_num += Merger::epoch_record_committed_txn_num.GetCount(i);
+
             if(i % ctx.print_mode_size == 0) {
                 printf("*************       完成一个Epoch的合并     Epoch: %8lu ClearEpoch: %8lu *************\n", i, clear_epoch.load());
+                printf("commit txn total number %lu\n", total_commit_txn_num);
             }
             i ++;
             commit_epoch.fetch_add(1);

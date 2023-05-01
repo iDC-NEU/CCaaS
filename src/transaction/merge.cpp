@@ -158,13 +158,12 @@ namespace Taas {
         return res;
     }
 
-    void Merger::EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep() {
+    void Merger::EpochCommit_RedoLog_TxnMode_Commit_Queue() {
         epoch = EpochManager::GetLogicalEpoch();
         epoch_mod = epoch % ctx.kCacheMaxLength;
         /// dequeue from local txn queue a complete txn
         if(epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr)) {
             if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
-                CheckEpochCommitComplete(ctx, epoch);
                 return ;
             }
             epoch = txn_ptr->commit_epoch();
@@ -182,20 +181,19 @@ namespace Taas {
                 MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
             }
             epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-
-            CheckEpochCommitComplete(ctx, epoch);
         }
     }
 
-    void Merger::EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep_1() {
+    void Merger::EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep() {
         while (!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetLogicalEpoch();
             epoch_mod = epoch % ctx.kCacheMaxLength;
             /// dequeue from local txn queue a complete txn
             if (epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                 if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
-                    continue;
+                    return;
                 }
+                epoch = txn_ptr->commit_epoch();
                 ///validation phase
                 if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
                     auto key = std::to_string(txn_ptr->client_txn_id());
@@ -209,9 +207,10 @@ namespace Taas {
                     MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
                 }
                 epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                continue;
             }
-            usleep(sleep_time);
+            else {
+                usleep(sleep_time);
+            }
         }
     }
 
@@ -266,51 +265,6 @@ namespace Taas {
 //            }
         }
 
-    }
-
-
-
-    bool Merger::GenerateCommitTask(uint64_t &epoch) {
-        auto txn_ptr = std::make_unique<proto::Transaction>();
-        txn_ptr->set_commit_epoch(epoch);
-        task_queue->enqueue(std::move(txn_ptr));
-        task_queue->enqueue(nullptr);
-        return true;
-    }
-
-    void Merger::EpochCommit_RedoLog_TxnMode_Commit_Queue() {
-        while(!EpochManager::IsTimerStop()) {
-            task_queue->wait_dequeue(txn_ptr);
-            if(txn_ptr != nullptr) {
-                epoch = txn_ptr->commit_epoch();
-                epoch_mod = epoch % ctx.kCacheMaxLength;
-                /// dequeue from local txn queue a complete txn
-                while(epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr)) {
-                    if(txn_ptr == nullptr) continue;
-                    commit_queue->enqueue(std::move(txn_ptr));
-                    commit_queue->enqueue(nullptr);
-                }
-                while(commit_queue->try_dequeue(txn_ptr)) {
-                    if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) continue;
-                    epoch = txn_ptr->commit_epoch();
-                    ///validation phase
-                    if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
-                        auto key = std::to_string(txn_ptr->client_txn_id());
-                        abort_txn_set.insert(key,key);
-                        MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Abort);
-                    }
-                    else {
-                        epoch_record_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                        CRDTMerge::Commit(ctx, *(txn_ptr));
-                        RedoLoger::RedoLog(ctx, *(txn_ptr));
-                        epoch_record_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                        MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
-                    }
-                    epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                    CheckEpochCommitComplete(ctx, epoch);
-                }
-            }
-        }
     }
 
 }

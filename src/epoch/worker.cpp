@@ -126,8 +126,19 @@ namespace Taas {
         }
     }
 
-    void WorkerFroMessageThreadMain(const Context& ctx, uint64_t id) {
+    void WorkerFroEpochMessageThreadMain(const Context& ctx, uint64_t id) {
         std::string name = "EpochMessage-" + std::to_string(id);
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        MessageReceiveHandler receiveHandler;
+        receiveHandler.Init(ctx, id);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while(!EpochManager::IsTimerStop()) {
+            receiveHandler.HandleReceivedEpochMessage_Block();
+        }
+    }
+
+    void WorkerFroTxnMessageThreadMain(const Context& ctx, uint64_t id) {
+        std::string name = "EpochTxnMessage-" + std::to_string(id);
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         MessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, id);
@@ -136,7 +147,7 @@ namespace Taas {
             SetCPU();
             bool sleep_flag;
             while(!EpochManager::IsTimerStop()) {
-                sleep_flag = receiveHandler.HandleReceivedMessage();
+                sleep_flag = receiveHandler.HandleReceivedTxnMessage();
                 sleep_flag = receiveHandler.CheckReceivedStatesAndReply() | sleep_flag; /// check and send EpochShardingACK BackUpACK ack /// check and send EpochLogPushDownComplete ack
                 if(!sleep_flag) usleep(sleep_time);
             }
@@ -145,18 +156,22 @@ namespace Taas {
             SetCPU();
             bool sleep_flag;
             while(!EpochManager::IsTimerStop()) {
-                sleep_flag = receiveHandler.HandleReceivedMessage();
+                sleep_flag = receiveHandler.HandleReceivedTxnMessage();
                 sleep_flag = MessageSendHandler::SendEpochEndMessage(ctx)| sleep_flag; ///check and send abort set
                 sleep_flag = MessageSendHandler::SendBackUpEpochEndMessage(ctx)| sleep_flag; ///check and send abort set
                 if(!sleep_flag) usleep(sleep_time);
             }
         }
-        else if(id < 5) {
-            receiveHandler.HandleReceivedMessage_usleep();
+//        else if(id < 5) {
+//            while(!EpochManager::IsTimerStop()) {
+//                receiveHandler.HandleReceivedTxnMessage_Block();
+//            }
+//        }
+        while(!EpochManager::IsTimerStop()) {
+            receiveHandler.HandleReceivedTxnMessage_Block();
         }
-        receiveHandler.HandleReceivedMessage_Block();
-//        receiveHandler.HandleReceivedMessage_usleep();
     }
+
 
     void WorkerFroCommitThreadMain(const Context& ctx, uint64_t id) {
         std::string name = "EpochCommit-" + std::to_string(id);
@@ -174,14 +189,18 @@ namespace Taas {
                     usleep(sleep_time);
                     MessageSendHandler::SendAbortSet(ctx); ///check and send abort set
                 }
-                merger.EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep();
+                merger.EpochCommit_RedoLog_TxnMode_Commit_Queue();
             }
         }
-        else if(id < 5) {
-            merger.EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep_1();
-        }
+//        else if(id < 5) {
+//            while(!EpochManager::IsTimerStop()) {
+//                merger.EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep();
+//            }
+//        }
         else {
-            merger.EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep_1();
+            while(!EpochManager::IsTimerStop()) {
+                merger.EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep();
+            }
         }
     }
 
@@ -204,6 +223,13 @@ namespace Taas {
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         SetCPU();
         ListenServerThreadMain(ctx);
+    }
+
+    void WorkerForServerListenThreadMain_Epoch(const Context& ctx) {
+        std::string name = "EpochServerListen";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
+        ListenServerThreadMain_Epoch(ctx);
     }
 
     void WorkerForServerSendThreadMain(const Context& ctx) {
@@ -232,7 +258,8 @@ namespace Taas {
         }
         else {
             while (!EpochManager::IsTimerStop()) {
-                TiKV::sendTransactionToTiKV_Wait();
+                TiKV::sendTransactionToTiKV_usleep1();
+                usleep(sleep_time);
             }
         }
     }

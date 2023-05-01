@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package taas_tikv
+package tikv
 
 //import "C"
 //import "C"
@@ -31,20 +31,19 @@ import (
 
 	//"github.com/magician/properties"
 	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/util"
+	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"github.com/tikv/client-go/v2/txnkv"
 	"github.com/tikv/client-go/v2/txnkv/transaction"
 	"net"
 	"strings"
 	"time"
-	"ycsb/pkg/util"
-	"ycsb/pkg/ycsb"
 )
 
 //#include ""
 import (
 	"context"
 	"github.com/golang/protobuf/proto"
-	taas_proto "ycsb/taas_proto"
 
 	zmq "github.com/pebbe/zmq4"
 	tikverr "github.com/tikv/client-go/v2/error"
@@ -67,7 +66,7 @@ type txnDB struct {
 	cfg     *txnConfig
 }
 
-const TaasServerIp = "172.30.67.189"
+const TaasServerIp = "172.30.67.201"
 
 type TaasTxn struct {
 	GzipedTransaction []byte
@@ -125,12 +124,25 @@ func ListenFromTaas() {
 		log.Fatal(err)
 	}
 	for {
+		// taas_reply, err := router.RecvMessage()
 		taas_reply, err := socket.Recv(0)
 		if err != nil {
 			fmt.Println("txn.go 115")
 			log.Fatal(err)
 		}
 		UnPackCH <- taas_reply
+		// UnGZipedReply := UGZipBytes(taas_reply[0])
+		// testMessage := &Message{}
+		// err = proto.Unmarshal(UnGZipedReply, testMessage)
+		// if err != nil {
+		// 	fmt.Println("txn.go 118")
+		// 	log.Fatal(err)
+		// }
+		// //fmt.Println(testMessage)
+		// replyMessage := testMessage.GetReplyTxnResultToClient()
+		// //fmt.Println("txn.go 123 " + string(replyMessage.ClientTxnId))
+		// //fmt.Println(replyMessage.ClientTxnId % 2048)
+		// (ChanList[replyMessage.ClientTxnId%2048]) <- string(replyMessage.GetTxnState().String())
 	}
 }
 
@@ -139,7 +151,7 @@ func UnPack() {
 		taas_reply, ok := <-UnPackCH
 		if ok {
 			UnGZipedReply := UGZipBytes([]byte(taas_reply))
-			testMessage := &taas_proto.Message{}
+			testMessage := &Message{}
 			err := proto.Unmarshal(UnGZipedReply, testMessage)
 			if err != nil {
 				fmt.Println("txn.go 142")
@@ -368,6 +380,17 @@ func getIpFromAddr(addr net.Addr) net.IP {
 
 // 将远端发过来的消息进行解压缩
 func UGZipBytes(in []byte) []byte {
+	// var out bytes.Buffer
+	// var in bytes.Buffer
+	// in.Write(data)
+	// r, _ := gzip.NewReader(&in)
+	// r.Close() //这句放在后面也没有问题，不写也没有任何报错
+	// //机翻注释：关闭关闭读者。它不会关闭底层的io.Reader。为了验证GZIP校验和，读取器必须完全使用，直到io.EOF。
+
+	// io.Copy(&out, r) //这里我看了下源码不是太明白，
+	// //我个人想法是这样的，Reader本身就是go中表示一个压缩文件的形式，r转化为[]byte就是一个符合压缩文件协议的压缩文件
+
+	// return out.Bytes()
 	reader, err := gzip.NewReader(bytes.NewReader(in))
 	if err != nil {
 		var out []byte
@@ -375,23 +398,78 @@ func UGZipBytes(in []byte) []byte {
 	}
 	defer reader.Close()
 	out, _ := ioutil.ReadAll(reader)
+	//	fmt.Println("out: ", out)
 	return out
 
 }
 
+// 修改代码的主体部分
 func (db *txnDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
 	for init_ok == 0 {
 		time.Sleep(50)
 	}
 	chan_id := atomic.AddUint64(&atomic_counter, 1) // return new value
+
 	rowKey := db.getRowKey(table, key)
 	var bufferBeforeGzip bytes.Buffer
+	//var bufferReplyGzip bytes.Buffer
+	tx, err := db.beginTxn()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	row, err := tx.Get(ctx, rowKey)
+	//fmt.Println("get data before really update~~~")
+	if tikverr.IsErrNotFound(err) {
+		return nil
+	} else if row == nil {
+		return err
+	}
+	//ADDBY NEUPQ
+	//data, err := db.r.Decode(row, nil)
+	//if err != nil {
+	//	return err
+	//}
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	ip, err := externalIP()
+
 	if err != nil {
 		fmt.Println(err)
 	}
+	//输出一下当前tikv集群的连接IP地址 taasAddress
+	//fmt.Println("输出一下当前tikv集群的连接IP地址")
+	//fmt.Println(db.db.KVStore.GetPDClient().GetLeaderAddr())
+	//fmt.Println("输出一下当前client所连接taas服务端的IP地址")
+	//fmt.Println(db.db.KVStore.GetPDClient().get)
+	//fmt.Println(globalProps)
+	//taasAddress, _ = properties.Properties.Get(properties.Properties, "taasAddress")
+	//fmt.Println(db.db.KVStore.GetPDClient().LoadGlobalConfig(ctx, "taasAddress"))
+	//fmt.Println("输出一下本机的IP地址")
+	//fmt.Println(ip)
+	//fmt.Println(db.db.KVStore.GetClusterID())
+	//fmt.Println("从client的上下文获取本机IP地址，以及空闲端口号")
+	//fmt.Println(db.db.KVStore.GetClientIP())
+	//fmt.Println(db.db.KVStore.GetClientFreePort())
+	//fmt.Println("打印完成，检查一下打印结果是否正确！！！")
+	// NEU 打印一下行数据，看一下是什么样子的
+	//为当前ycsb测试线程获取本机空闲端口号
+	//freePort, err := GetFreePort()
+	//if err != nil {
+	//	fmt.Println("本机无空闲端口可用，测试过程发生错误！！！")
+	//	return err
+	//}
+	//fmt.Println("空闲端口号：" + strconv.Itoa(freePort))
+	//fmt.Println("生成报文, 拼装socket")
+	//ipPlusPort := "tcp://*:" + strconv.Itoa(freePort)
+	//clientIP := ip.String() + ":" + strconv.Itoa(freePort)
 	clientIP := ip.String()
-	txnSendToTaas := taas_proto.Transaction{
+	//fmt.Println("输出clientIP")
+	//fmt.Println(clientIP)
+	//生成protobuf报文，数据部分为空，只传递元信息
+	//生成txn数据
+	txnSendToTaas := Transaction{
 		//Row:         {},
 		StartEpoch:  0,
 		CommitEpoch: 5,
@@ -400,45 +478,143 @@ func (db *txnDB) Update(ctx context.Context, table string, key string, values ma
 		ServerId:    0,
 		ClientIp:    clientIP,
 		ClientTxnId: chan_id,
-		TxnType:     taas_proto.TxnType_ClientTxn,
+		TxnType:     TxnType_ClientTxn,
 		TxnState:    0,
 	}
-	updateKey := rowKey
-	sendRow := taas_proto.Row{
-		OpType: taas_proto.OpType_Update,
-		Key:    *(*[]byte)(unsafe.Pointer(&updateKey)),
+	//给txn里面的row进行数据赋值
+
+	updateKey := key
+	sendRow := Row{
+		OpType: OpType_Update,
+		//TableName: "",
+		Key: *(*[]byte)(unsafe.Pointer(&updateKey)),
+		//Data: []byte("fuck you later~"),
 	}
+	//向row中添加实际需要更新的数据
 	for field, value := range values {
 		idColumn, _ := strconv.ParseUint(string(field[5]), 10, 32)
-		updatedColumn := taas_proto.Column{
+		updatedColumn := Column{
 			Id:    uint32(idColumn),
 			Value: value,
 		}
 		sendRow.Column = append(sendRow.Column, &updatedColumn)
 	}
+	//向txn里面添加row
 	txnSendToTaas.Row = append(txnSendToTaas.Row, &sendRow)
-	sendMessage := &taas_proto.Message{
-		Type: &taas_proto.Message_Txn{&txnSendToTaas},
+	//向消息中添加txn
+	sendMessage := &Message{
+		Type: &Message_Txn{&txnSendToTaas},
 	}
 	sendBuffer, _ := proto.Marshal(sendMessage)
+	//开始对报文进行Gzip压缩
+
 	bufferBeforeGzip.Reset()
 	gw := gzip.NewWriter(&bufferBeforeGzip)
 	gw.Write(sendBuffer)
 	gw.Close()
 	GzipedTransaction := bufferBeforeGzip.Bytes()
+	//GzipedTransaction := protoimpl.X.CompressGZIP(sendBuffer)
+	//生成zmq发送上下文
+	//router, err := goczmq.NewPull(ipPlusPort)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//defer router.Destroy()
 	TaasTxnCH <- TaasTxn{GzipedTransaction}
-
+	//fmt.Println(chan_id)
+	//fmt.Println(chan_id % 2048)
 	result, ok := <-(ChanList[chan_id%2048])
+	//fmt.Println("txn.go 480 get from chanlist")
 	if ok {
 		if result != "Commit" {
+			//fmt.Println("事务未提交成功，当前事务已经回滚，可以进行下一个事务")
 			return err
+			defer tx.Rollback()
 		}
+		//fmt.Println("事务提交成功，当前事务已经提交，可以进行下一个事务")
+		return tx.Commit(ctx)
 	} else {
 		fmt.Println("txn.go 481")
 		log.Fatal(ok)
 		return err
+		defer tx.Rollback()
 	}
-	return nil
+	return tx.Rollback()
+	//taas_reply, err := router.RecvMessage()
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//// test by singheart
+	//fmt.Println("receive message from taas", taas_reply)
+	////反向解析数据
+	//fmt.Println("转换完成")
+	//UnGZipedReply := UGZipBytes(taas_reply[0])
+	////fmt.Println("UnGzipedReply", UnGZipedReply)
+	//fmt.Println("数据解析成功，等待后续操作")
+	//testMessage := &Message{}
+	//err = proto.Unmarshal(UnGZipedReply, testMessage)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//fmt.Println(testMessage)
+	//replyMessage := testMessage.GetReplyTxnResultToClient()
+	//if replyMessage.GetTxnState().String() != "Commit" {
+	//	fmt.Println("事务未提交成功，当前事务已经回滚，可以进行下一个事务")
+	//	return err
+	//	defer tx.Rollback()
+	//}
+	//fmt.Println("事务提交成功，当前事务已经提交，可以进行下一个事务")
+	//return tx.Commit(ctx)
+	// replyMessage := &ReplyTransactionToClient{}
+	// err = proto.Unmarshal(UnGZipedReply, replyMessage)
+	// if err != nil {
+	// 	fmt.Println("数据解析失败，请检查是哪里出了问题~！！！！")
+	// }
+	//打印从远端服务器回复的消息
+	//fmt.Println(replyMessage.GetTxnState())
+	//fmt.Println(replyMessage.GetRecvNode())
+	//fmt.Println(replyMessage.GetSendNode())
+	//fmt.Println(replyMessage.GetClientTxnId())
+	//fmt.Println("接收到消息，可以进行剩下的操作")
+	//接收到消息之后，及时关闭socket
+	//fmt.Println("从taas返回数据成功")
+	//if replyFromCServer == "Hello" {
+	//
+	//}
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	//fmt.Println("put update data to temp row storage before really update~~~")
+
+	//ADDBY NEUPQ#######################################################################################################
+	//把实际需要更新的数据打印出来
+	/*for field, value := range values {
+		data[field] = value
+	}
+	//fmt.Println("load buffer pool~~~")
+	buf := db.bufPool.Get()
+	defer func() {
+		db.bufPool.Put(buf)
+	}()
+	//fmt.Println("load buffer pool 2~~~")
+	buf, err = db.r.Encode(buf, data)
+	if err != nil {
+		return err
+	}
+	//fmt.Println("set data~~~")
+	if err := tx.Set(rowKey, buf); err != nil {
+		return err
+	}
+	//fmt.Println("before commit")*/
+	//ADDBY NEUPQ#######################################################################################################
+	//if replyMessage.GetTxnState().String() != "Commit" {
+	//	fmt.Println("事务未提交成功，当前事务已经回滚，可以进行下一个事务")
+	//	return err
+	//	defer tx.Rollback()
+	//}
+	////else {
+	//fmt.Println("事务提交成功，当前事务已经提交，可以进行下一个事务")
+	//return tx.Commit(ctx)
+	//}
 }
 
 func (db *txnDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {

@@ -29,31 +29,44 @@ namespace Taas {
         zmq::message_t reply(5);
         zmq::send_flags sendFlags = zmq::send_flags::none;
         int queue_length = 0;
-        std::unordered_map<std::uint64_t, std::unique_ptr<zmq::socket_t>> socket_map;
+        std::unordered_map<std::uint64_t, std::unique_ptr<zmq::socket_t>> socket_map_txn, socket_map_epoch;
         std::unique_ptr<send_params> params;
         std::unique_ptr<zmq::message_t> msg;
-        for (int i = 0; i < (int) ctx.kServerIp.size(); i++) {
-            if (i == (int) ctx.txn_node_ip_index) continue;
+        if(ctx.kServerIp.size() < ctx.kTxnNodeNum) assert(false);
+        for (uint64_t i = 0; i < ctx.kServerIp.size(); i++) {
+            if (i ==  ctx.txn_node_ip_index) continue;
             auto socket = std::make_unique<zmq::socket_t>(context, ZMQ_PUSH);
             socket->set(zmq::sockopt::sndhwm, queue_length);
             socket->set(zmq::sockopt::rcvhwm, queue_length);
             socket->connect("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(20000+i));
-            socket_map[i] = std::move(socket);
+            socket_map_txn[i] = std::move(socket);
+            printf("Send Server connect ZMQ_PUSH %s", ("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(20000+i) + "\n").c_str());
+
+            socket = std::make_unique<zmq::socket_t>(context, ZMQ_PUSH);
+            socket->set(zmq::sockopt::sndhwm, queue_length);
+            socket->set(zmq::sockopt::rcvhwm, queue_length);
+            socket->connect("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(21000+i));
+            socket_map_epoch[i] = std::move(socket);
             printf("Send Server connect ZMQ_PUSH %s", ("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(20000+i) + "\n").c_str());
         }
         printf("线程开始工作 SendServerThread\n");
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
             MessageQueue::send_to_server_queue->wait_dequeue(params);
-            if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
+            if (params == nullptr || params->type == proto::TxnType::NullMark || params->str == nullptr) continue;
             if(params->id == ctx.txn_node_ip_index) assert(false);
-            if(params->type == proto::TxnType::BackUpACK) {
-//                printf("send thread a backup ack message epoch %ld server_id %lu\n", params->epoch, params->id);
+            if(params->id >= ctx.kTxnNodeNum) {
+                printf("error server_id %lu\n", params->id);
             }
             msg = std::make_unique<zmq::message_t>(*(params->str));
-            socket_map[params->id]->send(*msg, sendFlags);
+            if(params->type == proto::TxnType::RemoteServerTxn || params->type == proto::TxnType::BackUpTxn) {
+                socket_map_txn[params->id]->send(*msg, sendFlags);
+            }
+            else {
+                socket_map_epoch[params->id]->send(*msg, sendFlags);
+            }
         }
-        socket_map[0]->send((zmq::message_t &) "end", sendFlags);
+        socket_map_txn[0]->send((zmq::message_t &) "end", sendFlags);
 
 
 //        std::unordered_map<std::uint64_t, std::unique_ptr<util::ZMQInstance>> socket_map;
@@ -99,8 +112,8 @@ namespace Taas {
             recvResult = socket_listen.recv((*message_ptr), recvFlags);//防止上次遗留消息造成message cache出现问题
             if(recvResult < 0) assert(false);
             if (is_epoch_advance_started.load()) {
-                if (!MessageQueue::listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
-                if (!MessageQueue::listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
+                if (!MessageQueue::listen_message_txn_queue->enqueue(std::move(message_ptr))) assert(false);
+                if (!MessageQueue::listen_message_txn_queue->enqueue(std::make_unique<zmq::message_t>()))
                     assert(false); //防止moodycamel取不出
                 break;
             }
@@ -110,8 +123,8 @@ namespace Taas {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);
             if(recvResult < 0) assert(false);
-            if (!MessageQueue::listen_message_queue->enqueue(std::move(message_ptr))) assert(false);
-            if (!MessageQueue::listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
+            if (!MessageQueue::listen_message_txn_queue->enqueue(std::move(message_ptr))) assert(false);
+            if (!MessageQueue::listen_message_txn_queue->enqueue(std::make_unique<zmq::message_t>()))
                 assert(false); //防止moodycamel取不出
         }
 
@@ -141,5 +154,39 @@ namespace Taas {
 //            if (!MessageQueue::listen_message_queue->enqueue(std::make_unique<zmq::message_t>()))
 //                assert(false); //防止moodycamel取不出
 //        }
+    }
+
+    void ListenServerThreadMain_Epoch(const Context& ctx) {///监听远端txn node写集
+        // 设置ZeroMQ的相关变量，监听其他txn node是否有写集发来
+        zmq::context_t listen_context(1);
+        zmq::recv_flags recvFlags = zmq::recv_flags::none;
+        zmq::recv_result_t  recvResult;
+        int queue_length = 0;
+        zmq::socket_t socket_listen(listen_context, ZMQ_PULL);
+        socket_listen.bind("tcp://*:" + std::to_string(21000+ctx.txn_node_ip_index));//to server
+        socket_listen.set(zmq::sockopt::sndhwm, queue_length);
+        socket_listen.set(zmq::sockopt::rcvhwm, queue_length);
+        printf("线程开始工作 ListenServerThread ZMQ_PULL tcp://*:%s\n", std::to_string(21000+ctx.txn_node_ip_index).c_str());
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while (!EpochManager::IsTimerStop()) {
+            std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
+            recvResult = socket_listen.recv((*message_ptr), recvFlags);//防止上次遗留消息造成message cache出现问题
+            if(recvResult < 0) assert(false);
+            if (is_epoch_advance_started.load()) {
+                if (!MessageQueue::listen_message_epoch_queue->enqueue(std::move(message_ptr))) assert(false);
+                if (!MessageQueue::listen_message_epoch_queue->enqueue(std::make_unique<zmq::message_t>()))
+                    assert(false); //防止moodycamel取不出
+                break;
+            }
+        }
+
+        while (!EpochManager::IsTimerStop()) {
+            std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
+            recvResult = socket_listen.recv((*message_ptr), recvFlags);
+            if(recvResult < 0) assert(false);
+            if (!MessageQueue::listen_message_epoch_queue->enqueue(std::move(message_ptr))) assert(false);
+            if (!MessageQueue::listen_message_epoch_queue->enqueue(std::make_unique<zmq::message_t>()))
+                assert(false); //防止moodycamel取不出
+        }
     }
 }

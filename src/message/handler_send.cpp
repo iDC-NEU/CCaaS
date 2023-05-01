@@ -103,7 +103,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
         assert(!serialized_txn_str_ptr->empty());
         MessageQueue::send_to_server_queue->enqueue( std::make_unique<send_params>(to_whom, 0, "",epoch, txn_type,
                                               std::move(serialized_txn_str_ptr), nullptr));
-        return MessageQueue::send_to_server_queue->enqueue( std::make_unique<send_params>(to_whom, 0, "",epoch, proto::TxnType::NullMark,
+        return MessageQueue::send_to_server_queue->enqueue( std::make_unique<send_params>(0, 0, "",epoch, proto::TxnType::NullMark,
                                               nullptr, nullptr));
     }
 
@@ -117,12 +117,12 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
         assert(!serialized_txn_str_ptr->empty());
         auto to_id = ctx.txn_node_ip_index;
         for (uint64_t i = 0; i < ctx.kBackUpNum; i++) {
-            to_id = (to_id + 1) % ctx.kTxnNodeNum;
+            to_id = (ctx.txn_node_ip_index + i + 1) % ctx.kTxnNodeNum;
             if (to_id == ctx.txn_node_ip_index) continue;
             MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_id, 0, "",epoch, txn_type,std::make_unique<std::string>(*serialized_txn_str_ptr), nullptr));
 //            MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_id, 0, "",epoch, proto::TxnType::NullMark,nullptr, nullptr));
         }
-        return MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_id, 0, "",epoch, proto::TxnType::NullMark,nullptr, nullptr));
+        return MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(0, 0, "",epoch, proto::TxnType::NullMark,nullptr, nullptr));
     }
 
     bool MessageSendHandler::SendACK(const Context &ctx, uint64_t &epoch, uint64_t &to_whom, proto::TxnType txn_type) {
@@ -138,11 +138,10 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
         Gzip(msg.get(), serialized_txn_str_ptr.get());
 //        printf("send ack %lu epoch %lu type %d\n",to_whom, epoch, txn_type);
         MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_whom, 0, "", epoch, txn_type, std::move(serialized_txn_str_ptr), nullptr));
-        return MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_whom, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
+        return MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
     }
 
-    bool
-    MessageSendHandler::SendMessageToAll(const Context &ctx, uint64_t& epoch, proto::TxnType txn_type) {
+    bool MessageSendHandler::SendMessageToAll(const Context &ctx, uint64_t& epoch, proto::TxnType txn_type) {
         auto msg = std::make_unique<proto::Message>();
         auto* txn_end = msg->mutable_txn();
         txn_end->set_server_id(ctx.txn_node_ip_index);
@@ -151,13 +150,11 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
         txn_end->set_sharding_id(0);
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());
-        auto to_id = ctx.txn_node_ip_index;
-        for (uint64_t i = 0; i < ctx.kBackUpNum; i++) {
-            to_id = (to_id + 1) % ctx.kTxnNodeNum;
-            if (to_id == ctx.txn_node_ip_index) continue;/// send to everyone
-            MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_id, 0, "", epoch, proto::TxnType::InsertSet, std::move(serialized_txn_str_ptr), nullptr));
+        for (uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
+            if (i == ctx.txn_node_ip_index) continue;/// send to everyone
+            MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(i, 0, "", epoch, proto::TxnType::InsertSet, std::move(serialized_txn_str_ptr), nullptr));
         }
-        return MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_id, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
+        return MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
     }
 
 
@@ -181,7 +178,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
                 Gzip(msg.get(), serialized_txn_str_ptr.get());
 //                    printf("send epoch end flag server %lu epoch %lu\n",sharding_id, epoch);
                 MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(sharding_id, 0, "", epoch,proto::TxnType::EpochEndFlag,std::move(serialized_txn_str_ptr),nullptr));
-                MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(sharding_id, 0, "", epoch, proto::TxnType::NullMark,nullptr, nullptr));
+                MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark,nullptr, nullptr));
                 sharding_send_epoch[sharding_id]->fetch_add(1);
                 sleep_flag = true;
             }
@@ -203,13 +200,13 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
             Gzip(msg.get(), serialized_txn_str_ptr.get());
             auto to_id = ctx.txn_node_ip_index;
             for(uint64_t i = 0; i < ctx.kBackUpNum; i ++) { /// send to i+1, i+2...i+kBackNum-1
-                to_id = (to_id + 1) % ctx.kTxnNodeNum;
+                to_id = (ctx.txn_node_ip_index + i + 1) % ctx.kTxnNodeNum;
                 if(to_id == ctx.txn_node_ip_index) continue;
                 auto str_copy = std::make_unique<std::string>(*serialized_txn_str_ptr);
                 MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_id, 0, "", backup_sent_epoch, proto::TxnType::BackUpEpochEndFlag, std::move(str_copy), nullptr));
             }
 //                printf("send epoch backup end flag epoch %lu\n",epoch);
-            MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_id, 0, "", backup_sent_epoch, proto::TxnType::NullMark, nullptr, nullptr));
+            MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(0, 0, "", backup_sent_epoch, proto::TxnType::NullMark, nullptr, nullptr));
             backup_sent_epoch ++;
             sleep_flag = true;
         }

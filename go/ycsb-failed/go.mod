@@ -1,4 +1,4 @@
-module ycsb
+module github.com/pingcap/go-ycsb
 
 require (
 	cloud.google.com/go/spanner v1.34.1
@@ -47,6 +47,8 @@ require (
 	github.com/pebbe/zmq4 v1.2.9
 	go.etcd.io/etcd/client/pkg/v3 v3.5.2
 	go.etcd.io/etcd/client/v3 v3.5.2
+	// gopkg.in/zeromq/goczmq.v1 v1.0.0-20160426111743-8b64dad1ba13
+	github.com/pebbe/zmq4 v1.2.9
 )
 
 require (
@@ -101,6 +103,7 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
+	github.com/pebbe/zmq3 v1.0.4 // indirect
 	github.com/pingcap/failpoint v0.0.0-20210918120811-547c13e3eb00 // indirect
 	github.com/pingcap/log v0.0.0-20211215031037-e024ba4eb0ee // indirect
 	github.com/prometheus/client_golang v1.11.0 // indirect
@@ -133,7 +136,7 @@ require (
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/grpc v1.48.0 // indirect
-	google.golang.org/protobuf v1.28.1 // indirect
+	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.42.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect

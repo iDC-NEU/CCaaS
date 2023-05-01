@@ -29,6 +29,7 @@ namespace Taas {
 
         static void sendTransactionToTiKV_usleep();
         static void sendTransactionToTiKV();
+        static void sendTransactionToTiKV_usleep1();
         static void sendTransactionToTiKV_Wait();
 
         static bool CheckEpochPushDownComplete(uint64_t &epoch);

@@ -14,8 +14,13 @@ namespace Taas {
     public:
         bool Init(const Context& ctx_, uint64_t id);
         bool SetMessageRelatedCountersInfo();
-        bool HandleReceivedMessage();
+
+        void HandleReceivedEpochMessage_Block();
+        void HandleReceivedTxnMessage_Block();
+        void HandleReceivedTxnMessage_usleep();
+        bool HandleReceivedTxnMessage();
         bool HandleReceivedTxn();
+
         bool Sharding();
         bool UpdateEpochAbortSet();
         bool CheckReceivedStatesAndReply();
@@ -221,18 +226,16 @@ namespace Taas {
         static bool IsBackUpACKReceiveComplete(const Context &ctx, uint64_t epoch) {
             auto to_id = ctx.txn_node_ip_index ;
             for(uint64_t i = 0; i < ctx.kBackUpNum; i ++) { /// send to i+1, i+2...i+kBackNum-1
-                to_id = (to_id + 1) % ctx.kTxnNodeNum;
+                to_id = (ctx.txn_node_ip_index + i + 1) % ctx.kTxnNodeNum;
                 if(to_id == (uint64_t)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, to_id) == 0) continue;
                 if(backup_received_ack_num.GetCount(epoch, to_id) < backup_should_receive_pack_num.GetCount(epoch, to_id)) return false;
             }
             return true;
         }
         static bool IsBackUpPackReceiveComplete(const Context &ctx, uint64_t epoch) {
-            auto to_id = ctx.txn_node_ip_index;
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i ++) {
-                to_id = (to_id + 1) % ctx.kTxnNodeNum;
-                if(to_id == ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, to_id) == 0) continue;
-                if(backup_received_pack_num.GetCount(epoch, to_id) < backup_should_receive_pack_num.GetCount(epoch, to_id)) return false;
+                if(i == ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, i) == 0) continue;
+                if(backup_received_pack_num.GetCount(epoch, i) < backup_should_receive_pack_num.GetCount(epoch, i)) return false;
             }
             return true;
         }
@@ -242,7 +245,7 @@ namespace Taas {
         static bool IsBackUpTxnReceiveComplete(const Context &ctx, uint64_t epoch) {
             auto to_id = ctx.txn_node_ip_index;
             for(uint64_t i = 0; i < ctx.kBackUpNum; i ++) { /// send to i+1, i+2...i+kBackNum-1
-                to_id = (to_id + 1) % ctx.kTxnNodeNum;
+                to_id = (ctx.txn_node_ip_index + i + 1) % ctx.kTxnNodeNum;
                 if(to_id == ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, to_id) == 0) continue;
                 if(backup_received_txn_num.GetCount(epoch, to_id) < backup_received_txn_num.GetCount(epoch, to_id)) return false;
             }
@@ -299,9 +302,6 @@ namespace Taas {
             }
             return true;
         }
-
-        void HandleReceivedMessage_Block();
-        void HandleReceivedMessage_usleep();
 
     };
 

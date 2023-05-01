@@ -40,8 +40,9 @@ namespace Taas {
         auto key = std::to_string(epoch_id) + ":" + std::to_string(lsn);
         committed_txn_cache[epoch_id % ctx.kCacheMaxLength]->insert(key, txn);
         if(ctx.is_tikv_enable) {
-            TiKV::tikv_epoch_should_push_down_txn_num.IncCount(epoch_id, txn.server_id(), 1);
-            TiKV::TiKVRedoLogQueueEnqueue(epoch_id, std::make_unique<proto::Transaction>(txn));
+//            TiKV::tikv_epoch_should_push_down_txn_num.IncCount(epoch_id, txn.server_id(), 1);
+//            TiKV::TiKVRedoLogQueueEnqueue(epoch_id, std::make_unique<proto::Transaction>(txn));
+            TiKV::redo_log_queue->enqueue(std::make_unique<proto::Transaction>(txn));
         }
         return true;
     }
