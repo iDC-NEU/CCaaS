@@ -47,7 +47,7 @@ namespace Taas {
             socket->set(zmq::sockopt::rcvhwm, queue_length);
             socket->connect("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(21000+i));
             socket_map_epoch[i] = std::move(socket);
-            printf("Send Server connect ZMQ_PUSH %s", ("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(20000+i) + "\n").c_str());
+            printf("Send Server connect ZMQ_PUSH %s", ("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(21000+i) + "\n").c_str());
         }
         printf("线程开始工作 SendServerThread\n");
         while(!EpochManager::IsInitOK()) usleep(sleep_time);

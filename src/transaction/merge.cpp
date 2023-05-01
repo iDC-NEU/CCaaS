@@ -53,13 +53,13 @@ namespace Taas {
         epoch_insert_set.resize(max_length);
 
 //        ///transaction concurrent queue
-        task_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+//        task_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
 //        merge_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
         commit_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
 
-        epoch_merge_queue.resize(max_length);
+//        epoch_merge_queue.resize(max_length);
         epoch_local_txn_queue.resize(max_length);
-        epoch_commit_queue.resize(max_length);
+//        epoch_commit_queue.resize(max_length);
 
         epoch_merge_complete.resize(max_length);
         epoch_commit_complete.resize(max_length);
@@ -79,21 +79,11 @@ namespace Taas {
             epoch_abort_txn_set[i] = std::make_unique<concurrent_crdt_unordered_map<std::string, std::string, std::string>>();
             epoch_insert_set[i] = std::make_unique<concurrent_unordered_map<std::string, std::string>>();
 
-            epoch_merge_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+//            epoch_merge_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
             epoch_local_txn_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-            epoch_commit_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+//            epoch_commit_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
         }
         RedoLoger::StaticInit(ctx);
-    }
-
-    void Merger::MergeQueueEnqueue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr) {
-        auto epoch_mod = epoch % ctx.kCacheMaxLength;
-        epoch_merge_queue[epoch_mod]->enqueue(std::move(txn_ptr));
-        epoch_merge_queue[epoch_mod]->enqueue(nullptr);
-    }
-    bool Merger::MergeQueueTryDequeue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr) {
-        auto epoch_mod = epoch % ctx.kCacheMaxLength;
-        return epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr);
     }
 
     void Merger::LocalTxnCommitQueueEnqueue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr) {
@@ -107,16 +97,6 @@ namespace Taas {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         return epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr);
     }
-    void Merger::CommitQueueEnqueue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr) {
-        auto epoch_mod = epoch % ctx.kCacheMaxLength;
-        epoch_commit_queue[epoch_mod]->enqueue(std::move(txn_ptr));
-        epoch_commit_queue[epoch_mod]->enqueue(nullptr);
-    }
-    bool Merger::CommitQueueTryDequeue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr) {
-        auto epoch_mod = epoch % ctx.kCacheMaxLength;
-        return epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr);
-    }
-
 
     void Merger::ClearMergerEpochState(const Context& ctx, uint64_t& epoch) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
