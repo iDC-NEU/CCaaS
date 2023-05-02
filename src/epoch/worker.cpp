@@ -73,6 +73,14 @@ namespace Taas {
         MessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, id);
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        if(id < 3) {
+            SetCPU();
+            bool sleep_flag;
+            while(!EpochManager::IsTimerStop()) {
+                sleep_flag = receiveHandler.HandleReceivedEpochMessage();
+                if(!sleep_flag) usleep(sleep_time);
+            }
+        }
         while(!EpochManager::IsTimerStop()) {
             receiveHandler.HandleReceivedEpochMessage_Block();
         }

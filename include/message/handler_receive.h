@@ -15,10 +15,12 @@ namespace Taas {
         bool Init(const Context& ctx_, uint64_t id);
         bool SetMessageRelatedCountersInfo();
 
+        bool HandleReceivedEpochMessage();
         void HandleReceivedEpochMessage_Block();
+
         void HandleReceivedTxnMessage_Block();
-        void HandleReceivedTxnMessage_usleep();
         bool HandleReceivedTxnMessage();
+
         bool HandleReceivedTxn();
 
         bool Sharding();
@@ -302,6 +304,7 @@ namespace Taas {
             }
             return true;
         }
+
 
     };
 

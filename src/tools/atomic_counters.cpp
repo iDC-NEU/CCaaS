@@ -60,9 +60,9 @@ namespace Taas{
         vec.resize(length);
         for(unsigned int i = 0; i < length; i ++) {
             vec[i] = std::make_unique<std::vector<std::unique_ptr<std::atomic<uint64_t>>>>();
+            auto p = &(*vec[i]);
+            assert((uint64_t)p != 0x1);
             auto &v = (*(vec[i]));
-            vec[i]->resize(size);
-            assert(vec[i] != nullptr);
             v.resize(size);
             for(unsigned int j = 0; j < size; j ++) {
                 v[j] = std::make_unique<std::atomic<uint64_t>>(value);

@@ -77,8 +77,6 @@ namespace Taas {
             EpochManager::cache_server_received_epoch.emplace_back(std::make_unique<std::atomic<uint64_t>>(val));
 
         }
-
-        EpochManager::AddPhysicalEpoch();
         init_ok_num.fetch_add(1);
     }
 
@@ -314,7 +312,10 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
             gettimeofday(&start_time, nullptr);
             start_time_ll = start_time.tv_sec * 1000000 + start_time.tv_usec;
         }
-        auto epoch_ = EpochManager::GetPhysicalEpoch(), logical = EpochManager::GetLogicalEpoch();
+        EpochManager::SetPhysicalEpoch(1);
+        EpochManager::SetLogicalEpoch(1);
+        auto epoch_ = EpochManager::GetPhysicalEpoch();
+        auto logical = EpochManager::GetLogicalEpoch();
         test_start.store(true);
         is_epoch_advance_started.store(true);
 
