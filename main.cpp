@@ -25,8 +25,8 @@ namespace Taas {
 
 //        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalThreadMain, ctx));
         threads.push_back(std::make_unique<std::thread>(WorkerForLogicalTxnMergeCheckThreadMain, ctx));
-        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalAbortSetMergeCheckThreadMain, ctx));
-        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalCommitCheckThreadMain, ctx));
+        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalAbortSetMergeCheckThreadMain));
+        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalCommitCheckThreadMain));
 //        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalRedoLogPushDownCheckThreadMain, ctx));
 
 //        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalReceiveAndReplyCheckThreadMain, ctx));
