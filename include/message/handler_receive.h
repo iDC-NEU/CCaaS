@@ -16,10 +16,12 @@ namespace Taas {
         bool SetMessageRelatedCountersInfo();
 
         bool HandleReceivedEpochMessage();
+        void HandleReceivedEpochMessage_usleep();
         void HandleReceivedEpochMessage_Block();
 
-        void HandleReceivedTxnMessage_Block();
         bool HandleReceivedTxnMessage();
+        void HandleReceivedTxnMessage_usleep();
+        void HandleReceivedTxnMessage_Block();
 
         bool HandleReceivedTxn();
 
@@ -304,6 +306,7 @@ namespace Taas {
             }
             return true;
         }
+
 
 
     };

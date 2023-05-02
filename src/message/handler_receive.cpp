@@ -312,7 +312,6 @@ namespace Taas {
             txn_ptr->set_server_id(ctx.txn_node_ip_index);
         }
         SetMessageRelatedCountersInfo();
-
         switch (txn_ptr->txn_type()) {
             ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
             case proto::TxnType::ClientTxn : {/// sql node --> txn node
@@ -399,6 +398,8 @@ namespace Taas {
         return true;
     }
 
+
+
     bool MessageReceiveHandler::HandleReceivedEpochMessage() {
         if(MessageQueue::listen_message_epoch_queue->try_dequeue(message_ptr)) {
             if (message_ptr->empty()) return true;
@@ -420,6 +421,29 @@ namespace Taas {
         return false;
     }
 
+    void MessageReceiveHandler::HandleReceivedEpochMessage_usleep() {
+        while(!EpochManager::IsTimerStop()) {
+            if(MessageQueue::listen_message_epoch_queue->try_dequeue(message_ptr)) {
+                if (message_ptr->empty()) continue;
+                message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
+                                                                   message_ptr->size());
+                msg_ptr = std::make_unique<proto::Message>();
+                res = UnGzip(msg_ptr.get(), message_string_ptr.get());
+                assert(res);
+                if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
+                    txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
+                    SetMessageRelatedCountersInfo();
+                    HandleReceivedTxn();
+                } else {
+                    MessageQueue::request_queue->enqueue(std::move(msg_ptr));
+                    MessageQueue::request_queue->enqueue(nullptr);
+                }
+            } else {
+                usleep(sleep_time);
+            }
+        }
+    }
+
     void MessageReceiveHandler::HandleReceivedEpochMessage_Block() {
         while(!EpochManager::IsTimerStop()) {
             MessageQueue::listen_message_epoch_queue->wait_dequeue(message_ptr);
@@ -436,6 +460,53 @@ namespace Taas {
             } else {
                 MessageQueue::request_queue->enqueue(std::move(msg_ptr));
                 MessageQueue::request_queue->enqueue(nullptr);
+            }
+        }
+    }
+
+
+
+    bool MessageReceiveHandler::HandleReceivedTxnMessage() {
+        if (MessageQueue::listen_message_txn_queue->try_dequeue(message_ptr)) {
+            if (message_ptr->empty()) return true;
+            message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
+                                                                    message_ptr->size());
+            msg_ptr = std::make_unique<proto::Message>();
+            res = UnGzip(msg_ptr.get(), message_string_ptr.get());
+            assert(res);
+            if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
+                txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
+                SetMessageRelatedCountersInfo();
+                HandleReceivedTxn();
+            } else {
+                MessageQueue::request_queue->enqueue(std::move(msg_ptr));
+                MessageQueue::request_queue->enqueue(nullptr);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    void MessageReceiveHandler::HandleReceivedTxnMessage_usleep() {
+        while (!EpochManager::IsTimerStop()) {
+            if (MessageQueue::listen_message_txn_queue->try_dequeue(message_ptr)) {
+                if (message_ptr->empty()) continue;
+                message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
+                                                                   message_ptr->size());
+                msg_ptr = std::make_unique<proto::Message>();
+                res = UnGzip(msg_ptr.get(), message_string_ptr.get());
+                assert(res);
+                if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
+                    txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
+                    SetMessageRelatedCountersInfo();
+                    HandleReceivedTxn();
+                } else {
+                    MessageQueue::request_queue->enqueue(std::move(msg_ptr));
+                    MessageQueue::request_queue->enqueue(nullptr);
+                }
+                sleep_flag = true;
+            } else {
+                usleep(sleep_time);
             }
         }
     }
@@ -460,50 +531,8 @@ namespace Taas {
         }
     }
 
-//    void MessageReceiveHandler::HandleReceivedTxnMessage_usleep() {
-//        while (!EpochManager::IsTimerStop()) {
-//            if (MessageQueue::listen_message_txn_queue->try_dequeue(message_ptr)) {
-//                if (message_ptr->empty()) continue;
-//                message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
-//                                                                   message_ptr->size());
-//                msg_ptr = std::make_unique<proto::Message>();
-//                res = UnGzip(msg_ptr.get(), message_string_ptr.get());
-//                assert(res);
-//                if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
-//                    txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
-//                    SetMessageRelatedCountersInfo();
-//                    HandleReceivedTxn();
-//                } else {
-//                    MessageQueue::request_queue->enqueue(std::move(msg_ptr));
-//                    MessageQueue::request_queue->enqueue(nullptr);
-//                }
-//                sleep_flag = true;
-//            } else {
-//                usleep(sleep_time);
-//            }
-//        }
-//    }
 
-    bool MessageReceiveHandler::HandleReceivedTxnMessage() {
-        if (MessageQueue::listen_message_txn_queue->try_dequeue(message_ptr)) {
-            if (message_ptr->empty()) return true;
-            message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
-                                                                    message_ptr->size());
-            msg_ptr = std::make_unique<proto::Message>();
-            res = UnGzip(msg_ptr.get(), message_string_ptr.get());
-            assert(res);
-            if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
-                txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
-                SetMessageRelatedCountersInfo();
-                HandleReceivedTxn();
-            } else {
-                MessageQueue::request_queue->enqueue(std::move(msg_ptr));
-                MessageQueue::request_queue->enqueue(nullptr);
-            }
-            return true;
-        }
-        return false;
-    }
+
 
     bool MessageReceiveHandler::CheckReceivedStatesAndReply() {
         res = false;

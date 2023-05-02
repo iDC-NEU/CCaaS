@@ -73,16 +73,28 @@ namespace Taas {
         MessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, id);
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        if(id < 3) {
+        if(id == 0) {
             SetCPU();
             bool sleep_flag;
             while(!EpochManager::IsTimerStop()) {
                 sleep_flag = receiveHandler.HandleReceivedEpochMessage();
+                sleep_flag = receiveHandler.CheckReceivedStatesAndReply() | sleep_flag; /// check and send EpochShardingACK BackUpACK ack /// check and send EpochLogPushDownComplete ack
+                if(!sleep_flag) usleep(sleep_time);
+            }
+        }
+        else if(id == 1) {
+            SetCPU();
+            bool sleep_flag;
+            while(!EpochManager::IsTimerStop()) {
+                sleep_flag = receiveHandler.HandleReceivedEpochMessage();
+                sleep_flag = MessageSendHandler::SendEpochEndMessage(ctx)| sleep_flag; ///check and send abort set
+                sleep_flag = MessageSendHandler::SendBackUpEpochEndMessage(ctx)| sleep_flag; ///check and send abort set
                 if(!sleep_flag) usleep(sleep_time);
             }
         }
         while(!EpochManager::IsTimerStop()) {
-            receiveHandler.HandleReceivedEpochMessage_Block();
+            receiveHandler.HandleReceivedEpochMessage_usleep();
+//            receiveHandler.HandleReceivedEpochMessage_Block();
         }
     }
 
@@ -97,7 +109,6 @@ namespace Taas {
             bool sleep_flag;
             while(!EpochManager::IsTimerStop()) {
                 sleep_flag = receiveHandler.HandleReceivedTxnMessage();
-                sleep_flag = receiveHandler.CheckReceivedStatesAndReply() | sleep_flag; /// check and send EpochShardingACK BackUpACK ack /// check and send EpochLogPushDownComplete ack
                 if(!sleep_flag) usleep(sleep_time);
             }
         }
@@ -106,13 +117,12 @@ namespace Taas {
             bool sleep_flag;
             while(!EpochManager::IsTimerStop()) {
                 sleep_flag = receiveHandler.HandleReceivedTxnMessage();
-                sleep_flag = MessageSendHandler::SendEpochEndMessage(ctx)| sleep_flag; ///check and send abort set
-                sleep_flag = MessageSendHandler::SendBackUpEpochEndMessage(ctx)| sleep_flag; ///check and send abort set
                 if(!sleep_flag) usleep(sleep_time);
             }
         }
         while(!EpochManager::IsTimerStop()) {
-            receiveHandler.HandleReceivedTxnMessage_Block();
+            receiveHandler.HandleReceivedTxnMessage_usleep();
+//            receiveHandler.HandleReceivedTxnMessage_Block();
         }
     }
 
