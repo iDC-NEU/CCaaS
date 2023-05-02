@@ -333,7 +333,7 @@ namespace Taas {
                 sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
                 CheckEpochShardingReceiveComplete(ctx,message_epoch);
-                printf("EpochEndFlag\n");
+//                printf("EpochEndFlag epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::BackUpTxn : {
@@ -345,7 +345,7 @@ namespace Taas {
             case proto::TxnType::BackUpEpochEndFlag : {
                 backup_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 backup_received_pack_num.IncCount(message_epoch,message_server_id, 1);
-                printf("BackUpEpochEndFlag\n");
+//                printf("BackUpEpochEndFlag epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::AbortSet : {
@@ -356,7 +356,7 @@ namespace Taas {
                 ///send abort set ack
                 MessageSendHandler::SendTxnToServer(ctx, message_epoch,
                             message_server_id, empty_txn, proto::TxnType::AbortSetACK);
-                printf("AbortSet\n");
+//                printf("AbortSet epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::InsertSet : {
@@ -371,20 +371,20 @@ namespace Taas {
             case proto::TxnType::EpochShardingACK : {
                 sharding_received_ack_num.IncCount(message_epoch,message_server_id, 1);
                 CheckEpochShardingSendComplete(ctx, message_epoch);
-                printf("EpochShardingACK\n");
+//                printf("EpochShardingACK epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::BackUpACK : {
                 backup_received_ack_num.IncCount(message_epoch,message_server_id, 1);
 //                printf("=== receive backup ack from %lu epoch %lu\n", message_server_id, message_epoch);
                 CheckEpochBackUpComplete(ctx, message_epoch);
-                printf("BackUpACK\n");
+//                printf("BackUpACK epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::AbortSetACK : {
                 abort_set_received_ack_num.IncCount(message_epoch,message_server_id, 1);
                 CheckEpochAbortSetMergeComplete(ctx, message_epoch);
-                printf("AbortSetACK\n");
+//                printf("AbortSetACK epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::InsertSetACK : {
@@ -393,7 +393,7 @@ namespace Taas {
             }
             case proto::TxnType::EpochLogPushDownComplete : {
                 redo_log_push_down_ack_num.IncCount(message_epoch,message_server_id, 1);
-                printf("EpochLogPushDownComplete\n");
+//                printf("EpochLogPushDownComplete epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::NullMark:
@@ -418,7 +418,6 @@ namespace Taas {
             if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
                 txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
                 SetMessageRelatedCountersInfo();
-                printf("1\n");
                 HandleReceivedTxn();
             } else {
                 MessageQueue::request_queue->enqueue(std::move(msg_ptr));
@@ -441,7 +440,6 @@ namespace Taas {
                 if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
                     txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
                     SetMessageRelatedCountersInfo();
-                    printf("2\n");
                     HandleReceivedTxn();
                 } else {
                     MessageQueue::request_queue->enqueue(std::move(msg_ptr));
@@ -465,7 +463,6 @@ namespace Taas {
             if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
                 txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
                 SetMessageRelatedCountersInfo();
-                printf("3\n");
                 HandleReceivedTxn();
             } else {
                 MessageQueue::request_queue->enqueue(std::move(msg_ptr));
