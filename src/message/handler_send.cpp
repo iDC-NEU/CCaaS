@@ -180,6 +180,7 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
                 MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(sharding_id, 0, "", epoch,proto::TxnType::EpochEndFlag,std::move(serialized_txn_str_ptr),nullptr));
                 MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark,nullptr, nullptr));
                 sharding_send_epoch[sharding_id]->fetch_add(1);
+                printf("SendEpochEndMessage epoch %lu server %lu\n", epoch, sharding_id);
                 sleep_flag = true;
             }
         }
@@ -204,10 +205,12 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
                 if(to_id == ctx.txn_node_ip_index) continue;
                 auto str_copy = std::make_unique<std::string>(*serialized_txn_str_ptr);
                 MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_id, 0, "", backup_sent_epoch, proto::TxnType::BackUpEpochEndFlag, std::move(str_copy), nullptr));
+                printf("SendBackUpEpochEndMessage epoch %lu server %lu\n", backup_sent_epoch, to_id);
             }
 //                printf("send epoch backup end flag epoch %lu\n",epoch);
             MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(0, 0, "", backup_sent_epoch, proto::TxnType::NullMark, nullptr, nullptr));
             backup_sent_epoch ++;
+
             sleep_flag = true;
         }
         return sleep_flag;
