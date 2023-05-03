@@ -64,11 +64,9 @@ namespace Taas {
         void Init(const Context& ctx_, uint64_t id);
 
         static bool EpochMerge(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
-        static bool GenerateCommitTask(uint64_t &epoch);
-        void EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep();
-        void EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep_1();
-        void EpochCommit_RedoLog_TxnMode_Commit_Queue_Wait();
-        void EpochCommit_RedoLog_TxnMode_Commit_Queue();
+        void EpochCommit_CommitQueue_Usleep();
+        void EpochCommit_CommitQueue_Block();
+        void EpochCommit_CommitQueue();
 
 
         static bool CheckEpochMergeComplete(const Context &ctx, uint64_t& epoch) {

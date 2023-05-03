@@ -428,7 +428,7 @@ namespace Taas {
         return false;
     }
 
-    void MessageReceiveHandler::HandleReceivedEpochMessage_usleep() {
+    void MessageReceiveHandler::HandleReceivedEpochMessage_Usleep() {
         while(!EpochManager::IsTimerStop()) {
             if(MessageQueue::listen_message_epoch_queue->try_dequeue(message_ptr)) {
                 if (message_ptr->empty()) continue;
@@ -494,7 +494,7 @@ namespace Taas {
         return false;
     }
 
-    void MessageReceiveHandler::HandleReceivedTxnMessage_usleep() {
+    void MessageReceiveHandler::HandleReceivedTxnMessage_Usleep() {
         while (!EpochManager::IsTimerStop()) {
             if (MessageQueue::listen_message_txn_queue->try_dequeue(message_ptr)) {
                 if (message_ptr->empty()) continue;

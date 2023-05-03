@@ -138,10 +138,19 @@ namespace Taas {
         return res;
     }
 
-    void Merger::EpochCommit_RedoLog_TxnMode_Commit_Queue() {
+    void Merger::EpochCommit_CommitQueue() {
         epoch = EpochManager::GetLogicalEpoch();
         epoch_mod = epoch % ctx.kCacheMaxLength;
         /// dequeue from local txn queue a complete txn
+
+        while(epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+            if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
+                continue;
+            }
+            commit_queue->enqueue(std::move(txn_ptr));
+        }
+        commit_queue->enqueue(nullptr);
+
         if(epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr)) {
             if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                 return ;
@@ -164,7 +173,7 @@ namespace Taas {
         }
     }
 
-    void Merger::EpochCommit_RedoLog_TxnMode_Commit_Queue_usleep() {
+    void Merger::EpochCommit_CommitQueue_Usleep() {
         while (!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetLogicalEpoch();
             epoch_mod = epoch % ctx.kCacheMaxLength;
@@ -194,7 +203,7 @@ namespace Taas {
         }
     }
 
-    void Merger::EpochCommit_RedoLog_TxnMode_Commit_Queue_Wait() {
+    void Merger::EpochCommit_CommitQueue_Block() {
         while(!EpochManager::IsTimerStop()) {
             commit_queue->wait_dequeue(txn_ptr);
             if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) continue;
