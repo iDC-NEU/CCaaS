@@ -5,6 +5,7 @@
 #include "message/handler_receive.h"
 #include "tools/utilities.h"
 #include "transaction/merge.h"
+#include "message/message.h"
 
 namespace Taas {
     std::vector<std::unique_ptr<std::atomic<uint64_t>>> MessageSendHandler::sharding_send_epoch,

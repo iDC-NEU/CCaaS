@@ -64,7 +64,7 @@ namespace Taas {
 
         void Resize(const uint64_t size) {
             if (size <= _size) return;
-            vec.reserve(size);
+            vec.resize(size);
             for (uint64_t i = _size; i < size; i++) {
                 vec.emplace_back(std::make_unique<std::atomic<uint64_t>>(0));
             }

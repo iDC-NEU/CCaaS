@@ -12,7 +12,7 @@
 
 
 namespace Taas {
-    const uint64_t PACKNUM = 1L<<32;///
+//    const uint64_t PACKNUM = 1L<<32;///
 
     std::vector<uint64_t>
             MessageReceiveHandler::sharding_send_ack_epoch_num,
@@ -83,12 +83,12 @@ namespace Taas {
         message_ptr = nullptr;
         txn_ptr = nullptr;
 //        pack_param = nullptr;
-        server_dequeue_id = 0, epoch_mod = 0;
+//        server_dequeue_id = 0, epoch_mod = 0;
 //        epoch = 0, max_length = 0;
 //        res = false, sleep_flag = false;
         thread_id = id;
         ctx = ctx_;
-        max_length = ctx_.kCacheMaxLength;
+//        max_length = ctx_.kCacheMaxLength;
         sharding_num = ctx_.kTxnNodeNum;
 
         return true;
@@ -98,30 +98,30 @@ namespace Taas {
         auto max_length = context.kCacheMaxLength;
         auto sharding_num = context.kTxnNodeNum;
 
-        sharding_send_ack_epoch_num.reserve(sharding_num + 1);
-        backup_send_ack_epoch_num.reserve(sharding_num + 1);
-        backup_insert_set_send_ack_epoch_num.reserve(sharding_num + 1);
-        abort_set_send_ack_epoch_num.reserve(sharding_num + 1);
+        sharding_send_ack_epoch_num.resize(sharding_num + 1);
+        backup_send_ack_epoch_num.resize(sharding_num + 1);
+        backup_insert_set_send_ack_epoch_num.resize(sharding_num + 1);
+        abort_set_send_ack_epoch_num.resize(sharding_num + 1);
         for(int i = 0; i <= (int) sharding_num; i ++ ) { /// start at 1, not 0
-            sharding_send_ack_epoch_num.emplace_back(1);
-            backup_send_ack_epoch_num.emplace_back(1);
-            backup_insert_set_send_ack_epoch_num.emplace_back(1);
-            abort_set_send_ack_epoch_num.emplace_back(1);
+            sharding_send_ack_epoch_num[i] = 1;
+            backup_send_ack_epoch_num[i] = 1;
+            backup_insert_set_send_ack_epoch_num[i] = 1;
+            abort_set_send_ack_epoch_num[i] = 1;
         }
 
-        epoch_remote_sharding_txn.resize(EpochManager::max_length);
-        epoch_local_sharding_txn.resize(EpochManager::max_length);
-        epoch_local_txn.resize(EpochManager::max_length);
-        epoch_backup_txn.resize(EpochManager::max_length);
-        epoch_insert_set.resize(EpochManager::max_length);
-        epoch_abort_set.resize(EpochManager::max_length);
-        epoch_sharding_send_complete.resize(EpochManager::max_length);
-        epoch_sharding_receive_complete.resize(EpochManager::max_length);
-        epoch_back_up_complete.resize(EpochManager::max_length);
-        epoch_abort_set_merge_complete.resize(EpochManager::max_length);
-        epoch_insert_set_complete.resize(EpochManager::max_length);
+        epoch_remote_sharding_txn.resize(max_length);
+        epoch_local_sharding_txn.resize(max_length);
+        epoch_local_txn.resize(max_length);
+        epoch_backup_txn.resize(max_length);
+        epoch_insert_set.resize(max_length);
+        epoch_abort_set.resize(max_length);
+        epoch_sharding_send_complete.resize(max_length);
+        epoch_sharding_receive_complete.resize(max_length);
+        epoch_back_up_complete.resize(max_length);
+        epoch_abort_set_merge_complete.resize(max_length);
+        epoch_insert_set_complete.resize(max_length);
 
-        for(int i = 0; i < static_cast<int>(EpochManager::max_length); i ++) {
+        for(int i = 0; i < static_cast<int>(max_length); i ++) {
             epoch_sharding_send_complete[i] = std::make_unique<std::atomic<bool>>(false);
             epoch_sharding_receive_complete[i] = std::make_unique<std::atomic<bool>>(false);
             epoch_back_up_complete[i] = std::make_unique<std::atomic<bool>>(false);
@@ -512,7 +512,6 @@ namespace Taas {
                     MessageQueue::request_queue->enqueue(std::move(msg_ptr));
                     MessageQueue::request_queue->enqueue(nullptr);
                 }
-                sleep_flag = true;
             } else {
                 usleep(sleep_time);
             }

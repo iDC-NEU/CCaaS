@@ -55,11 +55,11 @@ namespace Taas {
         EpochManager::record_committed.resize(EpochManager::max_length);
         EpochManager::is_current_epoch_abort.resize(EpochManager::max_length);
         //cluster state
-        EpochManager::online_server_num.reserve(EpochManager::max_length + 1);
-//        EpochManager::should_receive_pack_num.reserve(EpochManager::max_length + 1);
+        EpochManager::online_server_num.resize(EpochManager::max_length + 1);
+//        EpochManager::should_receive_pack_num.resize(EpochManager::max_length + 1);
         EpochManager::server_state.Init(EpochManager::max_length,ctx.kTxnNodeNum + 2, 1);
         //cache server
-        EpochManager::cache_server_received_epoch.reserve(EpochManager::max_length + 1);
+        EpochManager::cache_server_received_epoch.resize(EpochManager::max_length + 1);
         uint64_t val = 1;
         if(ctx.is_cache_server_available) {
             val = 0;
@@ -72,9 +72,10 @@ namespace Taas {
             EpochManager::record_committed[i] = std::make_unique<std::atomic<bool>>(false);
             EpochManager::is_current_epoch_abort[i] = std::make_unique<std::atomic<bool>>(false);
             //cluster state
-            EpochManager::online_server_num[i] = std::make_unique<std::atomic<uint64_t>>(ctx.kTxnNodeNum);
+            EpochManager::online_server_num[i] = std::make_unique<std::atomic<uint64_t>>();
+            EpochManager::online_server_num[i]->store(ctx.kTxnNodeNum);
             //cache server
-            EpochManager::cache_server_received_epoch.emplace_back(std::make_unique<std::atomic<uint64_t>>(val));
+            EpochManager::cache_server_received_epoch[i] =std::make_unique<std::atomic<uint64_t>>(val);
 
         }
         init_ok_num.fetch_add(1);
