@@ -29,10 +29,10 @@ namespace Taas {
         threads.push_back(std::make_unique<std::thread>(WorkerForLogicalCommitCheckThreadMain));
 //        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalRedoLogPushDownCheckThreadMain, ctx));
 
-//        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalReceiveAndReplyCheckThreadMain, ctx));
-//        threads.push_back(std::make_unique<std::thread>(WorkerForEpochAbortSendThreadMain, ctx));
-//        threads.push_back(std::make_unique<std::thread>(WorkerForEpochEndFlagSendThreadMain, ctx));
-//        threads.push_back(std::make_unique<std::thread>(WorkerForEpochBackUpEndFlagSendThreadMain, ctx));
+        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalReceiveAndReplyCheckThreadMain, ctx));
+        threads.push_back(std::make_unique<std::thread>(WorkerForEpochAbortSendThreadMain, ctx));
+        threads.push_back(std::make_unique<std::thread>(WorkerForEpochEndFlagSendThreadMain, ctx));
+        threads.push_back(std::make_unique<std::thread>(WorkerForEpochBackUpEndFlagSendThreadMain, ctx));
 
         for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
             threads.push_back(std::make_unique<std::thread>(WorkerFroTxnMessageThreadMain, ctx, i));///merge

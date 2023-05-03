@@ -67,41 +67,89 @@ namespace Taas {
         }
     }
 
+    void WorkerForLogicalReceiveAndReplyCheckThreadMain(const Context& ctx) {
+        SetCPU();
+        bool sleep_flag;
+        MessageReceiveHandler receiveHandler;
+        receiveHandler.Init(ctx, 0);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while(!EpochManager::IsTimerStop()){
+            sleep_flag = receiveHandler.CheckReceivedStatesAndReply();/// check and send EpochShardingACK BackUpACK ack /// check and send EpochLogPushDownComplete ack
+            if(!sleep_flag) usleep(sleep_time);
+        }
+    }
+
+    void WorkerForEpochAbortSendThreadMain(const Context& ctx) {
+        SetCPU();
+        bool sleep_flag;
+        MessageReceiveHandler receiveHandler;
+        receiveHandler.Init(ctx, 0);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while(!EpochManager::IsTimerStop()){
+            sleep_flag = MessageSendHandler::SendAbortSet(ctx); ///check and send abort set
+            if(!sleep_flag) usleep(sleep_time);
+        }
+    }
+
+    void WorkerForEpochEndFlagSendThreadMain(const Context& ctx) {
+        SetCPU();
+        bool sleep_flag;
+        MessageReceiveHandler receiveHandler;
+        receiveHandler.Init(ctx, 0);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while(!EpochManager::IsTimerStop()){
+            sleep_flag = MessageSendHandler::SendEpochEndMessage(ctx); ///send epoch end flag
+            if(!sleep_flag) usleep(sleep_time);
+        }
+    }
+
+    void WorkerForEpochBackUpEndFlagSendThreadMain(const Context& ctx) {
+        SetCPU();
+        bool sleep_flag;
+        MessageReceiveHandler receiveHandler;
+        receiveHandler.Init(ctx, 0);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while(!EpochManager::IsTimerStop()){
+            sleep_flag = MessageSendHandler::SendBackUpEpochEndMessage(ctx); ///send epoch backup end message
+            if(!sleep_flag) usleep(sleep_time);
+        }
+    }
+
     void WorkerFroEpochMessageThreadMain(const Context& ctx, uint64_t id) {/// handle epoch end message
         std::string name = "EpochMessage-" + std::to_string(id);
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         MessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, id);
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        if(id == 0) {
-            SetCPU();
-            bool sleep_flag;
-            while(!EpochManager::IsTimerStop()) {
-                sleep_flag = receiveHandler.HandleReceivedEpochMessage();
-                sleep_flag = receiveHandler.CheckReceivedStatesAndReply() | sleep_flag; /// check and send EpochShardingACK BackUpACK ack /// check and send EpochLogPushDownComplete ack
-                if(!sleep_flag) usleep(sleep_time);
-            }
-        }
-        else if(id == 1) {
-            SetCPU();
-            bool sleep_flag;
-            while(!EpochManager::IsTimerStop()) {
-                sleep_flag = receiveHandler.HandleReceivedEpochMessage();
-                sleep_flag = MessageSendHandler::SendEpochEndMessage(ctx)| sleep_flag; ///check and send abort set
-                sleep_flag = MessageSendHandler::SendBackUpEpochEndMessage(ctx)| sleep_flag; ///check and send abort set
-                if(!sleep_flag) usleep(sleep_time);
-            }
-        }
-        else if(id == 3) {
-            SetCPU();
-            bool sleep_flag;
-            while(!EpochManager::IsTimerStop()) {
-                sleep_flag = receiveHandler.HandleReceivedEpochMessage();
-                sleep_flag = MessageSendHandler::SendAbortSet(ctx)| sleep_flag; ///check and send abort set
-                if(!sleep_flag) usleep(sleep_time);
-            }
-
-        }
+//        if(id == 0) {
+//            SetCPU();
+//            bool sleep_flag;
+//            while(!EpochManager::IsTimerStop()) {
+//                sleep_flag = receiveHandler.HandleReceivedEpochMessage();
+//                sleep_flag = receiveHandler.CheckReceivedStatesAndReply() | sleep_flag; /// check and send EpochShardingACK BackUpACK ack /// check and send EpochLogPushDownComplete ack
+//                if(!sleep_flag) usleep(sleep_time);
+//            }
+//        }
+//        else if(id == 1) {
+//            SetCPU();
+//            bool sleep_flag;
+//            while(!EpochManager::IsTimerStop()) {
+//                sleep_flag = receiveHandler.HandleReceivedEpochMessage();
+//                sleep_flag = MessageSendHandler::SendEpochEndMessage(ctx)| sleep_flag; ///check and send abort set
+//                sleep_flag = MessageSendHandler::SendBackUpEpochEndMessage(ctx)| sleep_flag; ///check and send abort set
+//                if(!sleep_flag) usleep(sleep_time);
+//            }
+//        }
+//        else if(id == 3) {
+//            SetCPU();
+//            bool sleep_flag;
+//            while(!EpochManager::IsTimerStop()) {
+//                sleep_flag = receiveHandler.HandleReceivedEpochMessage();
+//                sleep_flag = MessageSendHandler::SendAbortSet(ctx)| sleep_flag; ///check and send abort set
+//                if(!sleep_flag) usleep(sleep_time);
+//            }
+//
+//        }
         while(!EpochManager::IsTimerStop()) {
 //            receiveHandler.HandleReceivedEpochMessage_Usleep();
             receiveHandler.HandleReceivedEpochMessage_Block();
@@ -267,53 +315,7 @@ namespace Taas {
         }
     }
 
-    void WorkerForLogicalReceiveAndReplyCheckThreadMain(const Context& ctx) {
-        SetCPU();
-        bool sleep_flag;
-        MessageReceiveHandler receiveHandler;
-        receiveHandler.Init(ctx, 0);
-        while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        while(!EpochManager::IsTimerStop()){
-            sleep_flag = receiveHandler.CheckReceivedStatesAndReply();/// check and send EpochShardingACK BackUpACK ack /// check and send EpochLogPushDownComplete ack
-            if(!sleep_flag) usleep(sleep_time);
-        }
-    }
 
-    void WorkerForEpochAbortSendThreadMain(const Context& ctx) {
-        SetCPU();
-        bool sleep_flag;
-        MessageReceiveHandler receiveHandler;
-        receiveHandler.Init(ctx, 0);
-        while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        while(!EpochManager::IsTimerStop()){
-            sleep_flag = MessageSendHandler::SendAbortSet(ctx); ///check and send abort set
-            if(!sleep_flag) usleep(sleep_time);
-        }
-    }
-
-    void WorkerForEpochEndFlagSendThreadMain(const Context& ctx) {
-        SetCPU();
-        bool sleep_flag;
-        MessageReceiveHandler receiveHandler;
-        receiveHandler.Init(ctx, 0);
-        while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        while(!EpochManager::IsTimerStop()){
-            sleep_flag = MessageSendHandler::SendEpochEndMessage(ctx); ///send epoch end flag
-            if(!sleep_flag) usleep(sleep_time);
-        }
-    }
-
-    void WorkerForEpochBackUpEndFlagSendThreadMain(const Context& ctx) {
-        SetCPU();
-        bool sleep_flag;
-        MessageReceiveHandler receiveHandler;
-        receiveHandler.Init(ctx, 0);
-        while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        while(!EpochManager::IsTimerStop()){
-            sleep_flag = MessageSendHandler::SendBackUpEpochEndMessage(ctx); ///send epoch backup end message
-            if(!sleep_flag) usleep(sleep_time);
-        }
-    }
 
 }
 
