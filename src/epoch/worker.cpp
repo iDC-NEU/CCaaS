@@ -151,8 +151,8 @@ namespace Taas {
 //
 //        }
         while(!EpochManager::IsTimerStop()) {
-//            receiveHandler.HandleReceivedEpochMessage_Usleep();
-            receiveHandler.HandleReceivedEpochMessage_Block();
+            receiveHandler.HandleReceivedEpochMessage_Usleep();
+//            receiveHandler.HandleReceivedEpochMessage_Block();
         }
     }
 
@@ -163,8 +163,8 @@ namespace Taas {
         receiveHandler.Init(ctx, id);
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while(!EpochManager::IsTimerStop()) {
-//            receiveHandler.HandleReceivedTxnMessage_Usleep();
-            receiveHandler.HandleReceivedTxnMessage_Block();
+            receiveHandler.HandleReceivedTxnMessage_Usleep();
+//            receiveHandler.HandleReceivedTxnMessage_Block();
         }
     }
 
@@ -183,13 +183,14 @@ namespace Taas {
                 while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
                     usleep(sleep_time);
                 }
-                merger.EpochCommit_CommitQueue();
+//                merger.EpochCommit_CommitQueue();
+                merger.EpochCommit_CommitQueue_Usleep();
             }
         }
         else {
             while(!EpochManager::IsTimerStop()) {
-//                merger.EpochCommit_CommitQueue_usleep();
-                merger.EpochCommit_CommitQueue_Block();
+                merger.EpochCommit_CommitQueue_Usleep();
+//                merger.EpochCommit_CommitQueue_Block();
             }
         }
     }
@@ -250,7 +251,8 @@ namespace Taas {
         }
         else {
             while (!EpochManager::IsTimerStop()) {
-                TiKV::SendTransactionToTiKV_Block();
+                TiKV::SendTransactionToTiKV_Usleep();
+//                TiKV::SendTransactionToTiKV_Block();
                 usleep(sleep_time);
             }
         }
