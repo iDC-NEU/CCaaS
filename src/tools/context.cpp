@@ -7,9 +7,9 @@
 
 namespace Taas {
 
-    void Context::GetServerInfo(){
+    void Context::GetServerInfo(const std::string& config_file_path){
         tinyxml2::XMLDocument doc;
-        doc.LoadFile("../config.xml");
+        doc.LoadFile(config_file_path.c_str());
         auto* root=doc.RootElement();
         tinyxml2::XMLElement* server_num = root->FirstChildElement("txn_node_num");
         kTxnNodeNum= std::stoull(server_num->GetText());
@@ -52,6 +52,10 @@ namespace Taas {
         tinyxml2::XMLElement *ip_port= root->FirstChildElement("tikv_ip");
         auto tikv_ip=ip_port->GetText();
         kTiKVIP = std::string(tikv_ip);
+
+        /** Get glog path */
+        tinyxml2::XMLElement *glog_path = root->FirstChildElement("glog_path");
+        glog_path_ = std::string(glog_path->GetText());
 
         auto* mode_size_t = root->FirstChildElement("print_mode_size");
         print_mode_size = std::stoull(mode_size_t->GetText());

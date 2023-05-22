@@ -4,6 +4,8 @@
 
 #include <iostream>
 #include <thread>
+#include <glog/logging.h>
+
 #include "epoch/epoch_manager.h"
 #include "epoch/worker.h"
 #include "message/message.h"
@@ -14,11 +16,12 @@ using namespace std;
 
 namespace Taas {
     int main() {
-        Context ctx;
-        ctx.GetServerInfo();
+        Context ctx("../config.xml");
         EpochManager epochManager;
         Taas::EpochManager::ctx = ctx;
-        printf("System Start\n");
+        FLAGS_log_dir = ctx.glog_path_;
+        google::InitGoogleLogging("Taas-sharding");
+        LOG(INFO) << "System Start\n";
         std::vector<std::unique_ptr<std::thread>> threads;
 
         threads.push_back(std::make_unique<std::thread>(WorkerForPhysicalThreadMain, ctx));

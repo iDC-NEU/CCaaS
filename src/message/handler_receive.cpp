@@ -393,10 +393,10 @@ namespace Taas {
             }
             case proto::TxnType::EpochLogPushDownComplete : {
                 redo_log_push_down_ack_num.IncCount(message_epoch,message_server_id, 1);
-//                printf("EpochLogPushDownComplete epoch %lu server %lu\n", message_epoch, message_server_id);
-                break;
-            }
-            case proto::NullMark:
+                LOG(INFO) << "receive EpochLogPushDownComplete, epoch:" << message_epoch << ", server_id: " << message_server_id;
+            break;
+        }
+        case proto::NullMark:
             case proto::TxnType_INT_MIN_SENTINEL_DO_NOT_USE_:
             case proto::TxnType_INT_MAX_SENTINEL_DO_NOT_USE_:
             case proto::CommittedTxn:
@@ -551,6 +551,7 @@ namespace Taas {
             MessageSendHandler::SendTxnToServer(ctx, redo_log_push_down_reply,
                             server_reply_ack_id, empty_txn, proto::TxnType::EpochLogPushDownComplete);
 //            printf(" === send EpochLogPushDownComplete ack epoch, %lu server_id %lu\n", redo_log_push_down_reply, id);
+            LOG(INFO) << "send EpochLogPushDownComplete ack, epoch: " << redo_log_push_down_reply << ", server id:" << id;
             redo_log_push_down_reply ++;
             res = true;
         }

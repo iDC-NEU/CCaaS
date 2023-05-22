@@ -10,6 +10,12 @@
 namespace Taas {
     class Context {
     public:
+        explicit Context() {
+            GetServerInfo("../config.xml");
+        }
+        explicit Context(const std::string& config_file_path) {
+            GetServerInfo(config_file_path);
+        }
         std::vector<std::string> kServerIp, kCacheServerIp;
         std::vector<uint64_t> port; // ServerNum * PackageNum
         // server_num，txn node的个数
@@ -22,12 +28,14 @@ namespace Taas {
         std::vector<std::string> send_ips;
         std::vector<uint64_t>send_ports;
         std::string kMasterIp, kPrivateIp, kTiKVIP;
+        /** Where to save log file. Default in /tmp */
+        std::string glog_path_ = "/tmp";
         volatile bool is_read_repeatable = false, is_breakdown = false, is_sync_start = false,
                 is_snap_isolation = false, is_cache_server_available = false, is_fault_tolerance_enable = false, is_sync_exec = false,
                 is_full_async_exec = false, is_total_pack = false, is_protobuf_gzip = true, is_tikv_enable = true;
 
 
-        void GetServerInfo();
+        void GetServerInfo(const std::string &config_file_path = "../config.xml");
     };
 }
 

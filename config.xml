@@ -19,6 +19,7 @@
     <!--    tikv config -->
     <is_tikv_enable>0</is_tikv_enable>
     <tikv_ip>47.92.250.79:2379</tikv_ip>
+    <glog_path>/tmp</glog_path>
 <!--    print mod size-->
     <print_mode_size>100</print_mode_size>
 <!--    client use push/pull mode send txn to taas through 5551 port-->

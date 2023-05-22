@@ -7,6 +7,8 @@
 
 #include <stdlib.h>
 #include <iostream>
+#include <glog/logging.h>
+
 #include "proto/message.pb.h"
 #include "google/protobuf/io/gzip_stream.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
