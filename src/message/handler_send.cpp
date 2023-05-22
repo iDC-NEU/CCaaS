@@ -149,11 +149,11 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
         txn_end->set_txn_type(txn_type);
         txn_end->set_commit_epoch(epoch);
         txn_end->set_sharding_id(0);
-        auto serialized_txn_str_ptr = std::make_unique<std::string>();
-        Gzip(msg.get(), serialized_txn_str_ptr.get());
         for (uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
             if (i == ctx.txn_node_ip_index) continue;/// send to everyone
-            MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(i, 0, "", epoch, proto::TxnType::InsertSet, std::move(serialized_txn_str_ptr), nullptr));
+            auto serialized_txn_str_ptr = std::make_unique<std::string>();
+            Gzip(msg.get(), serialized_txn_str_ptr.get());
+            MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(i, 0, "", epoch, txn_type, std::move(serialized_txn_str_ptr), nullptr));
         }
         return MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
     }

@@ -20,6 +20,7 @@ namespace Taas {
         EpochManager epochManager;
         Taas::EpochManager::ctx = ctx;
         FLAGS_log_dir = ctx.glog_path_;
+        FLAGS_alsologtostderr = 1;
         google::InitGoogleLogging("Taas-sharding");
         LOG(INFO) << "System Start\n";
         std::vector<std::unique_ptr<std::thread>> threads;
