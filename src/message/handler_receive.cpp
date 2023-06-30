@@ -507,7 +507,6 @@ namespace Taas {
                     txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
                     SetMessageRelatedCountersInfo();
                     HandleReceivedTxn();
-                    printf("3\n");
                 } else {
                     MessageQueue::request_queue->enqueue(std::move(msg_ptr));
                     MessageQueue::request_queue->enqueue(nullptr);

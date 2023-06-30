@@ -238,24 +238,24 @@ namespace Taas {
         receiveHandler.Init(ctx, id);
         auto txn_ptr = std::make_unique<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        if(id < 5) {
-            while(!EpochManager::IsTimerStop()) {
-                epoch = EpochManager::GetPushDownEpoch();
-                while(!EpochManager::IsCommitComplete(epoch)) {
-                    usleep(sleep_time);
-                }
-                TiKV::SendTransactionToTiKV_Usleep();
-                epoch = EpochManager::GetPushDownEpoch();
-                TiKV::CheckEpochPushDownComplete(epoch);
-            }
-        }
-        else {
+//        if(id < 5) {
+//            while(!EpochManager::IsTimerStop()) {
+//                epoch = EpochManager::GetPushDownEpoch();
+//                while(!EpochManager::IsCommitComplete(epoch)) {
+//                    usleep(sleep_time);
+//                }
+//                TiKV::SendTransactionToTiKV_Usleep();
+//                epoch = EpochManager::GetPushDownEpoch();
+//                TiKV::CheckEpochPushDownComplete(epoch);
+//            }
+//        }
+//        else {
             while (!EpochManager::IsTimerStop()) {
                 TiKV::SendTransactionToTiKV_Usleep();
 //                TiKV::SendTransactionToTiKV_Block();
                 usleep(sleep_time);
             }
-        }
+//        }
     }
 
     void WorkerFroMOTStorageThreadMain() {

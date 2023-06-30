@@ -61,8 +61,10 @@ namespace Taas {
             msg = std::make_unique<zmq::message_t>(*(params->str));
             if(params->type == proto::TxnType::RemoteServerTxn || params->type == proto::TxnType::BackUpTxn) {
                 socket_map_txn[params->id]->send(*msg, sendFlags);
+//                printf("send message txn %lu server_id %lu type %d\n", params->epoch, params->id, params->type);
             }
             else {
+//                printf("send message epoch %lu server_id %lu type %d\n", params->epoch, params->id, params->type);
                 socket_map_epoch[params->id]->send(*msg, sendFlags);
             }
         }

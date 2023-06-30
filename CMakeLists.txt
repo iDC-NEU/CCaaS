@@ -104,6 +104,28 @@ find_package(gtest_install
         PATHS ${PROJECT_SOURCE_DIR}/vendor
         )
 
+### Gtest leveldb
+find_package(leveldb_install
+        CONFIG
+        REQUIRED
+        PATHS ${PROJECT_SOURCE_DIR}/vendor
+        )
+
+### Gtest rocksdb
+find_package(rocksdb_install
+        CONFIG
+        REQUIRED
+        PATHS ${PROJECT_SOURCE_DIR}/vendor
+        )
+
+### Gtest brpc
+find_package(brpc_install
+        CONFIG
+        REQUIRED
+        PATHS ${PROJECT_SOURCE_DIR}/vendor
+        )
+
+
 include(${CMAKE_CURRENT_SOURCE_DIR}/vendor/tools.cmake)
 
 ### compile protobuf
@@ -141,7 +163,7 @@ file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 # Note: for header-only libraries change all PUBLIC flags to INTERFACE and create an interface
 # target: add_library(${PROJECT_NAME} INTERFACE)
-add_library(${PROJECT_NAME} ${headers} ${sources})
+add_library(${PROJECT_NAME} ${headers} ${sources} )
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 
 

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<root>
+<!--Storage config-->
+    <!--    tikv config -->
+    <is_tikv_enable>0</is_tikv_enable>
+    <tikv_ip>47.92.250.79:2379</tikv_ip>
+
+    <!--    leveldb config -->
+    <is_leveldb_enable>0</is_leveldb_enable>
+    <leveldb_ip>47.92.250.79:2379</leveldb_ip>
+
+    <!--    hbase config -->
+    <is_hbase_enable>0</is_hbase_enable>
+    <hbase_ip>47.92.250.79:2379</hbase_ip>
+
+<!--    client use push/pull mode send txn to taas through 5551 port-->
+<!--    client use push/pull mode receive result from taas through 5552 port-->
+
+<!--    mot storage pub/sub mode listen to taas 5556 port-->
+
+</root>

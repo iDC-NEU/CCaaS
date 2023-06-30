@@ -11,31 +11,36 @@ namespace Taas {
     class Context {
     public:
         explicit Context() {
-            GetServerInfo("../config.xml");
+            GetTaaSServerInfo("../TaaS_config.xml");
+            GetStorageInfo("../Storage_config.xml");
         }
-        explicit Context(const std::string& config_file_path) {
-            GetServerInfo(config_file_path);
+        explicit Context(const std::string& TaaS_config_file_path, const std::string& Storage_config_file_path) {
+            GetTaaSServerInfo(TaaS_config_file_path);
+            GetStorageInfo(Storage_config_file_path);
         }
-        std::vector<std::string> kServerIp, kCacheServerIp;
-        std::vector<uint64_t> port; // ServerNum * PackageNum
-        // server_num，txn node的个数
+        /// 1: TaaS server, 2: leveldb server, 3:hbase server
+        uint64_t server_type = 1;
+
+        ///TaaS server config
+        std::vector<std::string> kServerIp;
         volatile uint64_t kTxnNodeNum = 1, kBackUpNum = 1;
-        uint64_t kIndexNum = 1, kEpochSize_us = 10000/** us */, txn_node_ip_index = 0, kWorkerThreadNum = 10, kSendClientThreadNum = 2,
-                kMessageCacheThreadNum = 2, kPackThreadNum = 2, kTiKVSendThreadNum = 2, kDurationTime_us = 0,
+        uint64_t kIndexNum = 1, kEpochSize_us = 10000/** us */, txn_node_ip_index = 0,
+                kWorkerThreadNum = 10, kDurationTime_us = 0,
                 kTestClientNum = 2, kTestKeyRange = 1000000, kTestTxnOpNum = 10,
-                kCacheMaxLength = 200000, kDelayEpochNum = 0, kServerTimeOut_us = 700000,
-                kRaftTimeOut_us = 500000, kStartCheckStateNum = 1000000, print_mode_size = 1000;
-        std::vector<std::string> send_ips;
-        std::vector<uint64_t>send_ports;
-        std::string kMasterIp, kPrivateIp, kTiKVIP;
-        /** Where to save log file. Default in /tmp */
+                kCacheMaxLength = 200000, kDelayEpochNum = 0, print_mode_size = 1000;
+        volatile bool is_read_repeatable = false, is_snap_isolation = false,
+                is_breakdown = false, is_sync_start = false,
+                is_cache_server_available = false;
         std::string glog_path_ = "/tmp";
-        volatile bool is_read_repeatable = false, is_breakdown = false, is_sync_start = false,
-                is_snap_isolation = false, is_cache_server_available = false, is_fault_tolerance_enable = false, is_sync_exec = false,
-                is_full_async_exec = false, is_total_pack = false, is_protobuf_gzip = true, is_tikv_enable = true;
+
+        /// storage info
+        volatile bool is_tikv_enable = true, is_leveldb_enable = true, is_hbase_enable = true;
+        std::string kMasterIp, kPrivateIp, kTiKVIP, kLevevDBIP, kHbaseIP;
 
 
-        void GetServerInfo(const std::string &config_file_path = "../config.xml");
+        void GetTaaSServerInfo(const std::string &config_file_path = "../TaaS_config.xml");
+        void GetStorageInfo(const std::string &config_file_path = "../Storage_config.xml");
+
     };
 }
 

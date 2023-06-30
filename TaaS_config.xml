@@ -1,30 +1,28 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <root>
-    <txn_node_num>2</txn_node_num>
+    <server_type>1</server_type><!-- 0: TaaS, 1:leveldb_server, 2:hbase_server -->
+
+<!-- TaaS config-->
+    <!--    client use push/pull mode send txn to taas through 5551 port-->
+    <!--    client use push/pull mode receive result from taas through 5552 port-->
+    <txn_node_num>3</txn_node_num>
     <txn_node_ip_index>1</txn_node_ip_index><!-- 0, 1, 2, ...-->
     <txn_node_ip>
         <txn_ip>202.199.13.253</txn_ip>
         <txn_ip>202.199.6.49</txn_ip>
-        <txn_ip>118.202.30.52</txn_ip>
+        <txn_ip>202.199.13.17</txn_ip>
     </txn_node_ip>
     <sync_start>1</sync_start>
     <epoch_size_us>10000</epoch_size_us><!-- us -->
     <cache_max_length>1000</cache_max_length> <!-- 10 min  600s 600000ms 60000 epochs-->
     <worker_thread_num>8</worker_thread_num>
-    <!--    test config   -->
+    <glog_path>/tmp</glog_path>
+    <print_mode_size>100</print_mode_size>
+<!-- end TaaS config-->
+<!-- test config   -->
     <duration_time_us>0</duration_time_us>
     <test_client_num>0</test_client_num>
     <test_key_range>10000</test_key_range>
     <test_txn_op_num>5</test_txn_op_num>
-    <!--    tikv config -->
-    <is_tikv_enable>0</is_tikv_enable>
-    <tikv_ip>47.92.250.79:2379</tikv_ip>
-    <glog_path>/tmp</glog_path>
-<!--    print mod size-->
-    <print_mode_size>100</print_mode_size>
-<!--    client use push/pull mode send txn to taas through 5551 port-->
-<!--    client use push/pull mode receive result from taas through 5552 port-->
-
-<!--    mot storage pub/sub mode listen to taas 5556 port-->
-
+<!-- end test config   -->
 </root>
