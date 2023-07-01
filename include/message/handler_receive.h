@@ -5,8 +5,11 @@
 #ifndef TAAS_HANDLER_RECEIVE_H
 #define TAAS_HANDLER_RECEIVE_H
 
+#pragma once
+
 #include "epoch/epoch_manager.h"
 #include "tools/utilities.h"
+
 #include "queue"
 
 namespace Taas {

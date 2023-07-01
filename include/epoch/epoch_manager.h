@@ -4,6 +4,13 @@
 
 #ifndef TAAS_EPOCH_MANANGER_H
 #define TAAS_EPOCH_MANANGER_H
+
+#pragma once
+
+#include "tools/atomic_counters.h"
+#include "tools/context.h"
+
+
 #include <unistd.h>
 
 #include <atomic>
@@ -14,9 +21,6 @@
 #include <vector>
 #include <cassert>
 #include <condition_variable>
-
-#include "tools/atomic_counters.h"
-#include "tools/context.h"
 
 namespace Taas {
 

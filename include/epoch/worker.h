@@ -4,7 +4,7 @@
 
 #ifndef TAAS_WORKER_H
 #define TAAS_WORKER_H
-
+#pragma once
 #include "tools/context.h"
 
 namespace Taas {

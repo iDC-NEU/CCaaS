@@ -5,9 +5,12 @@
 #ifndef TAAS_TEST_H
 #define TAAS_TEST_H
 
+#pragma once
+
 #include "tools/context.h"
 #include "tools/utilities.h"
 #include "epoch/epoch_manager.h"
+
 #include <cstdlib>
 
 namespace Taas {

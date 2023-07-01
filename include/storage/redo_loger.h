@@ -5,12 +5,15 @@
 #ifndef TAAS_REDO_LOGER_H
 #define TAAS_REDO_LOGER_H
 
+#pragma once
+
 #include "tools/context.h"
 #include "tools/concurrent_hash_map.h"
 #include "tools/atomic_counters.h"
+#include "tools/blocking_concurrent_queue.hpp"
+
 #include "proto/message.pb.h"
 #include "tikv_client.h"
-#include "tools/blocking_concurrent_queue.hpp"
 
 namespace Taas {
     class RedoLoger {

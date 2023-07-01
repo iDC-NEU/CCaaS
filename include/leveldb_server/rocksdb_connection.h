@@ -11,6 +11,8 @@
 
 #include "rocksdb/db.h"
 #include "glog/logging.h"
+#include "tools/utilities.h"
+
 #include <memory>
 
 namespace Taas {
@@ -24,6 +26,7 @@ namespace Taas {
 
         // create a new db connection
         static std::unique_ptr<RocksDBConnection> NewConnection(const std::string& dbName) {
+            auto t1 = now_to_us();
             rocksdb::Options options;
             options.create_if_missing = true;
             rocksdb::DB* db;
@@ -35,6 +38,8 @@ namespace Taas {
             std::unique_ptr<RocksDBConnection> dbc(new RocksDBConnection());
             dbc->dbName = dbName;
             dbc->db.reset(db);
+            auto t2 = now_to_us();
+            printf("connect to leveldb cost %lu \n", t2 - t1);
             return dbc;
         }
 

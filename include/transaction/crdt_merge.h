@@ -5,6 +5,8 @@
 #ifndef TAAS_CRDT_MERGE_H
 #define TAAS_CRDT_MERGE_H
 
+#pragma once
+
 #include "proto/transaction.pb.h"
 
 namespace Taas{

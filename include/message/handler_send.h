@@ -4,10 +4,14 @@
 
 #ifndef TAAS_HANDLER_SEND_H
 #define TAAS_HANDLER_SEND_H
-#include "proto/message.pb.h"
+
+#pragma once
+
 #include "message.h"
 #include "epoch/epoch_manager.h"
 #include "tools/context.h"
+
+#include "proto/message.pb.h"
 
 
 namespace Taas {

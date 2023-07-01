@@ -5,13 +5,15 @@
 #ifndef TAAS_UTILITIES_H
 #define TAAS_UTILITIES_H
 
-#include <stdlib.h>
-#include <iostream>
-#include <glog/logging.h>
+#pragma once
 
 #include "proto/message.pb.h"
 #include "google/protobuf/io/gzip_stream.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
+
+#include <stdlib.h>
+#include <iostream>
+#include <glog/logging.h>
 
 namespace Taas {
 #define UNUSED_VALUE(v) (void)(v);

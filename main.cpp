@@ -5,7 +5,7 @@
 #include "epoch/epoch_manager.h"
 #include "epoch/worker.h"
 #include "message/message.h"
-#include "storage/leveldb_server.h"
+#include "leveldb_server/leveldb_server.h"
 #include "storage/tikv.h"
 #include "storage/mot.h"
 #include "test/test.h"
@@ -75,7 +75,7 @@ namespace Taas {
         }
         else if(ctx.server_type == 2) { ///leveldb server
             ///todo : add brpc
-            LevelDBServer();
+            LevelDBServer(ctx);
 
         }
         else if(ctx.server_type == 3) { ///hbase server

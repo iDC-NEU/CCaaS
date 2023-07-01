@@ -8,19 +8,19 @@
 
 namespace Taas {
     bool CRDTMerge::ValidateReadSet(const Context &ctx, proto::Transaction &txn) {
-        ///RC
+        ///RC & RR
+        std::string key, version;
+        for(auto i = 0; i < txn.row_size(); i ++) {
+            const auto& row = txn.row(i);
+            if(row.op_type() != proto::OpType::Read) {
+                continue;
+            }
+            if (!Merger::read_version_map.getValue(row.key(), version) || version != row.data()) {
+                return false;
+            }
+        }
+
         return true;
-//        std::string key, version;
-//        for(auto i = 0; i < txn.row_size(); i ++) {
-//            const auto& row = txn.row(i);
-//            if(row.op_type() != proto::OpType::Read) {
-//                continue;
-//            }
-//            if (!EpochManager::read_version_map.getValue(row.key(), version) || version != row.data()) {
-//                return false;
-//            }
-//        }
-//        return true;
     }
 
     bool CRDTMerge::ValidateWriteSet(const Context &ctx, proto::Transaction &txn) {

@@ -4,6 +4,9 @@
 
 #ifndef TAAS_CONTEXT_H
 #define TAAS_CONTEXT_H
+
+#pragma once
+
 #include <vector>
 #include <string>
 

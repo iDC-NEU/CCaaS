@@ -49,6 +49,7 @@ message Row{
   bytes key = 3;
   bytes data = 4;
   repeated Column column = 5; // if needed
+  uint64 csn = 6;
 }
 
 message Transaction{

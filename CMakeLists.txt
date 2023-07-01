@@ -148,7 +148,7 @@ endif()
 # for linking tcmalloc_minimal
 # apt-get install libgoogle-perftools-dev
 find_library(gflags gflags PATHS ${PROJECT_BINARY_DIR}/lib)
-#find_library(leveldb leveldb PATHS ${PROJECT_BINARY_DIR}/lib)
+find_library(leveldb leveldb PATHS ${PROJECT_BINARY_DIR}/lib)
 
 #include
 include_directories(SYSTEM ${CMAKE_BINARY_DIR}/include)
@@ -172,6 +172,9 @@ target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>
 
 # NOTE: DO NOT LINK BRPC.SO AND BRAFT.SO TOGETHER
 SET(COMMON_DEPENDENCIES
+        leveldb
+        rocksdb
+        brpc
         glog
         yaml-cpp
         fmt
@@ -179,7 +182,12 @@ SET(COMMON_DEPENDENCIES
         zmq
         protobuf
         tcmalloc
-        ${PROJECT_NAME}_proto tikv_client dl ssl crypto
+        ${PROJECT_NAME}_proto
+        tikv_client
+        dl
+        ssl
+        crypto
+
         )
 
 # Link dependencies
@@ -187,6 +195,7 @@ SET(COMMON_DEPENDENCIES
 target_link_libraries(${PROJECT_NAME}
 #        PRIVATE
         PUBLIC
+        gflags
         ${COMMON_DEPENDENCIES}
         "-Wl,--disable-new-dtags")
 

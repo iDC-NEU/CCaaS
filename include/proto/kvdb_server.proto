@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package proto;
+
+option cc_generic_services = true;
+
+enum KvOpType {
+  Null = 0;
+  Get = 1;
+  Put = 2;
+}
+
+message KvDBData {
+  KvOpType op_type = 1;
+  string key = 2;
+  string value = 3;
+  string csn = 4;
+}
+
+message KvDBRequest {
+  repeated KvDBData data = 1;
+};
+
+message KvDBResponse {
+  bool result = 1;
+  repeated KvDBData data = 2;
+};
+
+service KvDBGetService {
+  rpc Get(KvDBRequest) returns (KvDBResponse);
+};
+
+service KvDBPutService {
+  rpc Put(KvDBRequest) returns (KvDBResponse);
+};

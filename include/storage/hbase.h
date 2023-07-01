@@ -5,6 +5,8 @@
 #ifndef TAAS_HBASE_H
 #define TAAS_HBASE_H
 
+#pragma once
+
 #include "tools/context.h"
 #include "tools/atomic_counters.h"
 #include "tools/blocking_concurrent_queue.hpp"

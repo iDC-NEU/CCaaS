@@ -5,6 +5,8 @@
 #ifndef TAAS_LEVELDB_H
 #define TAAS_LEVELDB_H
 
+#pragma once
+
 #include "tools/context.h"
 #include "tools/atomic_counters.h"
 #include "tools/blocking_concurrent_queue.hpp"

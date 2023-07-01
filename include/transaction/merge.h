@@ -5,12 +5,16 @@
 #ifndef TAAS_MERGE_H
 #define TAAS_MERGE_H
 
-#include <cstdint>
-#include "zmq.hpp"
-#include "proto/message.pb.h"
+#pragma once
+
 #include "transaction/crdt_merge.h"
 #include "message/handler_send.h"
 #include "message/handler_receive.h"
+
+#include "zmq.hpp"
+#include "proto/message.pb.h"
+
+#include <cstdint>
 
 namespace Taas {
 

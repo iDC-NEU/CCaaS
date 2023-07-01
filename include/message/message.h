@@ -4,13 +4,17 @@
 
 #ifndef TAAS_MESSAGE_H
 #define TAAS_MESSAGE_H
-#include "proto/message.pb.h"
-#include "tikv_client.h"
+
+#pragma once
+
 #include "tools/atomic_counters.h"
 #include "tools/blocking_concurrent_queue.hpp"
 #include "tools/concurrent_hash_map.h"
 #include "tools/context.h"
+
 #include "zmq.hpp"
+#include "tikv_client.h"
+#include "proto/message.pb.h"
 
 namespace Taas {
     struct pack_params {

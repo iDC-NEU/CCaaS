@@ -5,6 +5,8 @@
 #ifndef TAAS_CONCURRENT_HASH_MAP_H
 #define TAAS_CONCURRENT_HASH_MAP_H
 
+#pragma once
+
 #include <vector>
 #include <unordered_map>
 #include <atomic>

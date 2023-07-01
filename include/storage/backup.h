@@ -5,6 +5,8 @@
 #ifndef TAAS_BACKUP_H
 #define TAAS_BACKUP_H
 
+#pragma once
+
 #include "tools/atomic_counters.h"
 #include "tools/context.h"
 

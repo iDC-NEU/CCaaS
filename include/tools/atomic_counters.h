@@ -4,6 +4,9 @@
 
 #ifndef TAAS_ATOMIC_COUNTERS_H
 #define TAAS_ATOMIC_COUNTERS_H
+
+#pragma once
+
 #include <vector>
 #include <atomic>
 #include <memory>

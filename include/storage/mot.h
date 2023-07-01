@@ -5,7 +5,9 @@
 #ifndef TAAS_MOT_H
 #define TAAS_MOT_H
 
-#endif //TAAS_MOT_H
+#pragma once
+
+
 #include <proto/transaction.pb.h>
 #include "tools/atomic_counters.h"
 #include "tools/blocking_concurrent_queue.hpp"
@@ -38,3 +40,5 @@ namespace Taas {
     };
 
 }
+
+#endif //TAAS_MOT_H

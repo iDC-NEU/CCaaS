@@ -5,10 +5,14 @@
 #ifndef TAAS_TIKV_H
 #define TAAS_TIKV_H
 
-#include <proto/transaction.pb.h>
-#include "tikv_client.h"
+#pragma once
+
 #include "tools/atomic_counters.h"
 #include "tools/blocking_concurrent_queue.hpp"
+
+#include "proto/transaction.pb.h"
+#include "tikv_client.h"
+
 
 namespace Taas {
     class TiKV {
