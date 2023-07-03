@@ -101,8 +101,16 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());
         assert(!serialized_txn_str_ptr->empty());
-        MessageQueue::send_to_server_queue->enqueue( std::make_unique<send_params>(to_whom, 0, "",epoch, txn_type,
-                                              std::move(serialized_txn_str_ptr), nullptr));
+        if(ctx.taas_mode == TaasMode::MultiMaster) {
+            for (uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
+                if (i == ctx.txn_node_ip_index) continue;/// send to everyone
+                auto str_copy = std::make_unique<std::string>(*serialized_txn_str_ptr);
+                MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(i, 0, "", epoch, txn_type, std::move(str_copy), nullptr));
+            }
+        }
+        else {
+            MessageQueue::send_to_server_queue->enqueue( std::make_unique<send_params>(to_whom, 0, "",epoch, txn_type, std::move(serialized_txn_str_ptr), nullptr));
+        }
         return MessageQueue::send_to_server_queue->enqueue( std::make_unique<send_params>(0, 0, "",epoch, proto::TxnType::NullMark,
                                               nullptr, nullptr));
     }
@@ -162,23 +170,23 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
     ///一下函数都由0号线程执行
     bool MessageSendHandler::SendEpochEndMessage(const Context &ctx) {
         auto sleep_flag = false;
-        for(uint64_t sharding_id = 0; sharding_id < ctx.kTxnNodeNum; sharding_id ++) { /// send to everyone  sharding_num == TxnNodeNum
+        for(uint64_t server_id = 0; server_id < ctx.kTxnNodeNum; server_id ++) { /// send to everyone  sharding_num == TxnNodeNum
             ///检查当前server(sharding_id)的第send_epoch的endFlag是否能够发送
-            if (sharding_id == ctx.txn_node_ip_index) continue;
-            auto epoch = sharding_send_epoch[sharding_id]->load();
-            if(MessageReceiveHandler::IsShardingSendFinish(epoch, sharding_id)) {
+            if (server_id == ctx.txn_node_ip_index) continue;
+            auto epoch = sharding_send_epoch[server_id]->load();
+            if(MessageReceiveHandler::IsShardingSendFinish(epoch, server_id)) {
                 auto msg = std::make_unique<proto::Message>();
                 auto *txn_end = msg->mutable_txn();
                 txn_end->set_server_id(ctx.txn_node_ip_index);
                 txn_end->set_txn_type(proto::TxnType::EpochEndFlag);
                 txn_end->set_commit_epoch(epoch);
-                txn_end->set_sharding_id(sharding_id);
-                txn_end->set_csn(MessageReceiveHandler::sharding_should_send_txn_num.GetCount(epoch)); /// 不同server由不同的分片数量
+                txn_end->set_sharding_id(server_id);
+                txn_end->set_csn(MessageReceiveHandler::sharding_should_send_txn_num.GetCount(epoch)); /// 不同server由不同的数量
                 auto serialized_txn_str_ptr = std::make_unique<std::string>();
                 Gzip(msg.get(), serialized_txn_str_ptr.get());
-                MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(sharding_id, 0, "", epoch,proto::TxnType::EpochEndFlag,std::move(serialized_txn_str_ptr),nullptr));
+                MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(server_id, 0, "", epoch,proto::TxnType::EpochEndFlag,std::move(serialized_txn_str_ptr),nullptr));
                 MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark,nullptr, nullptr));
-                sharding_send_epoch[sharding_id]->fetch_add(1);
+                sharding_send_epoch[server_id]->fetch_add(1);
                 sleep_flag = true;
             }
         }

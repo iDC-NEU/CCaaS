@@ -5,6 +5,7 @@
 <!-- TaaS config-->
     <!--    client use push/pull mode send txn to taas through 5551 port-->
     <!--    client use push/pull mode receive result from taas through 5552 port-->
+    <taas_server_mode>1</taas_server_mode><!-- 1: multi-master epoch, 2: Sharding epoch, 3: 2PC-->
     <txn_node_num>3</txn_node_num>
     <txn_node_ip_index>1</txn_node_ip_index><!-- 0, 1, 2, ...-->
     <txn_node_ip>

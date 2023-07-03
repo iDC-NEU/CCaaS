@@ -12,8 +12,8 @@ namespace Taas {
     extern void WorkerForLogicalThreadMain(const Context& ctx);
 
     extern void WorkerForLogicalTxnMergeCheckThreadMain(const Context& ctx);
-    extern void WorkerForLogicalAbortSetMergeCheckThreadMain();
-    extern void WorkerForLogicalCommitCheckThreadMain();
+    extern void WorkerForLogicalAbortSetMergeCheckThreadMain(const Context& ctx);
+    extern void WorkerForLogicalCommitCheckThreadMain(const Context& ctx);
     extern void WorkerForLogicalRedoLogPushDownCheckThreadMain(const Context& ctx);
 
     extern void WorkerForLogicalReceiveAndReplyCheckThreadMain(const Context& ctx) ;

@@ -8,7 +8,10 @@
 #pragma once
 
 #include "epoch/epoch_manager.h"
+#include "message/message.h"
 #include "tools/utilities.h"
+
+#include "zmq.hpp"
 
 #include "queue"
 
@@ -28,7 +31,7 @@ namespace Taas {
 
         bool HandleReceivedTxn();
 
-        bool Sharding();
+        bool HandleClientTxn();
         bool UpdateEpochAbortSet();
         bool CheckReceivedStatesAndReply();
 
@@ -231,7 +234,7 @@ namespace Taas {
                     sharding_handled_local_txn_num.GetCount(epoch) >= sharding_should_handle_local_txn_num.GetCount(epoch);
         }
         static bool IsBackUpACKReceiveComplete(const Context &ctx, uint64_t epoch) {
-            auto to_id = ctx.txn_node_ip_index ;
+            uint64_t to_id ;
             for(uint64_t i = 0; i < ctx.kBackUpNum; i ++) { /// send to i+1, i+2...i+kBackNum-1
                 to_id = (ctx.txn_node_ip_index + i + 1) % ctx.kTxnNodeNum;
                 if(to_id == (uint64_t)ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, to_id) == 0) continue;
@@ -250,7 +253,7 @@ namespace Taas {
             return backup_received_pack_num.GetCount(epoch, id) >= backup_should_receive_pack_num.GetCount(epoch, id);
         }
         static bool IsBackUpTxnReceiveComplete(const Context &ctx, uint64_t epoch) {
-            auto to_id = ctx.txn_node_ip_index;
+            uint64_t to_id;
             for(uint64_t i = 0; i < ctx.kBackUpNum; i ++) { /// send to i+1, i+2...i+kBackNum-1
                 to_id = (ctx.txn_node_ip_index + i + 1) % ctx.kTxnNodeNum;
                 if(to_id == ctx.txn_node_ip_index || EpochManager::server_state.GetCount(epoch, to_id) == 0) continue;

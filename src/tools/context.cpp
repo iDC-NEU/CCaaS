@@ -13,7 +13,10 @@ namespace Taas {
         auto* root=doc.RootElement();
 
         tinyxml2::XMLElement* server = root->FirstChildElement("server_type");
-        server_type = std::stoull(server->GetText());
+        server_type = static_cast<ServerMode>(std::stoull(server->GetText()));
+
+        tinyxml2::XMLElement* server_mode = root->FirstChildElement("taas_server_mode");
+        taas_mode = static_cast<TaasMode>(std::stoull(server_mode->GetText()));
 
         tinyxml2::XMLElement* server_num = root->FirstChildElement("txn_node_num");
         kTxnNodeNum= std::stoull(server_num->GetText());

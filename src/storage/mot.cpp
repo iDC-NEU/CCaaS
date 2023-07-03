@@ -1,5 +1,5 @@
 //
-// Created by user on 23-4-9.
+// Created by zwx on 23-4-9.
 //
 #include "storage/mot.h"
 #include "zmq.hpp"
@@ -67,7 +67,7 @@ namespace Taas {
                 epoch ++;
             }
             else {
-                EpochManager::CheckRedoLogPushDownState();
+                CheckRedoLogPushDownState(ctx);
                 usleep(sleep_time);
             }
         }

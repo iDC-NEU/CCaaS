@@ -167,7 +167,7 @@ add_library(
         ${PROJECT_NAME}
         ${headers}
         ${sources}
-        )
+        include/storage/kvdb.h)
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 
 

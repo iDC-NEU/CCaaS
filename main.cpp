@@ -23,7 +23,7 @@ namespace Taas {
         Context ctx("../TaaS_config.xml", "../Storage_config.xml");
 
         FLAGS_log_dir = ctx.glog_path_;
-        FLAGS_alsologtostderr = 1;
+        FLAGS_alsologtostderr = true;
         google::InitGoogleLogging("Taas-sharding");
         LOG(INFO) << "System Start\n";
         std::vector<std::unique_ptr<std::thread>> threads;
@@ -35,8 +35,8 @@ namespace Taas {
 
 //        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalThreadMain, ctx));
             threads.push_back(std::make_unique<std::thread>(WorkerForLogicalTxnMergeCheckThreadMain, ctx));
-            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalAbortSetMergeCheckThreadMain));
-            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalCommitCheckThreadMain));
+            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalAbortSetMergeCheckThreadMain, ctx));
+            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalCommitCheckThreadMain, ctx));
 //        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalRedoLogPushDownCheckThreadMain, ctx));
 
             threads.push_back(std::make_unique<std::thread>(WorkerForLogicalReceiveAndReplyCheckThreadMain, ctx));

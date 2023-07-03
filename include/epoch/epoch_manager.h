@@ -10,7 +10,6 @@
 #include "tools/atomic_counters.h"
 #include "tools/context.h"
 
-
 #include <unistd.h>
 
 #include <atomic>
@@ -25,9 +24,13 @@
 namespace Taas {
 
     extern uint64_t sleep_time, logical_sleep_timme;
+    extern uint64_t cache_server_available, total_commit_txn_num;
+    extern std::atomic<uint64_t> merge_epoch , abort_set_epoch ,
+            commit_epoch , redo_log_epoch , clear_epoch ;
     extern std::atomic<int> init_ok_num;
     extern std::atomic<bool> is_epoch_advance_started, test_start;
     extern void InitEpochTimerManager(const Context& ctx);
+    extern bool CheckRedoLogPushDownState(const Context& ctx);
     extern void EpochLogicalTimerManagerThreadMain(const Context& ctx);
     extern void EpochPhysicalTimerManagerThreadMain(Context ctx);
     void OUTPUTLOG(const Context& ctx, const std::string& s, uint64_t& epoch);
@@ -132,11 +135,6 @@ namespace Taas {
         static bool IsInitOK() {
             return init_ok_num.load() >= 1;
         }
-
-        static bool CheckEpochMergeState();
-        static bool CheckEpochAbortMergeState();
-        static bool CheckEpochCommitState();
-        static bool CheckRedoLogPushDownState();
     };
 }
 

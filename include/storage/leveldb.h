@@ -29,12 +29,12 @@ namespace Taas {
         static void StaticInit(const Context &ctx_);
         static void StaticClear(uint64_t &epoch);
 
-        static void SendTransactionToHbase_Usleep();
-        static void SendTransactionToHbase_Block();
+        static void SendTransactionToLevelDB_Usleep();
+        static void SendTransactionToLevelDB_Block();
 
         static bool CheckEpochPushDownComplete(uint64_t &epoch);
-        static void HbaseRedoLogQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
-        static bool HbaseRedoLogQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
+        static void LevelDBRedoLogQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
+        static bool LevelDBRedoLogQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
 
     };
 }

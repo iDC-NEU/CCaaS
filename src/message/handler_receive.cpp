@@ -240,35 +240,51 @@ namespace Taas {
 
 
 
-    bool MessageReceiveHandler::Sharding() {
-        std::vector<std::unique_ptr<proto::Transaction>> sharding_row_vector;
-        for(uint64_t i = 0; i < sharding_num; i ++) {
-            sharding_row_vector.emplace_back(std::make_unique<proto::Transaction>());
-            sharding_row_vector[i]->set_csn(txn_ptr->csn());
-            sharding_row_vector[i]->set_commit_epoch(txn_ptr->commit_epoch());
-            sharding_row_vector[i]->set_server_id(txn_ptr->server_id());
-            sharding_row_vector[i]->set_client_ip(txn_ptr->client_ip());
-            sharding_row_vector[i]->set_client_txn_id(txn_ptr->client_txn_id());
-            sharding_row_vector[i]->set_sharding_id(i);
-        }
-        for(auto i = 0; i < txn_ptr->row_size(); i ++) {
-            const auto& row = txn_ptr->row(i);
-            auto row_ptr = sharding_row_vector[GetHashValue(row.key())]->add_row();
-            (*row_ptr) = row;
-        }
-        for(uint64_t i = 0; i < sharding_num; i ++) {
-            if(sharding_row_vector[i]->row_size() > 0) {
-                ///sharding sending
-                if(i == ctx.txn_node_ip_index) {
-                    continue;
-                }
-                else {
-                    sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
-                    MessageSendHandler::SendTxnToServer(ctx, message_epoch, i, *(sharding_row_vector[i]), proto::TxnType::RemoteServerTxn);
-                    sharding_send_txn_num.IncCount(message_epoch, i, 1);
+    bool MessageReceiveHandler::HandleClientTxn() {
+        if(ctx.taas_mode == TaasMode::Sharding) {
+            std::vector<std::unique_ptr<proto::Transaction>> sharding_row_vector;
+            for(uint64_t i = 0; i < sharding_num; i ++) {
+                sharding_row_vector.emplace_back(std::make_unique<proto::Transaction>());
+                sharding_row_vector[i]->set_csn(txn_ptr->csn());
+                sharding_row_vector[i]->set_commit_epoch(txn_ptr->commit_epoch());
+                sharding_row_vector[i]->set_server_id(txn_ptr->server_id());
+                sharding_row_vector[i]->set_client_ip(txn_ptr->client_ip());
+                sharding_row_vector[i]->set_client_txn_id(txn_ptr->client_txn_id());
+                sharding_row_vector[i]->set_sharding_id(i);
+            }
+            for(auto i = 0; i < txn_ptr->row_size(); i ++) {
+                const auto& row = txn_ptr->row(i);
+                auto row_ptr = sharding_row_vector[GetHashValue(row.key())]->add_row();
+                (*row_ptr) = row;
+            }
+            for(uint64_t i = 0; i < sharding_num; i ++) {
+                if(sharding_row_vector[i]->row_size() > 0) {
+                    ///sharding sending
+                    if(i == ctx.txn_node_ip_index) {
+                        continue;
+                    }
+                    else {
+                        sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
+                        MessageSendHandler::SendTxnToServer(ctx, message_epoch, i, *(sharding_row_vector[i]), proto::TxnType::RemoteServerTxn);
+                        sharding_send_txn_num.IncCount(message_epoch, i, 1);
+                    }
                 }
             }
+            if(sharding_row_vector[ctx.txn_node_ip_index]->row_size() > 0) {
+                ///read version check need to wait until last epoch has committed.
+                Merger::epoch_merge_queue[message_epoch]->enqueue(std::move(sharding_row_vector[ctx.txn_node_ip_index]));
+//            res = Merger::EpochMerge(ctx, message_epoch, std::move(sharding_row_vector[ctx.txn_node_ip_index]));
+//            if(!res) {
+//                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(sharding_row_vector[ctx.txn_node_ip_index]), proto::TxnState::Abort);
+//            }
+            }
         }
+        else if(ctx.taas_mode == TaasMode::MultiMaster) {
+            sharding_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+            MessageSendHandler::SendTxnToServer(ctx, message_epoch, ctx.txn_node_ip_index, *(txn_ptr), proto::TxnType::RemoteServerTxn);
+            sharding_send_txn_num.IncCount(message_epoch, 0, 1);
+        }
+
         {///backup sending full txn
             backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
             MessageSendHandler::SendTxnToServer(ctx, message_epoch, message_server_id, *(txn_ptr), proto::TxnType::BackUpTxn);
@@ -277,16 +293,6 @@ namespace Taas {
             epoch_backup_txn[message_epoch_mod]->enqueue(std::make_unique<proto::Transaction>(*txn_ptr));
             epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
         }
-//        Merger::MergeQueueEnqueue(message_epoch, std::move(sharding_row_vector[i]), ctx);
-        if(sharding_row_vector[ctx.txn_node_ip_index]->row_size() > 0) {
-            ///read version check need to wait until last epoch has committed.
-            Merger::epoch_merge_queue[message_epoch]->enqueue(std::move(sharding_row_vector[ctx.txn_node_ip_index]));
-//            res = Merger::EpochMerge(ctx, message_epoch, std::move(sharding_row_vector[ctx.txn_node_ip_index]));
-//            if(!res) {
-//                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(sharding_row_vector[ctx.txn_node_ip_index]), proto::TxnState::Abort);
-//            }
-        }
-
         return true;
     }
 
@@ -318,7 +324,7 @@ namespace Taas {
             ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
             case proto::TxnType::ClientTxn : {/// sql node --> txn node
                 sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
-                Sharding();
+                HandleClientTxn();
                 assert(txn_ptr != nullptr);
                 Merger::LocalTxnCommitQueueEnqueue(ctx, message_epoch, std::move(txn_ptr));
                 sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
@@ -550,8 +556,7 @@ namespace Taas {
                 (Merger::IsEpochCommitComplete(ctx, redo_log_push_down_reply) || redo_log_push_down_reply < EpochManager::GetPushDownEpoch() )) {
             MessageSendHandler::SendTxnToServer(ctx, redo_log_push_down_reply,
                             server_reply_ack_id, empty_txn, proto::TxnType::EpochLogPushDownComplete);
-//            printf(" === send EpochLogPushDownComplete ack epoch, %lu server_id %lu\n", redo_log_push_down_reply, id);
-            LOG(INFO) << "send EpochLogPushDownComplete ack, epoch: " << redo_log_push_down_reply << ", server id:" << id;
+//            LOG(INFO) << "send EpochLogPushDownComplete ack, epoch: " << redo_log_push_down_reply << ", server id:" << id;
             redo_log_push_down_reply ++;
             res = true;
         }

@@ -2,9 +2,7 @@
 // Created by 周慰星 on 11/8/22.
 //
 
-#include "sys/time.h"
-#include "string"
-#include "algorithm"
+
 #include "tools/utilities.h"
 #include "epoch/epoch_manager.h"
 #include "message/message.h"
@@ -13,11 +11,18 @@
 #include "transaction/merge.h"
 #include "storage/mot.h"
 
+#include "sys/time.h"
+#include "string"
+#include "algorithm"
+
 namespace Taas {
 
     using namespace std;
 
     uint64_t sleep_time = 50, logical_sleep_timme = 50;
+    uint64_t cache_server_available = 1, total_commit_txn_num = 0;
+    std::atomic<uint64_t> merge_epoch = 1, abort_set_epoch = 1,
+            commit_epoch = 1, redo_log_epoch = 1, clear_epoch = 1;
 
     bool EpochManager::timerStop = false;
     Context EpochManager::ctx;
@@ -111,9 +116,7 @@ namespace Taas {
  * @param s 待输出的自定义字符串
  * @param epoch_mod epoch号
  */
-uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
- static atomic<uint64_t> merge_epoch = 1, abort_set_epoch = 1,
-                commit_epoch = 1, redo_log_epoch = 1, clear_epoch = 1;
+
 
     void OUTPUTLOG(const Context& ctx, const string& s, uint64_t& epoch_){
         auto epoch_mod = epoch_ % EpochManager::max_length;
@@ -172,78 +175,15 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
 
        (uint64_t)0,
        now_to_us());
-//        fflush(stdout);
     }
 
-    bool EpochManager::CheckEpochMergeState() {
-        auto res = false;
-        while (EpochManager::IsShardingMergeComplete(merge_epoch.load()) &&
-                merge_epoch.load() < EpochManager::GetPhysicalEpoch()) {
-            merge_epoch.fetch_add(1);
-        }
-        auto i = merge_epoch.load();
-        while(i < EpochManager::GetPhysicalEpoch() &&
-                (ctx.kTxnNodeNum == 1 ||
-                    (MessageReceiveHandler::CheckEpochShardingSendComplete(ctx, i) &&
-                    MessageReceiveHandler::CheckEpochShardingReceiveComplete(ctx, i) &&
-                    MessageReceiveHandler::CheckEpochBackUpComplete(ctx, i))
-                    ) &&
-                Merger::CheckEpochMergeComplete(ctx, i)
-            ) {
-            EpochManager::SetShardingMergeComplete(i, true);
-            merge_epoch.fetch_add(1);
-            i ++;
-            res = true;
-        }
-        return res;
-    }
-
-    bool EpochManager::CheckEpochAbortMergeState() {
-        auto i = abort_set_epoch.load();
-        if(i >= merge_epoch.load() && commit_epoch.load() >= abort_set_epoch.load()) return false;
-        if(EpochManager::IsAbortSetMergeComplete(i)) return true;
-        if( i < merge_epoch.load()  && EpochManager::IsShardingMergeComplete(i) &&
-            (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i))) {
-
-            EpochManager::SetAbortSetMergeComplete(i, true);
-//            Merger::GenerateCommitTask(ctx, i);
-            abort_set_epoch.fetch_add(1);
-            i ++;
-            return true;
-        }
-        return false;
-    }
-
-    bool EpochManager::CheckEpochCommitState() {
-        if(commit_epoch.load() >= abort_set_epoch.load()) return false;
-        auto i = commit_epoch.load();
-        if( i < abort_set_epoch.load() && EpochManager::IsShardingMergeComplete(i) &&
-               EpochManager::IsAbortSetMergeComplete(i) &&
-               Merger::CheckEpochCommitComplete(ctx, i)
-                ) {
-            EpochManager::SetCommitComplete(i, true);
-//            RedoLoger::GeneratePushDownTask(ctx, i);
-            total_commit_txn_num += Merger::epoch_record_committed_txn_num.GetCount(i);
-
-            if(i % ctx.print_mode_size == 0) {
-                printf("*************       完成一个Epoch的合并     Epoch: %8lu ClearEpoch: %8lu *************\n", i, clear_epoch.load());
-                printf("commit txn total number %lu\n", total_commit_txn_num);
-            }
-            i ++;
-            commit_epoch.fetch_add(1);
-            EpochManager::AddLogicalEpoch();
-            return true;
-        }
-        return false;
-    }
-
-    bool EpochManager::CheckRedoLogPushDownState() {
+    bool CheckRedoLogPushDownState(const Context& ctx) {
         auto res = false;
         auto i = redo_log_epoch.load();
         if(redo_log_epoch.load() < commit_epoch.load() &&
-            EpochManager::IsCommitComplete(i) &&
-            RedoLoger::CheckPushDownComplete(ctx, i) &&
-            MessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) {
+           EpochManager::IsCommitComplete(i) &&
+           RedoLoger::CheckPushDownComplete(ctx, i) &&
+           MessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) {
             if(i % ctx.print_mode_size == 0) {
                 printf("=-=-=-=-=-=-=完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", commit_epoch.load(), i);
             }
@@ -266,37 +206,33 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         if(ctx.is_cache_server_available) {
             cache_server_available = 0;
         }
+        uint64_t epoch = 1;
         OUTPUTLOG(ctx, "=====start Epoch的合并===== ", epoch);
         while(!EpochManager::IsTimerStop()){
 
-            while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) {
-                usleep(logical_sleep_timme);
-                EpochManager::CheckEpochMergeState();
-            }
-
-            while(!EpochManager::CheckEpochAbortMergeState()) {
-//                OUTPUTLOG(ctx, "=====CheckEpochAbortMergeState===== ", epoch);
-                usleep(logical_sleep_timme);
-                EpochManager::CheckEpochMergeState();
-            }
-
-            while(!EpochManager::CheckEpochCommitState()) {
-//                OUTPUTLOG(ctx, "=====CheckEpochCommitState===== ", epoch);
-                usleep(logical_sleep_timme);
-                EpochManager::CheckEpochMergeState();
-                EpochManager::CheckEpochAbortMergeState();
-            }
+//            while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) {
+//                usleep(logical_sleep_timme);
+//                ShardingEpochManager::CheckEpochMergeState(ctx);
+//            }
+//
+//            while(!ShardingEpochManager::CheckEpochAbortMergeState(ctx)) {
+////                OUTPUTLOG(ctx, "=====CheckEpochAbortMergeState===== ", epoch);
+//                usleep(logical_sleep_timme);
+//                ShardingEpochManager::CheckEpochMergeState(ctx);
+//            }
+//
+//            while(!ShardingEpochManager::CheckEpochCommitState(ctx)) {
+////                OUTPUTLOG(ctx, "=====CheckEpochCommitState===== ", epoch);
+//                usleep(logical_sleep_timme);
+//                ShardingEpochManager::CheckEpochMergeState(ctx);
+//                ShardingEpochManager::CheckEpochAbortMergeState(ctx);
+//            }
 //            EpochManager::CheckRedoLogPushDownState();
 //            //clear cache  move to mot.cpp  MOT::SendToMOThreadMain_usleep();
         }
         printf("total commit txn num: %lu\n", total_commit_txn_num);
     }
 
-/**
- * @brief 按照物理时间戳推荐物理epoch号
- *
- * @param ctx
- */
     void EpochPhysicalTimerManagerThreadMain(Context ctx) {
         InitEpochTimerManager(ctx);
         //==========同步============
@@ -304,10 +240,10 @@ uint64_t epoch = 1, cache_server_available = 1, total_commit_txn_num = 0;
         zmq::context_t context(1);
         zmq::socket_t request_puller(context, ZMQ_PULL);
         request_puller.bind("tcp://*:5546");
-//    request_puller.recv(&message);
+    //    request_puller.recv(&message);
         gettimeofday(&start_time, nullptr);
         start_time_ll = start_time.tv_sec * 1000000 + start_time.tv_usec;
-        if(ctx.is_sync_start) {
+        if(ctx.is_sync_start && ctx.taas_mode != TaasMode::TwoPC) {
             auto sleep_time_temp = static_cast<uint64_t>((((start_time.tv_sec / 60) + 1) * 60) * 1000000);
             usleep(sleep_time_temp - start_time_ll);
             gettimeofday(&start_time, nullptr);

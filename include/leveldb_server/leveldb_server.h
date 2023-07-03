@@ -7,9 +7,11 @@
 
 #pragma once
 
-#include "proto/kvdb_server.pb.h"
-#include "brpc/server.h"
 #include "tools/context.h"
+
+#include "brpc/server.h"
+#include "proto/kvdb_server.pb.h"
+
 namespace Taas {
 
     void LevelDBServer(const Context &context);

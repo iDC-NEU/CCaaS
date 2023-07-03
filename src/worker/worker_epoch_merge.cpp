@@ -3,9 +3,7 @@
 //
 #include "worker/worker_epoch_merge.h"
 #include "epoch/epoch_manager.h"
-#include "message/message.h"
 #include "transaction/merge.h"
-#include "storage/tikv.h"
 #include "storage/mot.h"
 
 namespace Taas {
@@ -16,9 +14,20 @@ namespace Taas {
         MessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, id);
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        while(!EpochManager::IsTimerStop()) {
-            receiveHandler.HandleReceivedEpochMessage_Usleep();
-//            receiveHandler.HandleReceivedEpochMessage_Block();
+        while(!EpochManager::IsTimerStop()){
+            switch(ctx.taas_mode) {
+                case TaasMode::MultiMaster :
+                case TaasMode::Sharding : {
+                    while(!EpochManager::IsTimerStop()) {
+                        receiveHandler.HandleReceivedEpochMessage_Usleep();
+//                        receiveHandler.HandleReceivedEpochMessage_Block();
+                    }
+                    break;
+                }
+                case TaasMode::TwoPC : {
+                    ///todo
+                }
+            }
         }
     }
 
@@ -28,9 +37,21 @@ namespace Taas {
         MessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, id);
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        while(!EpochManager::IsTimerStop()) {
-            receiveHandler.HandleReceivedTxnMessage_Usleep();
-//            receiveHandler.HandleReceivedTxnMessage_Block();
+        while(!EpochManager::IsTimerStop()){
+            switch(ctx.taas_mode) {
+                case TaasMode::MultiMaster :
+                case TaasMode::Sharding : {
+                    while(!EpochManager::IsTimerStop()) {
+                        receiveHandler.HandleReceivedTxnMessage_Usleep();
+//                        receiveHandler.HandleReceivedTxnMessage_Block();
+                    }
+                    break;
+                }
+                case TaasMode::TwoPC : {
+                    ///todo
+                }
+            }
+
         }
     }
 
@@ -42,18 +63,29 @@ namespace Taas {
         uint64_t epoch;
         auto txn_ptr = std::make_unique<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        if(id == 0) {
-            while(!EpochManager::IsTimerStop()) {
-                epoch = EpochManager::GetLogicalEpoch();
-                while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
-                    usleep(sleep_time);
+        while(!EpochManager::IsTimerStop()){
+            switch(ctx.taas_mode) {
+                case TaasMode::MultiMaster :
+                case TaasMode::Sharding : {
+                    if(id == 0) {
+                        while(!EpochManager::IsTimerStop()) {
+                            epoch = EpochManager::GetLogicalEpoch();
+                            while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
+                                usleep(sleep_time);
+                            }
+                            merger.EpochMerge_MergeQueue_Usleep();
+                        }
+                    }
+                    else {
+                        while(!EpochManager::IsTimerStop()) {
+                            merger.EpochMerge_MergeQueue_Usleep();
+                        }
+                    }
+                    break;
                 }
-                merger.EpochMerge_MergeQueue_Usleep();
-            }
-        }
-        else {
-            while(!EpochManager::IsTimerStop()) {
-                merger.EpochMerge_MergeQueue_Usleep();
+                case TaasMode::TwoPC : {
+                    break;
+                }
             }
         }
     }
@@ -66,24 +98,30 @@ namespace Taas {
         uint64_t  epoch;
         auto txn_ptr = std::make_unique<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        if(id == 0) {
-            while(!EpochManager::IsTimerStop()) {
-                epoch = EpochManager::GetLogicalEpoch();
-                while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
-                    usleep(sleep_time);
+        switch(ctx.taas_mode) {
+            case TaasMode::MultiMaster :
+            case TaasMode::Sharding : {
+                if(id == 0) {
+                    while(!EpochManager::IsTimerStop()) {
+                        epoch = EpochManager::GetLogicalEpoch();
+                        while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
+                            usleep(sleep_time);
+                        }
+                        merger.EpochCommit_EpochLocalTxnQueue_Usleep();
+                    }
                 }
-//                merger.EpochCommit_CommitQueue();
-                merger.EpochCommit_EpochLocalTxnQueue_Usleep();
+                else {
+                    while(!EpochManager::IsTimerStop()) {
+                        merger.EpochCommit_EpochLocalTxnQueue_Usleep();
+                    }
+                }
+                break;
             }
-        }
-        else {
-            while(!EpochManager::IsTimerStop()) {
-                merger.EpochCommit_EpochLocalTxnQueue_Usleep();
-//                merger.EpochCommit_CommitQueue_Block();
+            case TaasMode::TwoPC : {
+                break;
             }
         }
     }
-
 
 }
 

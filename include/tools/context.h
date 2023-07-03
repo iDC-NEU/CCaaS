@@ -11,6 +11,16 @@
 #include <string>
 
 namespace Taas {
+    enum ServerMode {
+        Taas = 1,
+        LevelDB = 2,
+        HBase = 3
+    };
+    enum TaasMode {
+        MultiMaster = 1,
+        Sharding = 2,
+        TwoPC = 3
+    };
     class Context {
     public:
         explicit Context() {
@@ -22,9 +32,10 @@ namespace Taas {
             GetStorageInfo(Storage_config_file_path);
         }
         /// 1: TaaS server, 2: leveldb server, 3:hbase server
-        uint64_t server_type = 1;
+        ServerMode server_type = ServerMode::Taas;
 
         ///TaaS server config
+        TaasMode taas_mode = TaasMode::MultiMaster;
         std::vector<std::string> kServerIp;
         volatile uint64_t kTxnNodeNum = 1, kBackUpNum = 1;
         uint64_t kIndexNum = 1, kEpochSize_us = 10000/** us */, txn_node_ip_index = 0,

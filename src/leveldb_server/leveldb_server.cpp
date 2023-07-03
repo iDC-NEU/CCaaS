@@ -1,6 +1,7 @@
 //
-// Created by user on 23-6-30.
+// Created by zwx on 23-6-30.
 //
+
 
 #include "leveldb_server/leveldb_server.h"
 #include "leveldb_server/rocksdb_connection.h"
@@ -17,6 +18,12 @@ namespace Taas {
         LevelDBGetService leveldb_get_service;
         LevelDBPutService leveldb_put_service;
 
+        leveldb_connections.resize(10001);
+        for(int i = 0; i < 10000; i ++) {
+            leveldb_connections.push_back(RocksDBConnection::NewConnection("leveldb"));
+        }
+
+        leveldb_server.Start(context.kLevevDBIP.c_str(), &options);
         if(leveldb_server.AddService(&leveldb_get_service, brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
             LOG(FATAL) << "Fail to add leveldb_get_service";
             assert(false);
@@ -24,13 +31,6 @@ namespace Taas {
         if(leveldb_server.AddService(&leveldb_put_service, brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
             LOG(FATAL) << "Fail to add leveldb_put_service";
             assert(false);
-        }
-
-        leveldb_server.Start(context.kLevevDBIP.c_str(), &options);
-
-        leveldb_connections.resize(10001);
-        for(int i = 0; i < 10000; i ++) {
-            leveldb_connections.push_back(RocksDBConnection::NewConnection("leveldb"));
         }
 
         leveldb_server.RunUntilAskedToQuit();
@@ -43,9 +43,9 @@ namespace Taas {
         brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
         auto num = connection_num.fetch_add(1);
         std::string value;
-        leveldb_connections[num]->get("1", &value);
+        auto res = leveldb_connections[num % 10000]->get("1", &value);
         // 填写response
-        response->set_result(true);
+        response->set_result(res);
 //        KvDbGet::Get(controller, request, response, done);
     }
 
@@ -54,9 +54,12 @@ namespace Taas {
         brpc::ClosureGuard done_guard(done);
 
         brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+        auto num = connection_num.fetch_add(1);
+        std::string value;
+        auto res = leveldb_connections[num % 10000]->syncPut("1", value);
 
         // 填写response
-        response->set_result(true);
+        response->set_result(res);
 //        KvDbPut::Put(controller, request, response, done);
     }
 }
