@@ -3,11 +3,13 @@
 //
 
 #include "epoch/epoch_manager.h"
-#include "epoch/worker.h"
-#include "message/message.h"
+#include "worker/worker_epoch_manager.h"
+#include "worker/worker_epoch_merge.h"
+#include "worker/worker_message.h"
+#include "worker/worker_storage.h"
+
 #include "leveldb_server/leveldb_server.h"
 #include "storage/tikv.h"
-#include "storage/mot.h"
 #include "test/test.h"
 
 #include <glog/logging.h>
@@ -44,9 +46,8 @@ namespace Taas {
 
 //        for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
             for(int i = 0; i < 16; i ++) {
-                threads.push_back(std::make_unique<std::thread>(WorkerFroTxnMessageThreadMain, ctx, i));///merge
-            }
-            for(int i = 0; i < 16; i ++) {
+                threads.push_back(std::make_unique<std::thread>(WorkerFroTxnMessageThreadMain, ctx, i));///txn message
+                threads.push_back(std::make_unique<std::thread>(WorkerFroMergeThreadMain, ctx, i));///merge
                 threads.push_back(std::make_unique<std::thread>(WorkerFroCommitThreadMain, ctx, i));///commit
             }
 

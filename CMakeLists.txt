@@ -163,7 +163,11 @@ file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 # Note: for header-only libraries change all PUBLIC flags to INTERFACE and create an interface
 # target: add_library(${PROJECT_NAME} INTERFACE)
-add_library(${PROJECT_NAME} ${headers} ${sources} )
+add_library(
+        ${PROJECT_NAME}
+        ${headers}
+        ${sources}
+        )
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 
 
@@ -224,33 +228,3 @@ target_link_libraries(${PROJECT_NAME}_sharding Taas
 
 #target_link_libraries(Taas_sharding taas_core proto gflags cppzmq tikv_client pthread dl ssl crypto)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-##========================================
-##            Library
-##========================================
-#include_directories("${CMAKE_SOURCE_DIR}/rust/tikv_client/include")
-#include_directories("${CMAKE_SOURCE_DIR}/include")
-#
-#add_subdirectory("src")
-#
-#add_executable(Taas main.cpp)
-#
-#target_include_directories(Taas PUBLIC taas_core proto gflags cppzmq)
-#
-#target_link_directories(Taas PUBLIC "${CMAKE_BINARY_DIR}/lib")
-#
-#target_link_libraries(Taas taas_core proto gflags cppzmq tikv_client pthread dl ssl crypto)

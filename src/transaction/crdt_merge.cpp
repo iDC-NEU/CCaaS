@@ -10,12 +10,13 @@ namespace Taas {
     bool CRDTMerge::ValidateReadSet(const Context &ctx, proto::Transaction &txn) {
         ///RC & RR
         std::string key, version;
+        uint64_t csn = 0;
         for(auto i = 0; i < txn.row_size(); i ++) {
             const auto& row = txn.row(i);
             if(row.op_type() != proto::OpType::Read) {
                 continue;
             }
-            if (!Merger::read_version_map.getValue(row.key(), version) || version != row.data()) {
+            if (!Merger::read_version_map.getValue(row.key(), version) || version != std::to_string(row.csn())) {
                 return false;
             }
         }

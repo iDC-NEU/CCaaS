@@ -279,7 +279,9 @@ namespace Taas {
         }
 //        Merger::MergeQueueEnqueue(message_epoch, std::move(sharding_row_vector[i]), ctx);
         if(sharding_row_vector[ctx.txn_node_ip_index]->row_size() > 0) {
-            res = Merger::EpochMerge(ctx, message_epoch, std::move(sharding_row_vector[ctx.txn_node_ip_index]));
+            ///read version check need to wait until last epoch has committed.
+            Merger::epoch_merge_queue[message_epoch]->enqueue(std::move(sharding_row_vector[ctx.txn_node_ip_index]));
+//            res = Merger::EpochMerge(ctx, message_epoch, std::move(sharding_row_vector[ctx.txn_node_ip_index]));
 //            if(!res) {
 //                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(sharding_row_vector[ctx.txn_node_ip_index]), proto::TxnState::Abort);
 //            }
@@ -324,7 +326,8 @@ namespace Taas {
             }
             case proto::TxnType::RemoteServerTxn : {
                 sharding_should_handle_remote_txn_num.IncCount(message_epoch, thread_id, 1);
-                Merger::EpochMerge(ctx, message_epoch, std::move(txn_ptr));
+                Merger::epoch_merge_queue[message_epoch]->enqueue(std::move(txn_ptr));
+//                Merger::EpochMerge(ctx, message_epoch, std::move(txn_ptr));
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
                 sharding_handled_remote_txn_num.IncCount(message_epoch, thread_id, 1);
                 break;
@@ -393,7 +396,7 @@ namespace Taas {
             }
             case proto::TxnType::EpochLogPushDownComplete : {
                 redo_log_push_down_ack_num.IncCount(message_epoch,message_server_id, 1);
-                LOG(INFO) << "receive EpochLogPushDownComplete, epoch:" << message_epoch << ", server_id: " << message_server_id;
+//                LOG(INFO) << "receive EpochLogPushDownComplete, epoch:" << message_epoch << ", server_id: " << message_server_id;
             break;
         }
         case proto::NullMark:
@@ -470,8 +473,6 @@ namespace Taas {
             }
         }
     }
-
-
 
     bool MessageReceiveHandler::HandleReceivedTxnMessage() {
         if (MessageQueue::listen_message_txn_queue->try_dequeue(message_ptr)) {
