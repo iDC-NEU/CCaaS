@@ -97,6 +97,7 @@ function(MY_PROTOBUF_GENERATE_CPP PATH SRCS HDRS)
     endforeach()
   endif()
 
+
   set(${SRCS})
   set(${HDRS})
   foreach(FIL ${ARGN})
@@ -117,6 +118,7 @@ function(MY_PROTOBUF_GENERATE_CPP PATH SRCS HDRS)
             COMMENT "Running C++ protocol buffer compiler on ${FIL}"
             VERBATIM )
   endforeach()
+
 
   set_source_files_properties(${${SRCS}} ${${HDRS}} PROPERTIES GENERATED TRUE)
   set(${SRCS} ${${SRCS}} PARENT_SCOPE)

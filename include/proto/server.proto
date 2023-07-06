@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package proto;
 
+//option go_package = "./proto";
+
 import "transaction.proto";
 import "node.proto";
 

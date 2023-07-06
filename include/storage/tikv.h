@@ -31,12 +31,12 @@ namespace Taas {
 
         static bool GeneratePushDownTask(uint64_t &epoch);
 
-        static void SendTransactionToTiKV_Usleep();
-        static void SendTransactionToTiKV_Block();
+        static void SendTransactionToDB_Usleep();
+        static void SendTransactionToDB_Block();
 
         static bool CheckEpochPushDownComplete(uint64_t &epoch);
-        static void TiKVRedoLogQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
-        static bool TiKVRedoLogQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
+        static void DBRedoLogQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
+        static bool DBRedoLogQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
 
 
 

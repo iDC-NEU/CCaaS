@@ -49,7 +49,7 @@ namespace Taas {
         return true;
     }
 
-    void TiKV::SendTransactionToTiKV_Usleep() {
+    void TiKV::SendTransactionToDB_Usleep() {
         std::unique_ptr<proto::Transaction> txn_ptr;
         uint64_t epoch;
         epoch = EpochManager::GetPushDownEpoch();
@@ -84,7 +84,7 @@ namespace Taas {
     }
 
 
-    void TiKV::SendTransactionToTiKV_Block() {
+    void TiKV::SendTransactionToDB_Block() {
         std::unique_ptr<proto::Transaction> txn_ptr;
         uint64_t epoch;
         while(!EpochManager::IsTimerStop()) {
@@ -104,12 +104,12 @@ namespace Taas {
         }
     }
 
-    void TiKV::TiKVRedoLogQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr) {
+    void TiKV::DBRedoLogQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_redo_log_queue[epoch_mod]->enqueue(std::move(txn_ptr));
         epoch_redo_log_queue[epoch_mod]->enqueue(nullptr);
     }
-    bool TiKV::TiKVRedoLogQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr) {
+    bool TiKV::DBRedoLogQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         return epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr);
     }
