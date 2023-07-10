@@ -32,7 +32,8 @@ namespace Taas {
         std::unordered_map<std::uint64_t, std::unique_ptr<zmq::socket_t>> socket_map_txn, socket_map_epoch;
         std::unique_ptr<send_params> params;
         std::unique_ptr<zmq::message_t> msg;
-        if(ctx.kServerIp.size() < ctx.kTxnNodeNum) assert(false);
+        assert(ctx.kServerIp.size() >= ctx.kTxnNodeNum);
+//        if(ctx.kServerIp.size() < ctx.kTxnNodeNum) assert(false);
         for (uint64_t i = 0; i < ctx.kServerIp.size(); i++) {
             if (i ==  ctx.txn_node_ip_index) continue;
             auto socket = std::make_unique<zmq::socket_t>(context, ZMQ_PUSH);
@@ -54,7 +55,8 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             MessageQueue::send_to_server_queue->wait_dequeue(params);
             if (params == nullptr || params->type == proto::TxnType::NullMark || params->str == nullptr) continue;
-            if(params->id == ctx.txn_node_ip_index) assert(false);
+            assert(params->id != ctx.txn_node_ip_index);
+//            if(params->id == ctx.txn_node_ip_index) assert(false);
             if(params->id >= ctx.kTxnNodeNum) {
                 printf("error server_id %lu\n", params->id);
             }
@@ -112,11 +114,13 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);//防止上次遗留消息造成message cache出现问题
-            if(recvResult < 0) assert(false);
+            assert(recvResult >= 0);
+//            if(recvResult < 0) assert(false);
             if (is_epoch_advance_started.load()) {
-                if (!MessageQueue::listen_message_txn_queue->enqueue(std::move(message_ptr))) assert(false);
-                if (!MessageQueue::listen_message_txn_queue->enqueue(std::make_unique<zmq::message_t>()))
-                    assert(false); //防止moodycamel取不出
+                auto res = MessageQueue::listen_message_txn_queue->enqueue(std::move(message_ptr));
+                assert(res);
+                res = MessageQueue::listen_message_txn_queue->enqueue(std::make_unique<zmq::message_t>());
+                assert(res); //防止moodycamel取不出
                 break;
             }
         }
@@ -124,10 +128,11 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);
-            if(recvResult < 0) assert(false);
-            if (!MessageQueue::listen_message_txn_queue->enqueue(std::move(message_ptr))) assert(false);
-            if (!MessageQueue::listen_message_txn_queue->enqueue(std::make_unique<zmq::message_t>()))
-                assert(false); //防止moodycamel取不出
+            assert(recvResult >= 0);
+            auto res = MessageQueue::listen_message_txn_queue->enqueue(std::move(message_ptr));
+            assert(res);
+            res = MessageQueue::listen_message_txn_queue->enqueue(std::make_unique<zmq::message_t>());
+            assert(res); //防止moodycamel取不出
         }
 
 //        auto server = util::ZMQInstance::NewServer<zmq::socket_type::sub>(20000+ctx.txn_node_ip_index);
@@ -173,11 +178,12 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);//防止上次遗留消息造成message cache出现问题
-            if(recvResult < 0) assert(false);
+            assert(recvResult >= 0);
             if (is_epoch_advance_started.load()) {
-                if (!MessageQueue::listen_message_epoch_queue->enqueue(std::move(message_ptr))) assert(false);
-                if (!MessageQueue::listen_message_epoch_queue->enqueue(std::make_unique<zmq::message_t>()))
-                    assert(false); //防止moodycamel取不出
+                auto res = MessageQueue::listen_message_epoch_queue->enqueue(std::move(message_ptr));
+                assert(res);
+                res = MessageQueue::listen_message_epoch_queue->enqueue(std::make_unique<zmq::message_t>());
+                assert(res); //防止moodycamel取不出
                 break;
             }
         }
@@ -185,10 +191,11 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);
-            if(recvResult < 0) assert(false);
-            if (!MessageQueue::listen_message_epoch_queue->enqueue(std::move(message_ptr))) assert(false);
-            if (!MessageQueue::listen_message_epoch_queue->enqueue(std::make_unique<zmq::message_t>()))
-                assert(false); //防止moodycamel取不出
+            assert(recvResult >= 0);
+            auto res = MessageQueue::listen_message_epoch_queue->enqueue(std::move(message_ptr));
+            assert(res);
+            res = MessageQueue::listen_message_epoch_queue->enqueue(std::make_unique<zmq::message_t>());
+            assert(res); //防止moodycamel取不出
         }
     }
 }

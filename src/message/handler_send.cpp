@@ -93,7 +93,6 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
     }
 
     bool MessageSendHandler::SendRemoteServerTxn(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn, proto::TxnType txn_type) {
-        assert(to_whom != ctx.txn_node_ip_index);
         auto msg = std::make_unique<proto::Message>();
         auto* txn_temp = msg->mutable_txn();
         *(txn_temp) = txn;
