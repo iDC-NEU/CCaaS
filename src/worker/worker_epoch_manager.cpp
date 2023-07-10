@@ -45,14 +45,14 @@ namespace Taas {
             switch(ctx.taas_mode) {
                 case TaasMode::MultiMaster : {
                     while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum ||
-                          !ShardingEpochManager::CheckEpochMergeState(ctx)) {
+                          !MultiMasterEpochManager::CheckEpochMergeState(ctx)) {
                         usleep(logical_sleep_timme);
                     }
                     break;
                 }
                 case TaasMode::Sharding : {
                     while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum ||
-                          !MultiMasterEpochManager::CheckEpochMergeState(ctx)) {
+                          !ShardingEpochManager::CheckEpochMergeState(ctx)) {
                         usleep(logical_sleep_timme);
                     }
                     break;
@@ -75,13 +75,13 @@ namespace Taas {
         while(!EpochManager::IsTimerStop()){
             switch(ctx.taas_mode) {
                 case TaasMode::MultiMaster : {
-                    while(!ShardingEpochManager::CheckEpochAbortMergeState(ctx)) {
+                    while(!MultiMasterEpochManager::CheckEpochAbortMergeState(ctx)) {
                         usleep(logical_sleep_timme);
                     }
                     break;
                 }
                 case TaasMode::Sharding : {
-                    while(!MultiMasterEpochManager::CheckEpochAbortMergeState(ctx)) {
+                    while(!ShardingEpochManager::CheckEpochAbortMergeState(ctx)) {
                         usleep(logical_sleep_timme);
                     }
                     break;
@@ -104,13 +104,13 @@ namespace Taas {
         while(!EpochManager::IsTimerStop()){
             switch(ctx.taas_mode) {
                 case TaasMode::MultiMaster : {
-                    while(!ShardingEpochManager::CheckEpochCommitState(ctx)) {
+                    while(!MultiMasterEpochManager::CheckEpochCommitState(ctx)) {
                         usleep(logical_sleep_timme);
                     }
                     break;
                 }
                 case TaasMode::Sharding : {
-                    while(!MultiMasterEpochManager::CheckEpochCommitState(ctx)) {
+                    while(!ShardingEpochManager::CheckEpochCommitState(ctx)) {
                         usleep(logical_sleep_timme);
                     }
                     break;
