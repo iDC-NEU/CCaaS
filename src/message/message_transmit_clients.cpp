@@ -40,7 +40,6 @@ namespace Taas {
             assert(recvResult != -1);
             if (is_epoch_advance_started.load()) {
                 auto res = MessageQueue::listen_message_txn_queue->enqueue(std::move(message_ptr));
-                printf("线程开始工作 ListenClientThread receive a message\n");
                 assert(res);
                 res = MessageQueue::listen_message_txn_queue->enqueue(std::make_unique<zmq::message_t>());
                 assert(res); //防止moodycamel取不出
