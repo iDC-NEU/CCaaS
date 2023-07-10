@@ -22,7 +22,7 @@
 <!-- end TaaS config-->
 <!-- test config   -->
     <duration_time_us>0</duration_time_us>
-    <test_client_num>1</test_client_num>
+    <test_client_num>5</test_client_num>
     <test_key_range>10000</test_key_range>
     <test_txn_op_num>5</test_txn_op_num>
 <!-- end test config   -->
