@@ -67,19 +67,8 @@ namespace Taas {
             switch(ctx.taas_mode) {
                 case TaasMode::MultiMaster :
                 case TaasMode::Sharding : {
-                    if(id == 0) {
-                        while(!EpochManager::IsTimerStop()) {
-                            epoch = EpochManager::GetLogicalEpoch();
-                            while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
-                                usleep(sleep_time);
-                            }
-                            merger.EpochMerge_MergeQueue_Usleep();
-                        }
-                    }
-                    else {
-                        while(!EpochManager::IsTimerStop()) {
-                            merger.EpochMerge_MergeQueue_Usleep();
-                        }
+                    while(!EpochManager::IsTimerStop()) {
+                        merger.EpochMerge_MergeQueue_Usleep();
                     }
                     break;
                 }
@@ -101,19 +90,8 @@ namespace Taas {
         switch(ctx.taas_mode) {
             case TaasMode::MultiMaster :
             case TaasMode::Sharding : {
-                if(id == 0) {
-                    while(!EpochManager::IsTimerStop()) {
-                        epoch = EpochManager::GetLogicalEpoch();
-                        while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
-                            usleep(sleep_time);
-                        }
-                        merger.EpochCommit_EpochLocalTxnQueue_Usleep();
-                    }
-                }
-                else {
-                    while(!EpochManager::IsTimerStop()) {
-                        merger.EpochCommit_EpochLocalTxnQueue_Usleep();
-                    }
+                while(!EpochManager::IsTimerStop()) {
+                    merger.EpochCommit_EpochLocalTxnQueue_Usleep();
                 }
                 break;
             }
