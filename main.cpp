@@ -28,7 +28,7 @@ namespace Taas {
         LOG(INFO) << "System Start\n";
         std::vector<std::unique_ptr<std::thread>> threads;
 
-        if(ctx.server_type == 1) { ///TaaS servers
+        if(ctx.server_type == ServerMode::Taas) { ///TaaS servers
             EpochManager epochManager;
             Taas::EpochManager::ctx = ctx;
             threads.push_back(std::make_unique<std::thread>(WorkerForPhysicalThreadMain, ctx));
@@ -74,12 +74,12 @@ namespace Taas {
                 threads.push_back(std::make_unique<std::thread>(Client, ctx, i));
             }
         }
-        else if(ctx.server_type == 2) { ///leveldb server
+        else if(ctx.server_type == ServerMode::LevelDB) { ///leveldb server
             ///todo : add brpc
             LevelDBServer(ctx);
 
         }
-        else if(ctx.server_type == 3) { ///hbase server
+        else if(ctx.server_type == ServerMode::HBase) { ///hbase server
 
         }
 

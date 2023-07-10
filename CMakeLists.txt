@@ -4,7 +4,7 @@ project(Taas)
 # For fresh ubuntu 22.04 startup
 # zlib1g-dev is for gzip compress
 # libgoogle-perftools-dev for linking tcmalloc
-# apt install git libtool make autoconf g++-11 zlib1g-dev libgoogle-perftools-dev libssl-dev
+# apt install git libtool make autoconf g++-11 zlib1g-dev libgoogle-perftools-dev libssl-dev libzmq3-dev
 # apt install g++
 
 # Set debug and release flags
