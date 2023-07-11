@@ -133,6 +133,7 @@ namespace Taas {
         EnqueueMergeQueue            %6lu, MergeOk                      %6lu  \n\
         IsShardingMergeComplete      %6lu, IsAbortSetMergeComplete      %6lu    \
         IsCommitComplete             %6lu, SetRecordCommitted           %6lu  \n\
+\
         MergedTxnNum                 %6lu, ShouldMergeTxnNum            %6lu,   \
         CommittedTxnNum              %6lu, ShouldCommitTxnNum           %6lu,   \
         RecordCommit                 %6lu, RecordCommitted              %6lu, \n\
