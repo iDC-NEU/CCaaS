@@ -197,7 +197,7 @@ SET(COMMON_DEPENDENCIES
         ssl
         crypto
         # Use thrift2 to connect HBase
-        thrift
+        thriftd
         )
 
 # Link dependencies

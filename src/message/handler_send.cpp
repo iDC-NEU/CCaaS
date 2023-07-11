@@ -7,6 +7,7 @@
 #include "transaction/merge.h"
 
 namespace Taas {
+    std::atomic<uint64_t> MessageSendHandler::TotalLatency(0), MessageSendHandler::TotalTxnNum(0);
     std::vector<std::unique_ptr<std::atomic<uint64_t>>> MessageSendHandler::sharding_send_epoch,
             MessageSendHandler::backup_send_epoch,
             MessageSendHandler::abort_set_send_epoch,
@@ -54,7 +55,10 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
         // 将Transaction使用protobuf进行序列化，序列化的结果在serialized_txn_str_ptr中
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());
-
+        auto tim = now_to_us() - txn.csn();
+        TotalLatency.fetch_add(tim);
+        TotalTxnNum.fetch_add(1);
+//        printf("Taas Totallatency %lu TotalNum %lu avg %f\n", TotalLatency.load(), TotalTxnNum.load(), (((double)TotalLatency.load()) / ((double)TotalTxnNum.load())));
         // 将序列化的Transaction放到send_to_client_queue中，等待发送给client
         MessageQueue::send_to_client_queue->enqueue(std::make_unique<send_params>(txn.client_txn_id(), txn.csn(), txn.client_ip(), txn.commit_epoch(), proto::TxnType::CommittedTxn, std::move(serialized_txn_str_ptr), nullptr));
         return MessageQueue::send_to_client_queue->enqueue(std::make_unique<send_params>(0, 0, "", 0, proto::TxnType::NullMark, nullptr, nullptr));

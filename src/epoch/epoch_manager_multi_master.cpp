@@ -61,6 +61,9 @@ namespace Taas {
             if(i % ctx.print_mode_size == 0) {
                 printf("*************       完成一个Epoch的合并     Epoch: %8lu ClearEpoch: %8lu *************\n", i, clear_epoch.load());
                 printf("commit txn total number %lu\n", total_commit_txn_num);
+                if(MessageSendHandler::TotalTxnNum.load() != 0);
+                printf("Taas Totallatency %lu TotalNum %lu avg %f\n", MessageSendHandler::TotalLatency.load(),
+                       MessageSendHandler::TotalTxnNum.load(), (((double)MessageSendHandler::TotalLatency.load()) / ((double)MessageSendHandler::TotalTxnNum.load())));
             }
             i ++;
             commit_epoch.fetch_add(1);

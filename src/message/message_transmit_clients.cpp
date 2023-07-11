@@ -52,7 +52,7 @@ namespace Taas {
             recvResult = socket_listen.recv((*message_ptr), recvFlags);
             assert(recvResult != -1);
             auto res = MessageQueue::listen_message_txn_queue->enqueue(std::move(message_ptr));
-            printf("线程开始工作 ListenClientThread receive a message\n");
+//            printf("线程开始工作 ListenClientThread receive a message\n");
             assert(res);
             res = MessageQueue::listen_message_txn_queue->enqueue(std::make_unique<zmq::message_t>());
             assert(res); //防止moodycamel取不出
@@ -89,6 +89,7 @@ namespace Taas {
                 msg = std::make_unique<zmq::message_t>(*(params->str));
                 auto key = "tcp://" + params->ip;
                 if(socket_map.find(key) != socket_map.end()) {
+//                    printf("send to client %s\n", key.c_str());
                     socket_map[key]->send(*(msg), sendFlags);
                 }
                 else {
@@ -96,6 +97,7 @@ namespace Taas {
                     socket->set(zmq::sockopt::sndhwm, queue_length);
                     socket->set(zmq::sockopt::rcvhwm, queue_length);
                     socket->connect("tcp://" + params->ip + ":5552");
+//                    printf("send to client %s\n", key.c_str());
                     socket_map[key] = std::move(socket);
                     socket_map[key]->send(*(msg), sendFlags);
                 }
