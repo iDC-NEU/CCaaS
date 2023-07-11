@@ -4,7 +4,7 @@ project(Taas)
 # For fresh ubuntu 22.04 startup
 # zlib1g-dev is for gzip compress
 # libgoogle-perftools-dev for linking tcmalloc
-# apt install git libtool make autoconf g++-11 zlib1g-dev libgoogle-perftools-dev libssl-dev libzmq3-dev
+# apt install git libtool make autoconf g++-11 zlib1g-dev libgoogle-perftools-dev libssl-dev libzmq3-dev libboost-all-dev libevent-dev bison flex
 # apt install g++
 
 # Set debug and release flags
@@ -125,7 +125,7 @@ find_package(brpc_install
         PATHS ${PROJECT_SOURCE_DIR}/vendor
         )
 
-### Gtest brpc
+### Gtest thrift
 find_package(thrift_install
         CONFIG
         REQUIRED
@@ -221,18 +221,11 @@ target_include_directories(
 # the location where the project's version header will be placed should match the project's regular
 # header paths
 string(TOLOWER ${PROJECT_NAME}/version.h VERSION_HEADER_LOCATION)
-#add_subdirectory(Taas-Sharding)
-#include_directories("${CMAKE_SOURCE_DIR}/rust/tikv_client/include")
-#include_directories("${CMAKE_SOURCE_DIR}/include")
-#add_subdirectory("src")
 
 
 # ---- Create sharding executable ----
-
 add_executable(${PROJECT_NAME}_sharding main.cpp)
 set_target_properties(${PROJECT_NAME}_sharding PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "Taas_sharding")
 target_link_libraries(${PROJECT_NAME}_sharding Taas
         ${COMMON_DEPENDENCIES})
-
-#target_link_libraries(Taas_sharding taas_core proto gflags cppzmq tikv_client pthread dl ssl crypto)
 

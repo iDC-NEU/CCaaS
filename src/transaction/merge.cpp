@@ -27,7 +27,8 @@ namespace Taas {
             Merger::epoch_insert_set;
 
     concurrent_unordered_map<std::string, std::string>
-            Merger::read_version_map, ///read validate for higher isolation
+            Merger::read_version_map_data, ///read validate for higher isolation
+            Merger::read_version_map_csn, ///read validate for higher isolation
             Merger::insert_set,   ///插入集合，用于判断插入是否可以执行成功 check key exits?
             Merger::abort_txn_set; /// 所有abort的事务，不区分epoch
 

@@ -46,7 +46,7 @@ namespace Taas {
         static std::vector<std::unique_ptr<concurrent_unordered_map<std::string, std::string>>> epoch_insert_set;
 
         /// whole server state
-        static concurrent_unordered_map<std::string, std::string> read_version_map, insert_set, abort_txn_set;
+        static concurrent_unordered_map<std::string, std::string> read_version_map_data, read_version_map_csn, insert_set, abort_txn_set;
 
         ///queues
         static std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> task_queue;

@@ -1,5 +1,5 @@
 //
-// Created by user on 23-6-30.
+// Created by zwx on 23-6-30.
 //
 
 #include "storage/hbase.h"
@@ -46,45 +46,33 @@ namespace Taas {
         return true;
     }
 
+    ///YCSB
+    const std::string table_name("usertable");
+    const std::string family("entire");
+    //not clear about the form of row.data(), so insert it as an entire column
+    const std::string qualifier("");
+
     void HBase::SendTransactionToDB_Usleep() {
         std::unique_ptr<proto::Transaction> txn_ptr;
         uint64_t epoch;
         epoch = EpochManager::GetPushDownEpoch();
-
         //connect to thrift2 server in order to communicate with hbase
-        const std::string url("127.0.0.1");
         CHbaseHandler hbase_txn;
-        hbase_txn.connect(url,9090);
-
+        hbase_txn.connect(ctx.kHbaseIP,9090);
         while(redo_log_queue->try_dequeue(txn_ptr)) {
             if(txn_ptr == nullptr) continue ;
             for (auto i = 0; i < txn_ptr->row_size(); i++) {
                 const auto& row = txn_ptr->row(i);
                 if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
                   const std::string key = row.key();
-                  const std::string table_name("usertable");
-                  const std::string family("entire"); //not clear about the form of row.data(), so insert it as an entire column
-                  const std::string qualifier("");
                   const std::string row_value = row.data();
                   hbase_txn.putRow(table_name, key, family, qualifier, row_value);
                 }
-//                  hbase_txn.commit(table_name, row.key(), row.data());
 
             }
-//            if(tikv_client_ptr == nullptr) continue ;
-//            auto tikv_txn = tikv_client_ptr->begin();
-//            for (auto i = 0; i < txn_ptr->row_size(); i++) {
-//                const auto& row = txn_ptr->row(i);
-//                if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
-//                    tikv_txn.put(row.key(), row.data());
-//                }
-//            }
-//            tikv_txn.commit();
             epoch_pushed_down_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
         }
-
         hbase_txn.disconnect();
-
     }
 
 
@@ -95,15 +83,7 @@ namespace Taas {
             redo_log_queue->wait_dequeue(txn_ptr);
             if(txn_ptr == nullptr) continue;
             epoch = txn_ptr->commit_epoch();
-//            if(tikv_client_ptr == nullptr) continue;
-//            auto tikv_txn = tikv_client_ptr->begin();
-//            for (auto i = 0; i < txn_ptr->row_size(); i++) {
-//                const auto& row = txn_ptr->row(i);
-//                if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
-//                    tikv_txn.put(row.key(), row.data());
-//                }
-//            }
-//            tikv_txn.commit();
+            /// do like Usleep func
             epoch_pushed_down_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
         }
     }

@@ -16,11 +16,17 @@ namespace Taas {
             if(row.op_type() != proto::OpType::Read) {
                 continue;
             }
-            if (!Merger::read_version_map.getValue(row.key(), version) || version != std::to_string(row.csn())) {
+            /// indeed, we should use the csn to check the read version,
+            /// but there are some bugs in updating the csn to the storage(tikv).
+            if (!Merger::read_version_map_data.getValue(row.key(), version)) {
+                /// should be abort, but Taas do not connect load data,
+                /// so read the init snap will get empty in read_version_map
+                continue;
+            }
+            if (version != row.data()) {
                 return false;
             }
         }
-
         return true;
     }
 
@@ -70,7 +76,8 @@ namespace Taas {
             else {
                 //nothing to do
             }
-            Merger::read_version_map.insert(row.key(), csn_temp);
+            Merger::read_version_map_data.insert(row.key(), row.data());
+            Merger::read_version_map_csn.insert(row.key(), csn_temp);
         }
         return true;
     }
