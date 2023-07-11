@@ -125,6 +125,11 @@ find_package(brpc_install
         PATHS ${PROJECT_SOURCE_DIR}/vendor
         )
 
+### Gtest brpc
+find_package(thrift_install
+        CONFIG
+        REQUIRED
+        PATHS ${PROJECT_SOURCE_DIR}/vendor        )
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/vendor/tools.cmake)
 
@@ -167,7 +172,7 @@ add_library(
         ${PROJECT_NAME}
         ${headers}
         ${sources}
-        include/storage/kvdb.h)
+        )
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 
 
@@ -191,7 +196,8 @@ SET(COMMON_DEPENDENCIES
         dl
         ssl
         crypto
-
+        # Use thrift2 to connect HBase
+        thrift
         )
 
 # Link dependencies
@@ -201,7 +207,9 @@ target_link_libraries(${PROJECT_NAME}
         PUBLIC
         gflags
         ${COMMON_DEPENDENCIES}
-        "-Wl,--disable-new-dtags")
+        "-Wl,--disable-new-dtags"
+
+        )
 
 target_include_directories(
         ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
