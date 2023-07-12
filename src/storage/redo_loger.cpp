@@ -55,14 +55,16 @@ namespace Taas {
         committed_txn_cache[epoch_id % ctx.kCacheMaxLength]->insert(key, txn);
         if(ctx.is_tikv_enable) {
 //            TiKV::tikv_epoch_should_push_down_txn_num.IncCount(epoch_id, txn.server_id(), 1);
-//            TiKV::TiKVRedoLogQueueEnqueue(epoch_id, std::make_unique<proto::Transaction>(txn));
-            TiKV::redo_log_queue->enqueue(std::make_unique<proto::Transaction>(txn));
+            TiKV::DBRedoLogQueueEnqueue(epoch_id, std::make_unique<proto::Transaction>(txn));
+//            TiKV::redo_log_queue->enqueue(std::make_unique<proto::Transaction>(txn));
         }
         if(ctx.is_leveldb_enable) {
-            LevelDB::redo_log_queue->enqueue(std::make_unique<proto::Transaction>(txn));
+            LevelDB::DBRedoLogQueueEnqueue(epoch_id, std::make_unique<proto::Transaction>(txn));
+//            LevelDB::redo_log_queue->enqueue(std::make_unique<proto::Transaction>(txn));
         }
         if(ctx.is_hbase_enable) {
-            HBase::redo_log_queue->enqueue(std::make_unique<proto::Transaction>(txn));
+            HBase::DBRedoLogQueueEnqueue(epoch_id, std::make_unique<proto::Transaction>(txn));
+//            HBase::redo_log_queue->enqueue(std::make_unique<proto::Transaction>(txn));
         }
         return true;
     }
