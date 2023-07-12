@@ -33,6 +33,7 @@ namespace Taas {
     extern bool CheckRedoLogPushDownState(const Context& ctx);
     extern void EpochLogicalTimerManagerThreadMain(const Context& ctx);
     extern void EpochPhysicalTimerManagerThreadMain(Context ctx);
+    std::string PrintfToString(const char* format, ...);
     void OUTPUTLOG(const Context& ctx, const std::string& s, uint64_t& epoch);
     class EpochManager {
     private:

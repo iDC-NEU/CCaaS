@@ -24,6 +24,7 @@ namespace Taas {
                 continue;
             }
             if (version != row.data()) {
+                LOG(INFO) <<"read version check failed version : " << version << ", row.data() : " << row.data();
                 return false;
             }
         }

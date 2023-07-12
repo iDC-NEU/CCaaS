@@ -16,16 +16,30 @@
 
 #include <iostream>
 #include <thread>
+#include <csignal>
+
 using namespace std;
 
 namespace Taas {
+    void signalHandler(int signal)
+    {
+        if (signal == SIGINT)
+        {
+            std::cout << "Ctrl+C detected!" << std::endl;
+            EpochManager::SetTimerStop(true);
+        }
+    }
+
     int main() {
         Context ctx("../TaaS_config.xml", "../Storage_config.xml");
 
-        FLAGS_log_dir = ctx.glog_path_;
+        FLAGS_log_dir = "/tmp";
         FLAGS_alsologtostderr = true;
         google::InitGoogleLogging("Taas-sharding");
         LOG(INFO) << "System Start\n";
+        auto res = ctx.Print();
+        LOG(INFO) << res;
+        printf("%s\n", res.c_str());
         std::vector<std::unique_ptr<std::thread>> threads;
 
         if(ctx.server_type == ServerMode::Taas) { ///TaaS servers
@@ -45,7 +59,7 @@ namespace Taas {
             threads.push_back(std::make_unique<std::thread>(WorkerForEpochBackUpEndFlagSendThreadMain, ctx));
 
 //        for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
-            for(int i = 0; i < 16; i ++) {
+            for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
                 threads.push_back(std::make_unique<std::thread>(WorkerFroTxnMessageThreadMain, ctx, i));///txn message
                 threads.push_back(std::make_unique<std::thread>(WorkerFroMergeThreadMain, ctx, i));///merge
                 threads.push_back(std::make_unique<std::thread>(WorkerFroCommitThreadMain, ctx, i));///commit
@@ -54,7 +68,7 @@ namespace Taas {
             threads.push_back(std::make_unique<std::thread>(WorkerForClientListenThreadMain, ctx));///client
             threads.push_back(std::make_unique<std::thread>(WorkerForClientSendThreadMain, ctx));
             if(ctx.kTxnNodeNum > 1) {
-                for(int i = 0; i < 16; i ++) {
+                for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
                     threads.push_back(std::make_unique<std::thread>(WorkerFroEpochMessageThreadMain, ctx, i));///Epoch message
                 }
                 threads.push_back(std::make_unique<std::thread>(WorkerForServerListenThreadMain, ctx));
@@ -63,12 +77,11 @@ namespace Taas {
             }
             if(ctx.is_tikv_enable) {
                 TiKV::tikv_client_ptr = new tikv_client::TransactionClient({ctx.kTiKVIP});
-//            for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
-                threads.push_back(std::make_unique<std::thread>(WorkerFroTiKVStorageThreadMain, ctx, 0));///tikv push down
-//            }
+                for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
+                    threads.push_back(std::make_unique<std::thread>(WorkerFroTiKVStorageThreadMain, ctx, 0));///tikv push down
+                }
             }
             threads.push_back(std::make_unique<std::thread>(WorkerFroMOTStorageThreadMain)); ///mot push down
-
 
             for(int i = 0; i < (int)ctx.kTestClientNum; i ++) {
                 threads.push_back(std::make_unique<std::thread>(Client, ctx, i));
@@ -77,27 +90,26 @@ namespace Taas {
         else if(ctx.server_type == ServerMode::LevelDB) { ///leveldb server
             ///todo : add brpc
             LevelDBServer(ctx);
-
         }
         else if(ctx.server_type == ServerMode::HBase) { ///hbase server
 
         }
-
-
 
         if(ctx.kDurationTime_us != 0) {
             while(!test_start.load()) usleep(sleep_time);
             usleep(ctx.kDurationTime_us);
             EpochManager::SetTimerStop(true);
         }
+        else {
+            std::signal(SIGINT, signalHandler);
+        }
         for(auto &i : threads) {
             i->join();
         }
-
+        google::ShutdownGoogleLogging();
         std::cout << "============================================================================" << std::endl;
         std::cout << "=====================              END                 =====================" << std::endl;
         std::cout << "============================================================================" << std::endl;
-
         return 0;
     }
 

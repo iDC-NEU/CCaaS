@@ -63,10 +63,16 @@ namespace Taas {
             total_commit_txn_num += Merger::epoch_record_committed_txn_num.GetCount(i);
 
             if(i % ctx.print_mode_size == 0) {
+                auto res = PrintfToString("*************       完成一个Epoch的合并     Epoch: %8lu ClearEpoch: %8lu *************\n", i, clear_epoch.load());
+                res += PrintfToString("commit txn total number %lu\n", total_commit_txn_num);
+                res += PrintfToString("Taas Totallatency %lu TotalNum %lu avg %f\n", MessageSendHandler::TotalLatency.load(),
+                                      MessageSendHandler::TotalTxnNum.load(), (((double)MessageSendHandler::TotalLatency.load()) / ((double)MessageSendHandler::TotalTxnNum.load())));
+                LOG(INFO) << res;
+
                 printf("*************       完成一个Epoch的合并     Epoch: %8lu ClearEpoch: %8lu *************\n", i, clear_epoch.load());
                 printf("commit txn total number %lu\n", total_commit_txn_num);
-                if(MessageSendHandler::TotalTxnNum.load() != 0);
-                printf("Taas Totallatency %lu TotalNum %lu avg %f\n", MessageSendHandler::TotalLatency.load(),
+                if(MessageSendHandler::TotalTxnNum.load() != 0)
+                    printf("Taas Totallatency %lu TotalNum %lu avg %f\n", MessageSendHandler::TotalLatency.load(),
                        MessageSendHandler::TotalTxnNum.load(), (((double)MessageSendHandler::TotalLatency.load()) / ((double)MessageSendHandler::TotalTxnNum.load())));
             }
             i ++;

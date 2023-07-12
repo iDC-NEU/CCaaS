@@ -55,6 +55,7 @@ namespace Taas {
         void GetTaaSServerInfo(const std::string &config_file_path = "../TaaS_config.xml");
         void GetStorageInfo(const std::string &config_file_path = "../Storage_config.xml");
 
+        std::string Print();
     };
 }
 

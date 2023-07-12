@@ -117,10 +117,20 @@ namespace Taas {
  * @param epoch_mod epoch号
  */
 
+    std::string PrintfToString(const char* format, ...)
+    {
+        char buffer[2048]; // 假设输出不超过1024个字符
+        va_list args;
+        va_start(args, format);
+        std::vsnprintf(buffer, sizeof(buffer), format, args);
+        va_end(args);
+
+        return std::string(buffer);
+    }
 
     void OUTPUTLOG(const Context& ctx, const string& s, uint64_t& epoch_){
         auto epoch_mod = epoch_ % EpochManager::max_length;
-        printf("%60s \n\
+        auto res = PrintfToString("%60s \n\
         physical                     %6lu, logical                      %6lu,   \
         pushdown_mot                 %6lu, pushdownepoch                %6lu  \n\
         merge_epoch                  %6lu, abort_set_epoch              %6lu    \
@@ -176,6 +186,8 @@ namespace Taas {
 
        (uint64_t)0,
        now_to_us());
+
+        LOG(INFO) << res;
     }
 
     bool CheckRedoLogPushDownState(const Context& ctx) {

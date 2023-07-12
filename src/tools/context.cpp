@@ -61,19 +61,24 @@ namespace Taas {
         auto* mode_size_t = root->FirstChildElement("print_mode_size");
         print_mode_size = std::stoull(mode_size_t->GetText());
 
-
-        printf("Config Info:\n \tServerIp:\n");
-        int cnt = 0;
-        for(const auto& i : kServerIp) {
-            printf("\t \t ID: %d, IP: %s\n", cnt++, i.c_str());
-        }
-        printf("\t ServerNum: %lu\n\t txn_node_ip_index: %lu\n\t EpochSize_us: %lu\n", kTxnNodeNum, txn_node_ip_index, kEpochSize_us);
-        printf("\t CacheLength: %lu\n", kCacheMaxLength);
-        printf("\t WorkerNum: %lu\n\t DurationTime_us: %lu\n", kWorkerThreadNum, kDurationTime_us);
-        printf("\t TestClientNum: %lu\n\t TestKeyRange: %lu\n\t TestTxnOpNum: %lu\n", kTestClientNum, kTestKeyRange, kTestTxnOpNum);
-        printf("\t SycnStart: %d\n", is_sync_start);
     }
 
+    std::string Context::Print() {
+        std::string res = "";
+        res += "Config Info:\n \tServerIp:\n";
+        int cnt = 0;
+        for(const auto& i : kServerIp) {
+            res += "\t \t ID: " + std::to_string(cnt++) + ", IP: " + i.c_str() + "\n";
+        }
+        res += "\t ServerNum: "+ std::to_string(kTxnNodeNum) + "\n\t txn_node_ip_index: "
+                + std::to_string(txn_node_ip_index) + "\n\t EpochSize_us: " + std::to_string(kEpochSize_us) + "\n";
+        res += "\t CacheLength: " + std::to_string(kCacheMaxLength) + "\n";
+        res += "\t WorkerNum: " + std::to_string(kWorkerThreadNum) + "\n\t DurationTime_us: " + std::to_string(kDurationTime_us) + "\n";
+        res += "\t TestClientNum: " + std::to_string(kTestClientNum) + "\n\t TestKeyRange: "
+                + std::to_string(kTestKeyRange) + "\n\t TestTxnOpNum: " + std::to_string(kTestTxnOpNum) + "\n";
+        res += "\t SycnStart: " + std::to_string(is_sync_start) + "\n";
+        return res;
+    }
 
     void Context::GetStorageInfo(const std::string& config_file_path){
         tinyxml2::XMLDocument doc;
