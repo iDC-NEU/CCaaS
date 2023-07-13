@@ -53,23 +53,25 @@ namespace Taas {
         auto lsn = epoch_log_lsn.IncCount(epoch_id, 1);
         auto key = std::to_string(epoch_id) + ":" + std::to_string(lsn);
         committed_txn_cache[epoch_id % ctx.kCacheMaxLength]->insert(key, txn);
+        if(ctx.is_mot_enable) {
+            MOT::DBRedoLogQueueEnqueue(epoch_id, std::make_unique<proto::Transaction>(txn));
+        }
         if(ctx.is_tikv_enable) {
-//            TiKV::tikv_epoch_should_push_down_txn_num.IncCount(epoch_id, txn.server_id(), 1);
             TiKV::DBRedoLogQueueEnqueue(epoch_id, std::make_unique<proto::Transaction>(txn));
-//            TiKV::redo_log_queue->enqueue(std::make_unique<proto::Transaction>(txn));
         }
         if(ctx.is_leveldb_enable) {
             LevelDB::DBRedoLogQueueEnqueue(epoch_id, std::make_unique<proto::Transaction>(txn));
-//            LevelDB::redo_log_queue->enqueue(std::make_unique<proto::Transaction>(txn));
         }
         if(ctx.is_hbase_enable) {
             HBase::DBRedoLogQueueEnqueue(epoch_id, std::make_unique<proto::Transaction>(txn));
-//            HBase::redo_log_queue->enqueue(std::make_unique<proto::Transaction>(txn));
         }
         return true;
     }
 
     bool RedoLoger::GeneratePushDownTask(const Context &ctx, uint64_t &epoch) {
+        if(ctx.is_mot_enable) {
+            MOT::GeneratePushDownTask(epoch);
+        }
         if(ctx.is_tikv_enable) {
             TiKV::GeneratePushDownTask(epoch);
         }
@@ -79,13 +81,13 @@ namespace Taas {
         if(ctx.is_hbase_enable) {
             HBase::GeneratePushDownTask(epoch);
         }
-        MOT::GeneratePushDownTask(epoch);
         return true;
     }
 
     bool RedoLoger::CheckPushDownComplete(const Context &ctx, uint64_t &epoch) {
-        return MOT::IsMOTPushDownComplete(epoch) && (ctx.is_tikv_enable == 0 || TiKV::CheckEpochPushDownComplete(epoch)) &&
-                (ctx.is_leveldb_enable == 0 || LevelDB::CheckEpochPushDownComplete(epoch)) &&
-                (ctx.is_hbase_enable == 0 || HBase::CheckEpochPushDownComplete(epoch));
+        return (ctx.is_mot_enable == 0 || MOT::CheckEpochPushDownComplete(epoch))
+            && (ctx.is_tikv_enable == 0 || TiKV::CheckEpochPushDownComplete(epoch))
+            && (ctx.is_leveldb_enable == 0 || LevelDB::CheckEpochPushDownComplete(epoch))
+            && (ctx.is_hbase_enable == 0 || HBase::CheckEpochPushDownComplete(epoch));
     }
 }

@@ -48,7 +48,7 @@ namespace Taas {
         std::string glog_path_ = "/tmp";
 
         /// storage info
-        volatile bool is_tikv_enable = true, is_leveldb_enable = true, is_hbase_enable = true;
+        volatile bool is_tikv_enable = true, is_leveldb_enable = true, is_hbase_enable = true, is_mot_enable = true;
         std::string kMasterIp, kPrivateIp, kTiKVIP, kLevevDBIP, kHbaseIP;
 
 

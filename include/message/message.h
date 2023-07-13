@@ -51,7 +51,7 @@ namespace Taas {
 
     class MessageQueue{
     public:
-        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>> listen_message_txn_queue, listen_message_epoch_queue;
+        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>> listen_message_queue, listen_message_txn_queue, listen_message_epoch_queue;
 //        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> listen_message_txn_queue, listen_message_epoch_queue;
         static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<send_params>>> send_to_server_queue, send_to_client_queue, send_to_storage_queue;
         static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Message>>> request_queue, raft_message_queue;
@@ -66,8 +66,6 @@ namespace Taas {
     extern void ListenClientThreadMain(const Context& ctx);
     extern void ListenStorageThreadMain(const Context& ctx);
     extern void SendStoragePUBThreadMain(const Context& ctx);
-    extern void SendStoragePUBThreadMain2(const Context& ctx);
-
 
 }
 

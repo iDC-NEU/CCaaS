@@ -52,12 +52,24 @@ namespace Taas {
     }
 
     void TiKV::SendTransactionToDB_Usleep() {
+        auto sleep_flag = true;
         std::unique_ptr<proto::Transaction> txn_ptr;
         uint64_t epoch;
         epoch = EpochManager::GetPushDownEpoch();
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        sleep_flag = true;
         while(epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr)) {
-            if(txn_ptr == nullptr) continue ;
+            if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
+                continue;
+            }
+            redo_log_queue->enqueue(std::move(txn_ptr));
+            redo_log_queue->enqueue(nullptr);
+        }
+
+        while(redo_log_queue->try_dequeue(txn_ptr)) {
+            if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
+                return;
+            }
             if(tikv_client_ptr == nullptr) continue ;
             auto tikv_txn = tikv_client_ptr->begin();
             for (auto i = 0; i < txn_ptr->row_size(); i++) {
@@ -72,22 +84,11 @@ namespace Taas {
             catch (std::exception &e) {
                 LOG(INFO) << "*** Commit Txn To Tikv Failed: " << e.what();
             }
-            epoch_pushed_down_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+            epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);
+            sleep_flag = false;
         }
-        usleep(sleep_time);
-//        while(redo_log_queue->try_dequeue(txn_ptr)) {
-//            if(txn_ptr == nullptr) continue ;
-//            if(tikv_client_ptr == nullptr) continue ;
-//            auto tikv_txn = tikv_client_ptr->begin();
-//            for (auto i = 0; i < txn_ptr->row_size(); i++) {
-//                const auto& row = txn_ptr->row(i);
-//                if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
-//                    tikv_txn.put(row.key(), row.data());
-//                }
-//            }
-//            tikv_txn.commit();
-//            epoch_pushed_down_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-//        }
+        if(sleep_flag)
+            usleep(sleep_time);
     }
 
 

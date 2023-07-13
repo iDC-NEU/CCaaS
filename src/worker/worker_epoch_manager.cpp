@@ -230,10 +230,10 @@ namespace Taas {
         SetCPU();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while(!EpochManager::IsTimerStop()){
-//            while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum ||
-//                  !EpochManager::CheckRedoLogPushDownState()) { //this check do in mot push down
-//                usleep(logical_sleep_timme);
-//            }
+            while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum ||
+                  !CheckRedoLogPushDownState(ctx)) { //this check do in mot push down
+                usleep(logical_sleep_timme);
+            }
         }
     }
 

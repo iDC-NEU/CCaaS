@@ -33,7 +33,7 @@ namespace Taas {
             Merger::abort_txn_set; /// 所有abort的事务，不区分epoch
 
     std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> Merger::task_queue;
-//    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> Merger::merge_queue;///存放要进行merge的事务，分片`
+    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> Merger::merge_queue;///存放要进行merge的事务，分片
     std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> Merger::commit_queue;
     std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
             Merger::epoch_merge_queue,///存放要进行merge的事务，分片
@@ -54,8 +54,8 @@ namespace Taas {
         epoch_insert_set.resize(max_length);
 
 //        ///transaction concurrent queue
-//        task_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-//        merge_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+        task_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+        merge_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
         commit_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
 
         epoch_merge_queue.resize(max_length);
@@ -87,12 +87,25 @@ namespace Taas {
         RedoLoger::StaticInit(ctx);
     }
 
+    void Merger::MergeQueueEnqueue(const Context &ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr) {
+        ///not use for now
+    }
+    bool Merger::MergeQueueTryDequeue(const Context &ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr) {
+        ///not use for now
+        return false;
+    }
+    void Merger::CommitQueueEnqueue(const Context &ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr) {
+        ///not use for now
+    }
+    bool Merger::CommitQueueTryDequeue(const Context &ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr) {
+        ///not use for now
+        return false;
+    }
     void Merger::LocalTxnCommitQueueEnqueue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr) {
         epoch_should_commit_txn_num.IncCount(epoch, ctx.txn_node_ip_index, 1);
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_local_txn_queue[epoch_mod]->enqueue(std::move(txn_ptr));
         epoch_local_txn_queue[epoch_mod]->enqueue(nullptr);
-//        printf("=== epoch_local_txn_queue enqueue %lu %lu\n",epoch, epoch_should_commit_txn_num.GetCount(epoch));
     }
     bool Merger::LocalTxnCommitQueueTryDequeue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
@@ -139,11 +152,20 @@ namespace Taas {
         return res;
     }
 
-    void Merger::EpochMerge_MergeQueue_Usleep() {
+    void Merger::EpochMerge_Usleep() {
+        auto sleep_flag = true;
         while (!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetLogicalEpoch();
             epoch_mod = epoch % ctx.kCacheMaxLength;
-            if (epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+            sleep_flag = true;
+            while(epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+                if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
+                    continue;
+                }
+                merge_queue->enqueue(std::move(txn_ptr));
+                merge_queue->enqueue(nullptr);
+            }
+            while(merge_queue->try_dequeue(txn_ptr)) {
                 if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     return;
                 }
@@ -153,32 +175,46 @@ namespace Taas {
                 if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
                     res = false;
                 }
-                //不对分片事务进行commit处理
-//        if (res) {
-//            epoch_should_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-//            epoch_commit_queue[epoch_mod]->enqueue(std::move(txn_ptr));
-//            epoch_commit_queue[epoch_mod]->enqueue(nullptr);
-//        }
-//                if(res) {
-//                    /// local txn commit queue, enqueued in HandleReceivedTxn()
-//                }
-//                else {
-//                    /// abort message return in commit phase
-//                }
                 epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
+                sleep_flag = false;
             }
-            else {
+            if(sleep_flag) {
                 usleep(sleep_time);
             }
         }
     }
 
-    void Merger::EpochCommit_EpochLocalTxnQueue_Usleep() {
+    void Merger::EpochMerge_Block() {
+        while (!EpochManager::IsTimerStop()) {
+            merge_queue->wait_dequeue(txn_ptr);
+            if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
+                return;
+            }
+            epoch = txn_ptr->commit_epoch();
+            if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
+                res = false;
+            }
+            if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
+                res = false;
+            }
+            epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
+        }
+    }
+
+    void Merger::EpochCommit_Usleep() {
+        auto sleep_flag = true;
         while (!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetLogicalEpoch();
             epoch_mod = epoch % ctx.kCacheMaxLength;
-            /// dequeue from local txn queue a complete txn
-            if (epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+            sleep_flag = true;
+            while(epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+                if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
+                    continue;
+                }
+                commit_queue->enqueue(std::move(txn_ptr));
+            }
+
+            while (commit_queue->try_dequeue(txn_ptr)) {
                 if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     return;
                 }
@@ -196,38 +232,27 @@ namespace Taas {
                     MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
                 }
                 epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+                sleep_flag = false;
             }
-            else {
+            if(sleep_flag) {
                 usleep(sleep_time);
             }
         }
     }
 
-    void Merger::EpochCommit_CommitQueue() {
-        epoch = EpochManager::GetLogicalEpoch();
-        epoch_mod = epoch % ctx.kCacheMaxLength;
-        /// dequeue from local txn queue a complete txn
-
-        while(epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr)) {
-            if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
-                continue;
-            }
-            commit_queue->enqueue(std::move(txn_ptr));
-        }
-        commit_queue->enqueue(nullptr);
-
-        if(epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr)) {
-            if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
-                return ;
+    void Merger::EpochCommit_Block() {
+        while (!EpochManager::IsTimerStop()) {
+            commit_queue->wait_dequeue(txn_ptr);
+            if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
+                return;
             }
             epoch = txn_ptr->commit_epoch();
             ///validation phase
             if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
                 auto key = std::to_string(txn_ptr->client_txn_id());
-                abort_txn_set.insert(key,key);
+                abort_txn_set.insert(key, key);
                 MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Abort);
-            }
-            else {
+            } else {
                 epoch_record_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
                 CRDTMerge::Commit(ctx, *(txn_ptr));
                 RedoLoger::RedoLog(ctx, *(txn_ptr));
@@ -237,49 +262,6 @@ namespace Taas {
             epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
         }
     }
-
-    void Merger::EpochCommit_CommitQueue_Block() {
-        while(!EpochManager::IsTimerStop()) {
-            commit_queue->wait_dequeue(txn_ptr);
-            if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) continue;
-            epoch = txn_ptr->commit_epoch();
-            if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
-                auto key = std::to_string(txn_ptr->client_txn_id());
-                abort_txn_set.insert(key,key);
-                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Abort);
-            }
-            else {
-                epoch_record_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                CRDTMerge::Commit(ctx, *(txn_ptr));
-                RedoLoger::RedoLog(ctx, *(txn_ptr));
-                epoch_record_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
-            }
-            epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-
-            epoch_mod = epoch % ctx.kCacheMaxLength;
-            while(epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr)) {
-                if(txn_ptr == nullptr) continue;
-                commit_queue->enqueue(std::move(txn_ptr));
-                commit_queue->enqueue(nullptr);
-            }
-            while(commit_queue->try_dequeue(txn_ptr)) {
-                if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) continue;
-                epoch = txn_ptr->commit_epoch();
-                if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
-                    auto key = std::to_string(txn_ptr->client_txn_id());
-                    abort_txn_set.insert(key,key);
-                    MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Abort);
-                }
-                else {
-                    epoch_record_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                    CRDTMerge::Commit(ctx, *(txn_ptr));
-                    RedoLoger::RedoLog(ctx, *(txn_ptr));
-                    epoch_record_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                    MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
-                }
-                epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-            }
 
 /////          不对分片事务进行commit处理
 //            epoch_mod = epoch % ctx.kCacheMaxLength;
@@ -287,8 +269,5 @@ namespace Taas {
 //                epoch = txn_ptr->commit_epoch();
 //                epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
 //            }
-        }
-
-    }
 
 }

@@ -50,7 +50,7 @@ namespace Taas {
 
         ///queues
         static std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> task_queue;
-//        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> merge_queue;///merge_queue 存放需要进行merge的子事务 不区分epoch
+        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> merge_queue;///merge_queue 存放需要进行merge的子事务 不区分epoch
         static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> commit_queue;
         static std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
                 epoch_merge_queue,///merge_queue 存放需要进行merge的子事务 不区分epoch
@@ -68,9 +68,19 @@ namespace Taas {
         void Init(const Context& ctx_, uint64_t id);
 
         static bool EpochMerge(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
-        void EpochCommit_EpochLocalTxnQueue_Usleep();
-        void EpochCommit_CommitQueue_Block();
-        void EpochCommit_CommitQueue();
+        void EpochMerge_Usleep();
+        void EpochMerge_Block();
+        void EpochCommit_Usleep();
+        void EpochCommit_Block();
+
+        static void MergeQueueEnqueue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
+        static bool MergeQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
+        static void CommitQueueEnqueue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
+        static bool CommitQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
+        static void LocalTxnCommitQueueEnqueue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
+        static bool LocalTxnCommitQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
+
+
 
 
         static bool CheckEpochMergeComplete(const Context &ctx, uint64_t& epoch) {
@@ -133,16 +143,7 @@ namespace Taas {
             return epoch_record_commit_txn_num.GetCount(epoch, server_id) <= epoch_record_committed_txn_num.GetCount(epoch, server_id);
         }
 
-        static void MergeQueueEnqueue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
-        static bool MergeQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
 
-        static void LocalTxnCommitQueueEnqueue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
-        static bool LocalTxnCommitQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
-
-        static void CommitQueueEnqueue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
-        static bool CommitQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
-
-        void EpochMerge_MergeQueue_Usleep();
     };
 }
 

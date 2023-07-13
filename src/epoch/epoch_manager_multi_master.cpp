@@ -28,6 +28,7 @@ namespace Taas {
                 ) {
             EpochManager::SetShardingMergeComplete(i, true);
             merge_epoch.fetch_add(1);
+            LOG(INFO) << "finished epoch merge epoch : " << i;
             i ++;
             res = true;
         }
@@ -42,6 +43,7 @@ namespace Taas {
             /// in multi master mode, there is no need to send and merge sharding abort set
             EpochManager::SetAbortSetMergeComplete(i, true);
             abort_set_epoch.fetch_add(1);
+            LOG(INFO) << "finished abort set merge epoch : " << i;
             return true;
         }
         return false;
@@ -57,7 +59,7 @@ namespace Taas {
             EpochManager::SetCommitComplete(i, true);
             //            RedoLoger::GeneratePushDownTask(ctx, i);
             total_commit_txn_num += Merger::epoch_record_committed_txn_num.GetCount(i);
-
+            LOG(INFO) << PrintfToString("*************       完成一个Epoch的合并     Epoch: %8lu ClearEpoch: %8lu *************\n", i, clear_epoch.load());
             if(i % ctx.print_mode_size == 0) {
                 auto res = PrintfToString("*************       完成一个Epoch的合并     Epoch: %8lu ClearEpoch: %8lu *************\n", i, clear_epoch.load());
                 res += PrintfToString("commit txn total number %lu\n", total_commit_txn_num);

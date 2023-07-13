@@ -85,6 +85,9 @@ namespace Taas {
         doc.LoadFile(config_file_path.c_str());
         auto* root=doc.RootElement();
 
+        tinyxml2::XMLElement* mot = root->FirstChildElement("is_mot_enable");
+        is_mot_enable = std::stoull(mot->GetText());
+
         tinyxml2::XMLElement* tikv = root->FirstChildElement("is_tikv_enable");
         is_tikv_enable = std::stoull(tikv->GetText());
         tinyxml2::XMLElement *ip_port= root->FirstChildElement("tikv_ip");

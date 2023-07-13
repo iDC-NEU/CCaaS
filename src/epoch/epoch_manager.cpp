@@ -158,7 +158,7 @@ namespace Taas {
         merge_num                    %6lu, time          %lu \n",
        s.c_str(),
        EpochManager::GetPhysicalEpoch(),                                                  EpochManager::GetLogicalEpoch(),
-       MOT::GetPushedDownMOTEpoch(),                                                EpochManager::GetPushDownEpoch(),
+       MOT::pushed_down_mot_epoch.load(),                                                EpochManager::GetPushDownEpoch(),
        merge_epoch.load(), abort_set_epoch.load(), commit_epoch.load(), redo_log_epoch.load(),clear_epoch.load(),
        epoch_mod,                                                                         EpochManager::GetPhysicalEpoch() - EpochManager::GetLogicalEpoch(),
        (uint64_t)MessageReceiveHandler::IsShardingPackReceiveComplete(ctx, epoch_mod),(uint64_t)MessageReceiveHandler::IsShardingTxnReceiveComplete(ctx, epoch_mod),
@@ -197,6 +197,7 @@ namespace Taas {
            EpochManager::IsCommitComplete(i) &&
            RedoLoger::CheckPushDownComplete(ctx, i) &&
            MessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) {
+            LOG(INFO) << PrintfToString("=-=-=-=-=-=-=完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", commit_epoch.load(), i);
             if(i % ctx.print_mode_size == 0) {
                 printf("=-=-=-=-=-=-=完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", commit_epoch.load(), i);
             }
@@ -274,8 +275,9 @@ namespace Taas {
             usleep(GetSleeptime(ctx));
             EpochManager::AddPhysicalEpoch();
             epoch_ ++;
+            logical = EpochManager::GetLogicalEpoch();
+            LOG(INFO) << "Start Physical epoch : " << epoch_ << ", logical : " << logical;
             if(epoch_ % ctx.print_mode_size == 0) {
-                logical = EpochManager::GetLogicalEpoch();
                 OUTPUTLOG(ctx, "=============start Epoch============= ", logical);
             }
             EpochManager::EpochCacheSafeCheck();

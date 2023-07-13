@@ -19,18 +19,10 @@ namespace Taas {
     class MessageReceiveHandler{
     public:
         bool Init(const Context& ctx_, uint64_t id);
+
+        void HandleReceivedMessage();
         bool SetMessageRelatedCountersInfo();
-
-        bool HandleReceivedEpochMessage();
-        void HandleReceivedEpochMessage_Usleep();
-        void HandleReceivedEpochMessage_Block();
-
-        bool HandleReceivedTxnMessage();
-        void HandleReceivedTxnMessage_Usleep();
-        void HandleReceivedTxnMessage_Block();
-
         bool HandleReceivedTxn();
-
         bool HandleClientTxn();
         bool UpdateEpochAbortSet();
         bool CheckReceivedStatesAndReply();

@@ -246,7 +246,6 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
                 auto str_copy = std::make_unique<std::string>(*serialized_txn_str_ptr);
                 MessageQueue::send_to_server_queue->enqueue( std::make_unique<send_params>(i, 0, "", abort_sent_epoch, proto::TxnType::AbortSet,std::move(str_copy), nullptr));
             }
-//                printf("send epoch abort set flag epoch %lu\n",epoch);
             MessageQueue::send_to_server_queue->enqueue( std::make_unique<send_params>(0, 0, "", abort_sent_epoch, proto::TxnType::NullMark, nullptr, nullptr));
             abort_sent_epoch ++;
             sleep_flag = true;

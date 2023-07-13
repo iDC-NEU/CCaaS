@@ -45,5 +45,12 @@ namespace Taas {
         SendServerThreadMain(ctx);
     }
 
+    void WorkerForStorageSendThreadMain(const Context& ctx) {
+        std::string name = "EpochStorageSend";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
+        SendStoragePUBThreadMain(ctx);
+    }
+
 }
 

@@ -174,138 +174,24 @@ namespace Taas {
         return true;
     }
 
-    bool MessageReceiveHandler::StaticClear(const Context& ctx, uint64_t& epoch) {
-//        printf("clean receive cache epoch %lu\n", epoch);
-        auto cache_clear_epoch_num_mod = epoch % ctx.kCacheMaxLength;
-        sharding_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
-        sharding_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
-
-        sharding_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-//        sharding_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, PACKNUM),
-        sharding_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-
-        sharding_should_handle_local_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-        sharding_handled_local_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-        sharding_should_handle_remote_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-        sharding_handled_remote_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-
-
-
-        sharding_should_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-        sharding_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-
-        sharding_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
-
-        backup_should_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-        backup_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-
-        backup_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
-        backup_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
-        backup_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-//        backup_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, PACKNUM),
-        backup_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
-        backup_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
-
-        insert_set_should_receive_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
-        insert_set_received_num.Clear(cache_clear_epoch_num_mod, 0),
-        insert_set_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
-
-        abort_set_should_receive_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
-        abort_set_received_num.Clear(cache_clear_epoch_num_mod, 0);
-        abort_set_received_ack_num.Clear(cache_clear_epoch_num_mod, 0);
-
-        redo_log_push_down_ack_num.Clear(cache_clear_epoch_num_mod, 0);
-        redo_log_push_down_local_epoch.Clear(cache_clear_epoch_num_mod, 0);
-
-        epoch_sharding_send_complete[cache_clear_epoch_num_mod]->store(false);
-        epoch_sharding_receive_complete[cache_clear_epoch_num_mod]->store(false);
-        epoch_back_up_complete[cache_clear_epoch_num_mod]->store(false);
-        epoch_abort_set_merge_complete[cache_clear_epoch_num_mod]->store(false);
-        epoch_insert_set_complete[cache_clear_epoch_num_mod]->store(false);
-
-        auto txn = std::make_unique<proto::Transaction>();
-        while (epoch_remote_sharding_txn[cache_clear_epoch_num_mod]->try_dequeue(txn));
-        txn = std::make_unique<proto::Transaction>();
-        while (epoch_local_txn[cache_clear_epoch_num_mod]->try_dequeue(txn));
-        txn = std::make_unique<proto::Transaction>();
-        while (epoch_backup_txn[cache_clear_epoch_num_mod]->try_dequeue(txn));
-        txn = std::make_unique<proto::Transaction>();
-        while (epoch_insert_set[cache_clear_epoch_num_mod]->try_dequeue(txn));
-        txn = std::make_unique<proto::Transaction>();
-        while (epoch_abort_set[cache_clear_epoch_num_mod]->try_dequeue(txn));
-        return true;
-    }
-
-
-
-
-
-    bool MessageReceiveHandler::HandleClientTxn() {
-        if(ctx.taas_mode == TaasMode::Sharding) {
-            std::vector<std::unique_ptr<proto::Transaction>> sharding_row_vector;
-            for(uint64_t i = 0; i < sharding_num; i ++) {
-                sharding_row_vector.emplace_back(std::make_unique<proto::Transaction>());
-                sharding_row_vector[i]->set_csn(txn_ptr->csn());
-                sharding_row_vector[i]->set_commit_epoch(txn_ptr->commit_epoch());
-                sharding_row_vector[i]->set_server_id(txn_ptr->server_id());
-                sharding_row_vector[i]->set_client_ip(txn_ptr->client_ip());
-                sharding_row_vector[i]->set_client_txn_id(txn_ptr->client_txn_id());
-                sharding_row_vector[i]->set_sharding_id(i);
-            }
-            for(auto i = 0; i < txn_ptr->row_size(); i ++) {
-                const auto& row = txn_ptr->row(i);
-                auto row_ptr = sharding_row_vector[GetHashValue(row.key())]->add_row();
-                (*row_ptr) = row;
-            }
-            for(uint64_t i = 0; i < sharding_num; i ++) {
-                if(sharding_row_vector[i]->row_size() > 0) {
-                    ///sharding sending
-                    if(i == ctx.txn_node_ip_index) {
-                        continue;
-                    }
-                    else {
-                        sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
-                        MessageSendHandler::SendTxnToServer(ctx, message_epoch, i, *(sharding_row_vector[i]), proto::TxnType::RemoteServerTxn);
-                        sharding_send_txn_num.IncCount(message_epoch, i, 1);
-                    }
-                }
-            }
-            if(sharding_row_vector[ctx.txn_node_ip_index]->row_size() > 0) {
-                ///read version check need to wait until last epoch has committed.
-                Merger::epoch_merge_queue[message_epoch_mod]->enqueue(std::move(sharding_row_vector[ctx.txn_node_ip_index]));
-                Merger::epoch_merge_queue[message_epoch_mod]->enqueue(nullptr);
-//            res = Merger::EpochMerge(ctx, message_epoch, std::move(sharding_row_vector[ctx.txn_node_ip_index]));
-//            if(!res) {
-//                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(sharding_row_vector[ctx.txn_node_ip_index]), proto::TxnState::Abort);
-//            }
+    void MessageReceiveHandler::HandleReceivedMessage() {
+        while(!EpochManager::IsTimerStop()) {
+            MessageQueue::listen_message_queue->wait_dequeue(message_ptr);
+            if (message_ptr->empty()) continue;
+            message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
+                                                               message_ptr->size());
+            msg_ptr = std::make_unique<proto::Message>();
+            res = UnGzip(msg_ptr.get(), message_string_ptr.get());
+            assert(res);
+            if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
+                txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
+                SetMessageRelatedCountersInfo();
+                HandleReceivedTxn();
+            } else {
+                MessageQueue::request_queue->enqueue(std::move(msg_ptr));
+                MessageQueue::request_queue->enqueue(nullptr);
             }
         }
-        else if(ctx.taas_mode == TaasMode::MultiMaster) {
-            sharding_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-            MessageSendHandler::SendTxnToServer(ctx, message_epoch, ctx.txn_node_ip_index, *(txn_ptr), proto::TxnType::RemoteServerTxn);
-            Merger::epoch_merge_queue[message_epoch_mod]->enqueue(std::make_unique<proto::Transaction>(*txn_ptr));
-            Merger::epoch_merge_queue[message_epoch_mod]->enqueue(nullptr);
-            sharding_send_txn_num.IncCount(message_epoch, 0, 1);
-        }
-
-        {///backup sending full txn
-            backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-            MessageSendHandler::SendTxnToServer(ctx, message_epoch, message_server_id, *(txn_ptr), proto::TxnType::BackUpTxn);
-            backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-
-            epoch_backup_txn[message_epoch_mod]->enqueue(std::make_unique<proto::Transaction>(*txn_ptr));
-            epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
-        }
-        return true;
-    }
-
-    bool MessageReceiveHandler::UpdateEpochAbortSet() {
-        message_epoch = txn_ptr->commit_epoch();
-        message_epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
-        for(int i = 0; i < txn_ptr->row_size(); i ++) {
-            Merger::epoch_insert_set[message_epoch_mod]->insert(txn_ptr->row(i).key(), txn_ptr->row(i).data());
-        }
-        return true;
     }
 
     bool MessageReceiveHandler::SetMessageRelatedCountersInfo() {
@@ -417,134 +303,136 @@ namespace Taas {
         return true;
     }
 
+    bool MessageReceiveHandler::StaticClear(const Context& ctx, uint64_t& epoch) {
+//        printf("clean receive cache epoch %lu\n", epoch);
+        auto cache_clear_epoch_num_mod = epoch % ctx.kCacheMaxLength;
+        sharding_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
+                sharding_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
+
+                sharding_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+//        sharding_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, PACKNUM),
+                sharding_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+
+                sharding_should_handle_local_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+                sharding_handled_local_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+                sharding_should_handle_remote_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+                sharding_handled_remote_txn_num.Clear(cache_clear_epoch_num_mod, 0),
 
 
-    bool MessageReceiveHandler::HandleReceivedEpochMessage() {
-        if(MessageQueue::listen_message_epoch_queue->try_dequeue(message_ptr)) {
-            if (message_ptr->empty()) return true;
-            message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
-                                                               message_ptr->size());
-            msg_ptr = std::make_unique<proto::Message>();
-            res = UnGzip(msg_ptr.get(), message_string_ptr.get());
-            assert(res);
-            if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
-                txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
-                SetMessageRelatedCountersInfo();
-                HandleReceivedTxn();
-            } else {
-                MessageQueue::request_queue->enqueue(std::move(msg_ptr));
-                MessageQueue::request_queue->enqueue(nullptr);
-            }
-            return true;
-        }
-        return false;
+
+                sharding_should_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+                sharding_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+
+                sharding_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
+
+                backup_should_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+                backup_send_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+
+                backup_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
+                backup_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
+                backup_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+//        backup_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, PACKNUM),
+                backup_received_txn_num.Clear(cache_clear_epoch_num_mod, 0),
+                backup_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
+
+                insert_set_should_receive_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
+                insert_set_received_num.Clear(cache_clear_epoch_num_mod, 0),
+                insert_set_received_ack_num.Clear(cache_clear_epoch_num_mod, 0),
+
+                abort_set_should_receive_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
+                abort_set_received_num.Clear(cache_clear_epoch_num_mod, 0);
+        abort_set_received_ack_num.Clear(cache_clear_epoch_num_mod, 0);
+
+        redo_log_push_down_ack_num.Clear(cache_clear_epoch_num_mod, 0);
+        redo_log_push_down_local_epoch.Clear(cache_clear_epoch_num_mod, 0);
+
+        epoch_sharding_send_complete[cache_clear_epoch_num_mod]->store(false);
+        epoch_sharding_receive_complete[cache_clear_epoch_num_mod]->store(false);
+        epoch_back_up_complete[cache_clear_epoch_num_mod]->store(false);
+        epoch_abort_set_merge_complete[cache_clear_epoch_num_mod]->store(false);
+        epoch_insert_set_complete[cache_clear_epoch_num_mod]->store(false);
+
+        auto txn = std::make_unique<proto::Transaction>();
+        while (epoch_remote_sharding_txn[cache_clear_epoch_num_mod]->try_dequeue(txn));
+        txn = std::make_unique<proto::Transaction>();
+        while (epoch_local_txn[cache_clear_epoch_num_mod]->try_dequeue(txn));
+        txn = std::make_unique<proto::Transaction>();
+        while (epoch_backup_txn[cache_clear_epoch_num_mod]->try_dequeue(txn));
+        txn = std::make_unique<proto::Transaction>();
+        while (epoch_insert_set[cache_clear_epoch_num_mod]->try_dequeue(txn));
+        txn = std::make_unique<proto::Transaction>();
+        while (epoch_abort_set[cache_clear_epoch_num_mod]->try_dequeue(txn));
+        return true;
     }
 
-    void MessageReceiveHandler::HandleReceivedEpochMessage_Usleep() {
-        while(!EpochManager::IsTimerStop()) {
-            if(MessageQueue::listen_message_epoch_queue->try_dequeue(message_ptr)) {
-                if (message_ptr->empty()) continue;
-                message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
-                                                                   message_ptr->size());
-                msg_ptr = std::make_unique<proto::Message>();
-                res = UnGzip(msg_ptr.get(), message_string_ptr.get());
-                assert(res);
-                if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
-                    txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
-                    SetMessageRelatedCountersInfo();
-                    HandleReceivedTxn();
-                } else {
-                    MessageQueue::request_queue->enqueue(std::move(msg_ptr));
-                    MessageQueue::request_queue->enqueue(nullptr);
+
+
+    bool MessageReceiveHandler::HandleClientTxn() {
+        if(ctx.taas_mode == TaasMode::Sharding) {
+            std::vector<std::unique_ptr<proto::Transaction>> sharding_row_vector;
+            for(uint64_t i = 0; i < sharding_num; i ++) {
+                sharding_row_vector.emplace_back(std::make_unique<proto::Transaction>());
+                sharding_row_vector[i]->set_csn(txn_ptr->csn());
+                sharding_row_vector[i]->set_commit_epoch(txn_ptr->commit_epoch());
+                sharding_row_vector[i]->set_server_id(txn_ptr->server_id());
+                sharding_row_vector[i]->set_client_ip(txn_ptr->client_ip());
+                sharding_row_vector[i]->set_client_txn_id(txn_ptr->client_txn_id());
+                sharding_row_vector[i]->set_sharding_id(i);
+            }
+            for(auto i = 0; i < txn_ptr->row_size(); i ++) {
+                const auto& row = txn_ptr->row(i);
+                auto row_ptr = sharding_row_vector[GetHashValue(row.key())]->add_row();
+                (*row_ptr) = row;
+            }
+            for(uint64_t i = 0; i < sharding_num; i ++) {
+                if(sharding_row_vector[i]->row_size() > 0) {
+                    ///sharding sending
+                    if(i == ctx.txn_node_ip_index) {
+                        continue;
+                    }
+                    else {
+                        sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
+                        MessageSendHandler::SendTxnToServer(ctx, message_epoch, i, *(sharding_row_vector[i]), proto::TxnType::RemoteServerTxn);
+                        sharding_send_txn_num.IncCount(message_epoch, i, 1);
+                    }
                 }
-            } else {
-                usleep(sleep_time);
+            }
+            if(sharding_row_vector[ctx.txn_node_ip_index]->row_size() > 0) {
+                ///read version check need to wait until last epoch has committed.
+                Merger::epoch_merge_queue[message_epoch_mod]->enqueue(std::move(sharding_row_vector[ctx.txn_node_ip_index]));
+                Merger::epoch_merge_queue[message_epoch_mod]->enqueue(nullptr);
+//            res = Merger::EpochMerge(ctx, message_epoch, std::move(sharding_row_vector[ctx.txn_node_ip_index]));
+//            if(!res) {
+//                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(sharding_row_vector[ctx.txn_node_ip_index]), proto::TxnState::Abort);
+//            }
             }
         }
+        else if(ctx.taas_mode == TaasMode::MultiMaster) {
+            sharding_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+            MessageSendHandler::SendTxnToServer(ctx, message_epoch, ctx.txn_node_ip_index, *(txn_ptr), proto::TxnType::RemoteServerTxn);
+            Merger::epoch_merge_queue[message_epoch_mod]->enqueue(std::make_unique<proto::Transaction>(*txn_ptr));
+            Merger::epoch_merge_queue[message_epoch_mod]->enqueue(nullptr);
+            sharding_send_txn_num.IncCount(message_epoch, 0, 1);
+        }
+
+        {///backup sending full txn
+            backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+            MessageSendHandler::SendTxnToServer(ctx, message_epoch, message_server_id, *(txn_ptr), proto::TxnType::BackUpTxn);
+            backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+
+            epoch_backup_txn[message_epoch_mod]->enqueue(std::make_unique<proto::Transaction>(*txn_ptr));
+            epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
+        }
+        return true;
     }
 
-    void MessageReceiveHandler::HandleReceivedEpochMessage_Block() {
-        while(!EpochManager::IsTimerStop()) {
-            MessageQueue::listen_message_epoch_queue->wait_dequeue(message_ptr);
-            if (message_ptr->empty()) continue;
-            message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
-                                                               message_ptr->size());
-            msg_ptr = std::make_unique<proto::Message>();
-            res = UnGzip(msg_ptr.get(), message_string_ptr.get());
-            assert(res);
-            if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
-                txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
-                SetMessageRelatedCountersInfo();
-                HandleReceivedTxn();
-            } else {
-                MessageQueue::request_queue->enqueue(std::move(msg_ptr));
-                MessageQueue::request_queue->enqueue(nullptr);
-            }
+    bool MessageReceiveHandler::UpdateEpochAbortSet() {
+        message_epoch = txn_ptr->commit_epoch();
+        message_epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
+        for(int i = 0; i < txn_ptr->row_size(); i ++) {
+            Merger::epoch_insert_set[message_epoch_mod]->insert(txn_ptr->row(i).key(), txn_ptr->row(i).data());
         }
-    }
-
-    bool MessageReceiveHandler::HandleReceivedTxnMessage() {
-        if (MessageQueue::listen_message_txn_queue->try_dequeue(message_ptr)) {
-            if (message_ptr->empty()) return true;
-            message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
-                                                                    message_ptr->size());
-            msg_ptr = std::make_unique<proto::Message>();
-            res = UnGzip(msg_ptr.get(), message_string_ptr.get());
-            assert(res);
-            if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
-                txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
-                SetMessageRelatedCountersInfo();
-                HandleReceivedTxn();
-            } else {
-                MessageQueue::request_queue->enqueue(std::move(msg_ptr));
-                MessageQueue::request_queue->enqueue(nullptr);
-            }
-            return true;
-        }
-        return false;
-    }
-
-    void MessageReceiveHandler::HandleReceivedTxnMessage_Usleep() {
-        while (!EpochManager::IsTimerStop()) {
-            if (MessageQueue::listen_message_txn_queue->try_dequeue(message_ptr)) {
-                if (message_ptr->empty()) continue;
-                message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
-                                                                   message_ptr->size());
-                msg_ptr = std::make_unique<proto::Message>();
-                res = UnGzip(msg_ptr.get(), message_string_ptr.get());
-                assert(res);
-                if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
-                    txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
-                    SetMessageRelatedCountersInfo();
-                    HandleReceivedTxn();
-                } else {
-                    MessageQueue::request_queue->enqueue(std::move(msg_ptr));
-                    MessageQueue::request_queue->enqueue(nullptr);
-                }
-            } else {
-                usleep(sleep_time);
-            }
-        }
-    }
-
-    void MessageReceiveHandler::HandleReceivedTxnMessage_Block() {
-        while(!EpochManager::IsTimerStop()) {
-            MessageQueue::listen_message_txn_queue->wait_dequeue(message_ptr);
-            if (message_ptr->empty()) return;
-            message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
-                                                               message_ptr->size());
-            msg_ptr = std::make_unique<proto::Message>();
-            res = UnGzip(msg_ptr.get(), message_string_ptr.get());
-            assert(res);
-            if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
-                txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
-                SetMessageRelatedCountersInfo();
-                HandleReceivedTxn();
-            } else {
-                MessageQueue::request_queue->enqueue(std::move(msg_ptr));
-                MessageQueue::request_queue->enqueue(nullptr);
-            }
-        }
+        return true;
     }
 
 

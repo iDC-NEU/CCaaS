@@ -10,6 +10,20 @@
 #include "storage/mot.h"
 
 namespace Taas {
+
+    void WorkerFroMOTStorageThreadMain(const Context& ctx, uint64_t id) {
+        std::string name = "EpochMOT";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while (!EpochManager::IsTimerStop()) {
+            if(id < 5)
+                MOT::SendTransactionToDB_Usleep();
+            else
+                MOT::SendTransactionToDB_Block();
+        }
+        ///EpochManager::CheckRedoLogPushDownState(); in this function
+    }
+
     void WorkerFroTiKVStorageThreadMain(const Context& ctx, uint64_t id) {
         std::string name = "EpochTikv-" + std::to_string(id);
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
@@ -18,9 +32,12 @@ namespace Taas {
         auto txn_ptr = std::make_unique<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
-            TiKV::SendTransactionToDB_Usleep();
-//                TiKV::SendTransactionToTiKV_Block();
-            usleep(sleep_time);
+            while (!EpochManager::IsTimerStop()) {
+                if(id < 5)
+                    TiKV::SendTransactionToDB_Usleep();
+                else
+                    TiKV::SendTransactionToDB_Block();
+            }
         }
     }
 
@@ -50,13 +67,7 @@ namespace Taas {
         }
     }
 
-    void WorkerFroMOTStorageThreadMain() {
-        std::string name = "EpochMOT";
-        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
-        SetCPU();
-        MOT::SendToMOThreadMain_usleep(); ///EpochManager::CheckRedoLogPushDownState(); in this function
-//        MOT::SendToMOThreadMain();
-    }
+
 
 
 }
