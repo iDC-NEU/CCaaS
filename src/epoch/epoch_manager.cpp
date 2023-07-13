@@ -130,7 +130,7 @@ namespace Taas {
 
     void OUTPUTLOG(const Context& ctx, const string& s, uint64_t& epoch_){
         auto epoch_mod = epoch_ % EpochManager::max_length;
-        auto res = PrintfToString("%60s \n\
+        LOG(INFO) << PrintfToString("%60s \n\
         physical                     %6lu, logical                      %6lu,   \
         pushdown_mot                 %6lu, pushdownepoch                %6lu  \n\
         merge_epoch                  %6lu, abort_set_epoch              %6lu    \
@@ -186,8 +186,13 @@ namespace Taas {
 
        (uint64_t)0,
        now_to_us());
-
-        LOG(INFO) << res;
+            LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %8lu ClearEpoch: %8lu, SuccessTxnNumber %8lu, SuccessAvgLatency %lf, TotalCommitTxnNum %lu, TotalCommitlatency %8lu, TotalCommitAvglatency %f ************\n",
+                                        epoch_, clear_epoch.load(),
+                                        MessageSendHandler::TotalSuccessTxnNUm.load(), MessageSendHandler::TotalSuccessLatency.load(),
+                                        (((double)MessageSendHandler::TotalSuccessLatency.load()) / ((double)MessageSendHandler::TotalSuccessTxnNUm.load())),
+                                        MessageSendHandler::TotalTxnNum.load(),///receive from client
+                                        MessageSendHandler::TotalLatency.load(),
+                                        (((double)MessageSendHandler::TotalLatency.load()) / ((double)MessageSendHandler::TotalTxnNum.load())));
     }
 
     bool CheckRedoLogPushDownState(const Context& ctx) {
@@ -283,6 +288,7 @@ namespace Taas {
             }
             EpochManager::EpochCacheSafeCheck();
         }
+        OUTPUTLOG(ctx, "============= Epoch INFO ============= ", logical);
         LOG(INFO) << "Start Physical epoch : " << epoch_ << ", logical : " << logical << "Time : " << now_to_us() - startTime;
         printf("EpochTimerManager End!!!\n");
     }

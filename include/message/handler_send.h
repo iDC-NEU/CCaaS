@@ -18,7 +18,7 @@ namespace Taas {
 
     class MessageSendHandler {
     public:
-        static std::atomic<uint64_t> TotalLatency, TotalTxnNum;
+        static std::atomic<uint64_t> TotalLatency, TotalTxnNum, TotalSuccessTxnNUm, TotalSuccessLatency;
         static bool SendTxnCommitResultToClient(const Context& ctx, proto::Transaction& txn, proto::TxnState txn_state);
         static bool SendTxnToServer(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn, proto::TxnType txn_type);
         static bool SendRemoteServerTxn(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn, proto::TxnType txn_type);

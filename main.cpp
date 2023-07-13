@@ -46,7 +46,6 @@ namespace Taas {
             EpochManager epochManager;
             Taas::EpochManager::ctx = ctx;
             threads.push_back(std::make_unique<std::thread>(WorkerForPhysicalThreadMain, ctx));
-
 //        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalThreadMain, ctx));
             threads.push_back(std::make_unique<std::thread>(WorkerForLogicalTxnMergeCheckThreadMain, ctx));
             threads.push_back(std::make_unique<std::thread>(WorkerForLogicalAbortSetMergeCheckThreadMain, ctx));
@@ -101,12 +100,10 @@ namespace Taas {
             usleep(ctx.kDurationTime_us);
             EpochManager::SetTimerStop(true);
         }
-//        else {
-//            std::signal(SIGINT, signalHandler);
-//        }
-        for(auto &i : threads) {
-            i->join();
+        else {
+            std::signal(SIGINT, signalHandler);
         }
+        threads[0]->join();
         google::ShutdownGoogleLogging();
         std::cout << "============================================================================" << std::endl;
         std::cout << "=====================              END                 =====================" << std::endl;

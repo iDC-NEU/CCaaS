@@ -44,6 +44,8 @@ namespace Taas {
         kCacheMaxLength = std::stoull(cachemaxlength->GetText());
         tinyxml2::XMLElement* merge_thread_num = root->FirstChildElement("worker_thread_num");
         kWorkerThreadNum = std::stoull(merge_thread_num->GetText());
+        tinyxml2::XMLElement* usleep_thread_num = root->FirstChildElement("usleep_thread_num");
+        kUsleepThreadNum = std::stoull(usleep_thread_num->GetText());
 
         tinyxml2::XMLElement* duration_time = root->FirstChildElement("duration_time_us");
         kDurationTime_us = std::stoull(duration_time->GetText());
