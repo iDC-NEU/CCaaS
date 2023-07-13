@@ -66,13 +66,13 @@ namespace Taas {
             LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %lu, EpochSuccessCommitTxnNum: %lu, EpochCommitTxnNum: %lu ************\n",
                                         i, epoch_commit_success_txn_num, MessageSendHandler::TotalTxnNum.load() - last_total_commit_txn_num);
             if(i % ctx.print_mode_size == 0) {
-                LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %8lu ClearEpoch: %lu, SuccessTxnNumber %lu, SuccessAvgLatency %lf, TotalCommitTxnNum %lu, TotalCommitlatency %lu, TotalCommitAvglatency %lf ************\n",
-                                          i, clear_epoch.load(),
-                                          MessageSendHandler::TotalSuccessTxnNUm.load(), MessageSendHandler::TotalSuccessLatency.load(),
-                                          (((double)MessageSendHandler::TotalSuccessLatency.load()) / ((double)MessageSendHandler::TotalSuccessTxnNUm.load())),
-                                          MessageSendHandler::TotalTxnNum.load(),///receive from client
-                                          MessageSendHandler::TotalLatency.load(),
-                                          (((double)MessageSendHandler::TotalLatency.load()) / ((double)MessageSendHandler::TotalTxnNum.load())));
+                LOG(INFO) << PrintfToString("Epoch: %lu ClearEpoch: %lu, SuccessTxnNumber %lu, ToTalSuccessLatency %lu, SuccessAvgLatency %lf, TotalCommitTxnNum %lu, TotalCommitlatency %lu, TotalCommitAvglatency %lf ************\n",
+                                            i, clear_epoch.load(),
+                                            MessageSendHandler::TotalSuccessTxnNUm.load(), MessageSendHandler::TotalSuccessLatency.load(),
+                                            (((double)MessageSendHandler::TotalSuccessLatency.load()) / ((double)MessageSendHandler::TotalSuccessTxnNUm.load())),
+                                            MessageSendHandler::TotalTxnNum.load(),///receive from client
+                                            MessageSendHandler::TotalLatency.load(),
+                                            (((double)MessageSendHandler::TotalLatency.load()) / ((double)MessageSendHandler::TotalTxnNum.load())));
             }
             last_total_commit_txn_num = MessageSendHandler::TotalTxnNum.load();
             i ++;
