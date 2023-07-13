@@ -66,7 +66,7 @@ namespace Taas {
                 case TaasMode::MultiMaster :
                 case TaasMode::Sharding : {
                     while(!EpochManager::IsTimerStop()) {
-                        if(id < 5)
+                        if(id < ctx.kUsleepThreadNum)
                             merger.EpochMerge_Usleep();
                         else
                             merger.EpochMerge_Block();
@@ -92,7 +92,7 @@ namespace Taas {
             case TaasMode::MultiMaster :
             case TaasMode::Sharding : {
                 while(!EpochManager::IsTimerStop()) {
-                    if(id < 5)
+                    if(id < ctx.kUsleepThreadNum)
                         merger.EpochCommit_Usleep();
                     else
                         merger.EpochCommit_Block();

@@ -74,7 +74,7 @@ namespace Taas {
                 Gzip(push_msg.get(), serialized_pull_resp_str.get());
                 MessageQueue::send_to_storage_queue->enqueue(std::make_unique<send_params>(0, 0,
                        "", epoch, proto::TxnType::CommittedTxn, std::move(serialized_pull_resp_str), nullptr));
-                epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);
+                epoch_pushed_down_txn_num.IncCount(epoch, epoch, 1);
                 sleep_flag = false;
             }
         }
@@ -101,8 +101,9 @@ namespace Taas {
             ptr = txn_ptr.release();
             auto serialized_pull_resp_str = std::make_unique<std::string>();
             Gzip(push_msg.get(), serialized_pull_resp_str.get());
-            MessageQueue::send_to_storage_queue->enqueue(std::make_unique<send_params>(0, 0,"", epoch,proto::TxnType::CommittedTxn,std::move(serialized_pull_resp_str),nullptr));
-            epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);
+            MessageQueue::send_to_storage_queue->enqueue(std::make_unique<send_params>(0, 0,
+                   "", epoch,proto::TxnType::CommittedTxn,std::move(serialized_pull_resp_str),nullptr));
+            epoch_pushed_down_txn_num.IncCount(epoch, epoch, 1);
         }
     }
 

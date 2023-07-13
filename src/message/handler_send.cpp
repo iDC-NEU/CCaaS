@@ -60,8 +60,8 @@ bool MessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::
         TotalLatency.fetch_add(tim);
         TotalTxnNum.fetch_add(1);
         if(txn_state == proto::TxnState::Commit) {
-            TotalSuccessTxnNUm.fetch_add(1);
             TotalSuccessLatency.fetch_add(tim);
+            TotalSuccessTxnNUm.fetch_add(1);
         }
 //        printf("Taas Totallatency %lu TotalNum %lu avg %f\n", TotalLatency.load(), TotalTxnNum.load(), (((double)TotalLatency.load()) / ((double)TotalTxnNum.load())));
         // 将序列化的Transaction放到send_to_client_queue中，等待发送给client

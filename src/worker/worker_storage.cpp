@@ -16,7 +16,7 @@ namespace Taas {
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
-            if(id < 5)
+            if(id < ctx.kUsleepThreadNum)
                 MOT::SendTransactionToDB_Usleep();
             else
                 MOT::SendTransactionToDB_Block();
@@ -33,7 +33,7 @@ namespace Taas {
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
             while (!EpochManager::IsTimerStop()) {
-                if(id < 5)
+                if(id < ctx.kUsleepThreadNum)
                     TiKV::SendTransactionToDB_Usleep();
                 else
                     TiKV::SendTransactionToDB_Block();
