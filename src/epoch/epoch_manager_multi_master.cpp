@@ -59,10 +59,10 @@ namespace Taas {
             EpochManager::SetCommitComplete(i, true);
             auto epoch_commit_success_txn_num = Merger::epoch_record_committed_txn_num.GetCount(i);
             total_commit_txn_num += epoch_commit_success_txn_num;///success
-            LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %8lu, EpochSuccessCommitTxnNum: %8lu, EpochCommitTxnNum: %8lu ************\n",
+            LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %lu, EpochSuccessCommitTxnNum: %lu, EpochCommitTxnNum: %lu ************\n",
                                         i, epoch_commit_success_txn_num, MessageSendHandler::TotalTxnNum.load() - last_total_commit_txn_num);
             if(i % ctx.print_mode_size == 0) {
-                LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %8lu ClearEpoch: %8lu, SuccessTxnNumber %8lu, SuccessAvgLatency %lf, TotalCommitTxnNum %lu, TotalCommitlatency %8lu, TotalCommitAvglatency %f ************\n",
+                LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %lu ClearEpoch: %lu, SuccessTxnNumber %lu, SuccessAvgLatency %lf, TotalCommitTxnNum %lu, TotalCommitlatency %lu, TotalCommitAvglatency %lf ************\n",
                                             i, clear_epoch.load(),
                                             MessageSendHandler::TotalSuccessTxnNUm.load(), MessageSendHandler::TotalSuccessLatency.load(),
                                             (((double)MessageSendHandler::TotalSuccessLatency.load()) / ((double)MessageSendHandler::TotalSuccessTxnNUm.load())),

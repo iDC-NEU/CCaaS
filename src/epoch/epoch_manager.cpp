@@ -185,7 +185,7 @@ namespace Taas {
        MessageReceiveHandler::insert_set_received_ack_num.GetCount(epoch_mod),      MessageReceiveHandler::abort_set_received_ack_num.GetCount(epoch_mod),
 
        (uint64_t)0,
-       now_to_us()) << PrintfToString("Epoch: %8lu ClearEpoch: %8lu, SuccessTxnNumber %8lu, SuccessAvgLatency %lf, TotalCommitTxnNum %lu, TotalCommitlatency %8lu, TotalCommitAvglatency %f ************\n",
+       now_to_us()) << PrintfToString("Epoch: %lu ClearEpoch: %lu, SuccessTxnNumber %lu, SuccessAvgLatency %lf, TotalCommitTxnNum %lu, TotalCommitlatency %lu, TotalCommitAvglatency %lf ************\n",
                                     epoch_, clear_epoch.load(),
                                     MessageSendHandler::TotalSuccessTxnNUm.load(), MessageSendHandler::TotalSuccessLatency.load(),
                                     (((double)MessageSendHandler::TotalSuccessLatency.load()) / ((double)MessageSendHandler::TotalSuccessTxnNUm.load())),
