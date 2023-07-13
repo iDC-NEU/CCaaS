@@ -197,9 +197,9 @@ namespace Taas {
            EpochManager::IsCommitComplete(i) &&
            RedoLoger::CheckPushDownComplete(ctx, i) &&
            MessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) {
-            LOG(INFO) << PrintfToString("=-=-=-=-=-=-=完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", commit_epoch.load(), i);
+            LOG(INFO) << PrintfToString("=-=-=-=-=-=-= 完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", commit_epoch.load(), i);
             if(i % ctx.print_mode_size == 0) {
-                printf("=-=-=-=-=-=-=完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", commit_epoch.load(), i);
+                printf("=-=-=-=-=-=-= 完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", commit_epoch.load(), i);
             }
             EpochManager::ClearMergeEpochState(i); //清空当前epoch的merge信息
             MessageReceiveHandler::StaticClear(ctx, i);//清空current epoch的receive cache num信息
@@ -221,7 +221,7 @@ namespace Taas {
             cache_server_available = 0;
         }
         uint64_t epoch = 1;
-        OUTPUTLOG(ctx, "=====start Epoch的合并===== ", epoch);
+        OUTPUTLOG(ctx, "===== Start Epoch的合并 ===== ", epoch);
         while(!EpochManager::IsTimerStop()){
 
 //            while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum) {
@@ -270,18 +270,20 @@ namespace Taas {
         test_start.store(true);
         is_epoch_advance_started.store(true);
 
-        printf("EpochTimerManager 同步完成，数据库开始正常运行\n");
+        printf("=============  EpochTimerManager 同步完成，数据库开始正常运行 ============= \n");
+        auto startTime = now_to_us();
         while(!EpochManager::IsTimerStop()){
             usleep(GetSleeptime(ctx));
             EpochManager::AddPhysicalEpoch();
             epoch_ ++;
             logical = EpochManager::GetLogicalEpoch();
-            LOG(INFO) << "Start Physical epoch : " << epoch_ << ", logical : " << logical;
+            LOG(INFO) << "============= Start Physical Epoch : " << epoch_ << ", logical : " << logical << "Time : " << now_to_us() - startTime << "=============\n";
             if(epoch_ % ctx.print_mode_size == 0) {
-                OUTPUTLOG(ctx, "=============start Epoch============= ", logical);
+                OUTPUTLOG(ctx, "============= Epoch INFO ============= ", logical);
             }
             EpochManager::EpochCacheSafeCheck();
         }
+        LOG(INFO) << "Start Physical epoch : " << epoch_ << ", logical : " << logical << "Time : " << now_to_us() - startTime;
         printf("EpochTimerManager End!!!\n");
     }
 
