@@ -100,10 +100,12 @@ namespace Taas {
             usleep(ctx.kDurationTime_us);
             EpochManager::SetTimerStop(true);
         }
-        else {
-            std::signal(SIGINT, signalHandler);
+//        else {
+//            std::signal(SIGINT, signalHandler);
+//        }
+        for(auto &i : threads) {
+            i->join();
         }
-        threads[0]->join();
         google::ShutdownGoogleLogging();
         std::cout << "============================================================================" << std::endl;
         std::cout << "=====================              END                 =====================" << std::endl;
