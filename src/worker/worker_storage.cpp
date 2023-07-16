@@ -49,8 +49,10 @@ namespace Taas {
         auto txn_ptr = std::make_unique<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
-            LevelDB::SendTransactionToDB_Usleep();
-            usleep(sleep_time);
+            if(id < ctx.kUsleepThreadNum)
+                TiKV::SendTransactionToDB_Usleep();
+            else
+                TiKV::SendTransactionToDB_Block();
         }
     }
 
@@ -62,12 +64,11 @@ namespace Taas {
         auto txn_ptr = std::make_unique<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
-            HBase::SendTransactionToDB_Usleep();
-            usleep(sleep_time);
+            if(id < ctx.kUsleepThreadNum)
+                TiKV::SendTransactionToDB_Usleep();
+            else
+                TiKV::SendTransactionToDB_Block();
         }
     }
-
-
-
 
 }
