@@ -6,9 +6,11 @@
 #include "epoch/epoch_manager.h"
 
 #include "proto/kvdb_server.pb.h"
+#include <glog/logging.h>
 
 namespace Taas {
     Context LevelDB::ctx;
+    std::atomic<uint64_t> LevelDB::total_commit_txn_num(0), LevelDB::success_commit_txn_num(0), LevelDB::failed_commit_txn_num(0);
     AtomicCounters_Cache
             LevelDB::epoch_should_push_down_txn_num(10, 1), LevelDB::epoch_pushed_down_txn_num(10, 1);
     std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>  LevelDB::task_queue, LevelDB::redo_log_queue;

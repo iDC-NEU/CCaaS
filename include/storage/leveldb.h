@@ -21,6 +21,7 @@ namespace Taas {
     class LevelDB {
     public:
         static Context ctx;
+        static std::atomic<uint64_t> total_commit_txn_num, success_commit_txn_num, failed_commit_txn_num;
         static AtomicCounters_Cache
                 epoch_should_push_down_txn_num, epoch_pushed_down_txn_num;
         static std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> task_queue, redo_log_queue;
