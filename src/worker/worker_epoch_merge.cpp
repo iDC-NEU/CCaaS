@@ -8,51 +8,6 @@
 
 namespace Taas {
 
-    void WorkerFroMessageThreadMain(const Context& ctx, uint64_t id) {/// handle message
-        std::string name = "EpochMessage-" + std::to_string(id);
-        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
-        MessageReceiveHandler receiveHandler;
-        receiveHandler.Init(ctx, id);
-        while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        while(!EpochManager::IsTimerStop()){
-            switch(ctx.taas_mode) {
-                case TaasMode::MultiMaster :
-                case TaasMode::Sharding : {
-                    while(!EpochManager::IsTimerStop()) {
-                        receiveHandler.HandleReceivedMessage();
-                    }
-                    break;
-                }
-                case TaasMode::TwoPC : {
-                    ///todo
-                }
-            }
-        }
-    }
-
-//    void WorkerFroTxnMessageThreadMain(const Context& ctx, uint64_t id) {/// handle client txn and remote server txn
-//        std::string name = "EpochMessage-" + std::to_string(id);
-//        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
-//        MessageReceiveHandler receiveHandler;
-//        receiveHandler.Init(ctx, id);
-//        while(!EpochManager::IsInitOK()) usleep(sleep_time);
-//        while(!EpochManager::IsTimerStop()){
-//            switch(ctx.taas_mode) {
-//                case TaasMode::MultiMaster :
-//                case TaasMode::Sharding : {
-//                    while(!EpochManager::IsTimerStop()) {
-////                        receiveHandler.HandleReceivedTxnMessage_Usleep();
-//                        receiveHandler.HandleReceivedTxnMessage_Block();
-//                    }
-//                    break;
-//                }
-//                case TaasMode::TwoPC : {
-//                    ///todo
-//                }
-//            }
-//        }
-//    }
-
     void WorkerFroMergeThreadMain(const Context& ctx, uint64_t id) {
         std::string name = "EpochMerge-" + std::to_string(id);
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());

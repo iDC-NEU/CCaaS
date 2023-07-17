@@ -128,7 +128,7 @@ namespace Taas {
     void WorkerForLogicalReceiveAndReplyCheckThreadMain(const Context& ctx) {
         SetCPU();
         bool sleep_flag;
-        MessageReceiveHandler receiveHandler;
+        EpochMessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, 0);
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while(!EpochManager::IsTimerStop()){
@@ -154,7 +154,7 @@ namespace Taas {
     void WorkerForEpochAbortSendThreadMain(const Context& ctx) {
         SetCPU();
         bool sleep_flag;
-        MessageReceiveHandler receiveHandler;
+        EpochMessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, 0);
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while(!EpochManager::IsTimerStop()){
@@ -165,7 +165,7 @@ namespace Taas {
                 }
                 case TaasMode::Sharding : {
                     while(!EpochManager::IsTimerStop()) {
-                        sleep_flag = MessageSendHandler::SendAbortSet(ctx); ///check and send abort set
+                        sleep_flag = EpochMessageSendHandler::SendAbortSet(ctx); ///check and send abort set
                         if(!sleep_flag) usleep(sleep_time);
                     }
                     break;
@@ -179,7 +179,7 @@ namespace Taas {
     void WorkerForEpochEndFlagSendThreadMain(const Context& ctx) {
         SetCPU();
         bool sleep_flag;
-        MessageReceiveHandler receiveHandler;
+        EpochMessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, 0);
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while(!EpochManager::IsTimerStop()){
@@ -187,7 +187,7 @@ namespace Taas {
                 case TaasMode::MultiMaster :
                 case TaasMode::Sharding :{
                     while(!EpochManager::IsTimerStop()) {
-                        sleep_flag = MessageSendHandler::SendEpochEndMessage(ctx); ///send epoch end flag
+                        sleep_flag = EpochMessageSendHandler::SendEpochEndMessage(ctx); ///send epoch end flag
                         if(!sleep_flag) usleep(sleep_time);
                     }
                     break;
@@ -204,7 +204,7 @@ namespace Taas {
     void WorkerForEpochBackUpEndFlagSendThreadMain(const Context& ctx) {
         SetCPU();
         bool sleep_flag;
-        MessageReceiveHandler receiveHandler;
+        EpochMessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, 0);
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while(!EpochManager::IsTimerStop()){
@@ -212,7 +212,7 @@ namespace Taas {
                 case TaasMode::MultiMaster :
                 case TaasMode::Sharding :{
                     while(!EpochManager::IsTimerStop()) {
-                        sleep_flag = MessageSendHandler::SendBackUpEpochEndMessage(ctx); ///send epoch backup end message
+                        sleep_flag = EpochMessageSendHandler::SendBackUpEpochEndMessage(ctx); ///send epoch backup end message
                         if(!sleep_flag) usleep(sleep_time);
                     }
                     break;

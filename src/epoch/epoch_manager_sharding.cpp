@@ -4,7 +4,7 @@
 
 #include "epoch/epoch_manager.h"
 #include "epoch/epoch_manager_sharding.h"
-#include "message/handler_receive.h"
+#include "message/epoch_message_receive_handler.h"
 #include "storage/redo_loger.h"
 #include "transaction/merge.h"
 
@@ -21,9 +21,9 @@ namespace Taas {
         auto i = merge_epoch.load();
         while(i < EpochManager::GetPhysicalEpoch() &&
               (ctx.kTxnNodeNum == 1 ||
-               (MessageReceiveHandler::CheckEpochShardingSendComplete(ctx, i) &&
-                MessageReceiveHandler::CheckEpochShardingReceiveComplete(ctx, i) &&
-                MessageReceiveHandler::CheckEpochBackUpComplete(ctx, i))
+               (EpochMessageReceiveHandler::CheckEpochShardingSendComplete(ctx, i) &&
+                       EpochMessageReceiveHandler::CheckEpochShardingReceiveComplete(ctx, i) &&
+                       EpochMessageReceiveHandler::CheckEpochBackUpComplete(ctx, i))
               ) &&
               Merger::CheckEpochMergeComplete(ctx, i)
                 ) {
@@ -41,7 +41,7 @@ namespace Taas {
         if(i >= merge_epoch.load() && commit_epoch.load() >= abort_set_epoch.load()) return false;
         if(EpochManager::IsAbortSetMergeComplete(i)) return true;
         if( i < merge_epoch.load()  && EpochManager::IsShardingMergeComplete(i) &&
-            (ctx.kTxnNodeNum == 1 || MessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i))) {
+            (ctx.kTxnNodeNum == 1 || EpochMessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i))) {
 
             EpochManager::SetAbortSetMergeComplete(i, true);
             abort_set_epoch.fetch_add(1);
@@ -64,17 +64,17 @@ namespace Taas {
             auto epoch_commit_success_txn_num = Merger::epoch_record_committed_txn_num.GetCount(i);
             total_commit_txn_num += epoch_commit_success_txn_num;///success
             LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %lu, EpochSuccessCommitTxnNum: %lu, EpochCommitTxnNum: %lu ************\n",
-                                        i, epoch_commit_success_txn_num, MessageSendHandler::TotalTxnNum.load() - last_total_commit_txn_num);
+                                        i, epoch_commit_success_txn_num, EpochMessageSendHandler::TotalTxnNum.load() - last_total_commit_txn_num);
             if(i % ctx.print_mode_size == 0) {
                 LOG(INFO) << PrintfToString("Epoch: %lu ClearEpoch: %lu, SuccessTxnNumber %lu, ToTalSuccessLatency %lu, SuccessAvgLatency %lf, TotalCommitTxnNum %lu, TotalCommitlatency %lu, TotalCommitAvglatency %lf ************\n",
                                             i, clear_epoch.load(),
-                                            MessageSendHandler::TotalSuccessTxnNUm.load(), MessageSendHandler::TotalSuccessLatency.load(),
-                                            (((double)MessageSendHandler::TotalSuccessLatency.load()) / ((double)MessageSendHandler::TotalSuccessTxnNUm.load())),
-                                            MessageSendHandler::TotalTxnNum.load(),///receive from client
-                                            MessageSendHandler::TotalLatency.load(),
-                                            (((double)MessageSendHandler::TotalLatency.load()) / ((double)MessageSendHandler::TotalTxnNum.load())));
+                                            EpochMessageSendHandler::TotalSuccessTxnNUm.load(), EpochMessageSendHandler::TotalSuccessLatency.load(),
+                                            (((double)EpochMessageSendHandler::TotalSuccessLatency.load()) / ((double)EpochMessageSendHandler::TotalSuccessTxnNUm.load())),
+                                            EpochMessageSendHandler::TotalTxnNum.load(),///receive from client
+                                            EpochMessageSendHandler::TotalLatency.load(),
+                                            (((double)EpochMessageSendHandler::TotalLatency.load()) / ((double)EpochMessageSendHandler::TotalTxnNum.load())));
             }
-            last_total_commit_txn_num = MessageSendHandler::TotalTxnNum.load();
+            last_total_commit_txn_num = EpochMessageSendHandler::TotalTxnNum.load();
             i ++;
             commit_epoch.fetch_add(1);
             EpochManager::AddLogicalEpoch();

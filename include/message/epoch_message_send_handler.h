@@ -2,8 +2,8 @@
 // Created by 周慰星 on 11/9/22.
 //
 
-#ifndef TAAS_HANDLER_SEND_H
-#define TAAS_HANDLER_SEND_H
+#ifndef TAAS_EPOCH_MESSAGE_SEND_HANDLER_H
+#define TAAS_EPOCH_MESSAGE_SEND_HANDLER_H
 
 #pragma once
 
@@ -13,10 +13,9 @@
 
 #include "proto/message.pb.h"
 
-
 namespace Taas {
 
-    class MessageSendHandler {
+    class EpochMessageSendHandler {
     public:
         static std::atomic<uint64_t> TotalLatency, TotalTxnNum, TotalSuccessTxnNUm, TotalSuccessLatency;
         static bool SendTxnCommitResultToClient(const Context& ctx, proto::Transaction& txn, proto::TxnState txn_state);
@@ -43,4 +42,4 @@ namespace Taas {
         std::unique_ptr<pack_params> pack_param;
     };
 }
-#endif //TAAS_HANDLER_SEND_H
+#endif //TAAS_EPOCH_MESSAGE_SEND_HANDLER_H

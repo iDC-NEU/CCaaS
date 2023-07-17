@@ -27,8 +27,6 @@ namespace Taas {
     void WorkerFroTiKVStorageThreadMain(const Context& ctx, uint64_t id) {
         std::string name = "EpochTikv-" + std::to_string(id);
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
-        MessageReceiveHandler receiveHandler;
-        receiveHandler.Init(ctx, id);
         auto txn_ptr = std::make_unique<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
@@ -44,8 +42,6 @@ namespace Taas {
     void WorkerFroLevelDBStorageThreadMain(const Context& ctx, uint64_t id) {
         std::string name = "EpochLevelDB-" + std::to_string(id);
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
-        MessageReceiveHandler receiveHandler;
-        receiveHandler.Init(ctx, id);
         auto txn_ptr = std::make_unique<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
@@ -59,8 +55,6 @@ namespace Taas {
     void WorkerFroHBaseStorageThreadMain(const Context& ctx, uint64_t id) {
         std::string name = "EpochHBase-" + std::to_string(id);
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
-        MessageReceiveHandler receiveHandler;
-        receiveHandler.Init(ctx, id);
         auto txn_ptr = std::make_unique<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {

@@ -8,8 +8,8 @@
 #pragma once
 
 #include "transaction/crdt_merge.h"
-#include "message/handler_send.h"
-#include "message/handler_receive.h"
+#include "message/epoch_message_send_handler.h"
+#include "message/epoch_message_receive_handler.h"
 
 #include "zmq.hpp"
 #include "proto/message.pb.h"
@@ -31,8 +31,8 @@ namespace Taas {
         bool res, sleep_flag;
         Context ctx;
         CRDTMerge merger;
-        MessageSendHandler message_transmitter;
-        MessageReceiveHandler message_handler;
+        EpochMessageSendHandler message_transmitter;
+        EpochMessageReceiveHandler message_handler;
 
         ///epoch
         static AtomicCounters_Cache

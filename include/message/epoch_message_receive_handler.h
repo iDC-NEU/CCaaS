@@ -2,8 +2,8 @@
 // Created by 周慰星 on 11/9/22.
 //
 
-#ifndef TAAS_HANDLER_RECEIVE_H
-#define TAAS_HANDLER_RECEIVE_H
+#ifndef TAAS_EPOCH_MESSAGE_RECEIVE_HANDLER_H
+#define TAAS_EPOCH_MESSAGE_RECEIVE_HANDLER_H
 
 #pragma once
 
@@ -16,7 +16,7 @@
 #include "queue"
 
 namespace Taas {
-    class MessageReceiveHandler{
+    class EpochMessageReceiveHandler{
     public:
         bool Init(const Context& ctx_, uint64_t id);
 
@@ -311,4 +311,4 @@ namespace Taas {
 
 }
 
-#endif //TAAS_HANDLER_RECEIVE_H
+#endif //TAAS_EPOCH_MESSAGE_RECEIVE_HANDLER_H

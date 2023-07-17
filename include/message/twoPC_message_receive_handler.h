@@ -1,0 +1,14 @@
+//
+// Created by zwx on 23-7-17.
+//
+
+#ifndef TAAS_TWOPCMESSAGERECEIVEHANDLER_H
+#define TAAS_TWOPCMESSAGERECEIVEHANDLER_H
+
+
+class TwoPCMessageReceiveHandler {
+
+};
+
+
+#endif //TAAS_TWOPCMESSAGERECEIVEHANDLER_H

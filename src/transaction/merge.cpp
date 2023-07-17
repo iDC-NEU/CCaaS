@@ -223,13 +223,13 @@ namespace Taas {
                 if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
                     auto key = std::to_string(txn_ptr->client_txn_id());
                     abort_txn_set.insert(key, key);
-                    MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Abort);
+                    EpochMessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Abort);
                 } else {
                     epoch_record_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
                     CRDTMerge::Commit(ctx, *(txn_ptr));
                     RedoLoger::RedoLog(ctx, *(txn_ptr));
                     epoch_record_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                    MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
+                    EpochMessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
                 }
                 epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
                 sleep_flag = false;
@@ -251,13 +251,13 @@ namespace Taas {
             if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
                 auto key = std::to_string(txn_ptr->client_txn_id());
                 abort_txn_set.insert(key, key);
-                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Abort);
+                EpochMessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Abort);
             } else {
                 epoch_record_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
                 CRDTMerge::Commit(ctx, *(txn_ptr));
                 RedoLoger::RedoLog(ctx, *(txn_ptr));
                 epoch_record_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
+                EpochMessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
             }
             epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
         }
