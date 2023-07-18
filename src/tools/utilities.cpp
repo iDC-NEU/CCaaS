@@ -13,17 +13,16 @@ namespace Taas {
         options.compression_level = 9;
         google::protobuf::io::StringOutputStream outputStream(serialized_str_ptr);
         google::protobuf::io::GzipOutputStream gzipStream(&outputStream, options);
-        ptr->SerializeToZeroCopyStream(&gzipStream);
+        auto res = ptr->SerializeToZeroCopyStream(&gzipStream);
         gzipStream.Close();
-        return true;
+        return res;
     }
 
     bool UnGzip(google::protobuf::MessageLite* ptr, const std::string* str) {
 //    auto message_string_ptr = std::make_unique<std::string>(static_cast<const char*>(message_ptr->data()), message_ptr->size());
         google::protobuf::io::ArrayInputStream inputStream(str->data(), (int)str->size());
         google::protobuf::io::GzipInputStream gzipStream(&inputStream);
-        ptr->ParseFromZeroCopyStream(&gzipStream);
-        return true;
+        return ptr->ParseFromZeroCopyStream(&gzipStream);
     }
 
     std::atomic<int> cpu_index(1);
