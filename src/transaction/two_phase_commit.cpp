@@ -35,6 +35,7 @@ namespace Taas {
 //            }
 //        }
 //        return false;
+        return false;
     }
 
     bool TwoPC::HandleReceivedTxn() {

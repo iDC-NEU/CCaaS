@@ -78,5 +78,59 @@ namespace Taas {
         }
         return false;
     }
+
+    void MultiMasterEpochManager::EpochLogicalTimerManagerThreadMain(const Context& ctx) {
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        uint64_t epoch = 1, cnt = 0;
+        OUTPUTLOG(ctx, "===== Start Epoch的合并 ===== ", epoch);
+        while(!EpochManager::IsInitOK()) usleep(logical_sleep_timme);
+        while(!EpochManager::IsTimerStop()){
+            LOG(INFO) << "**** Start Epoch Merge Epoch : " << epoch << "****\n";
+            while(!(epoch < EpochManager::GetPhysicalEpoch() &&
+                    (ctx.kTxnNodeNum == 1 ||
+                     (EpochMessageReceiveHandler::CheckEpochShardingSendComplete(ctx, epoch) &&
+                      EpochMessageReceiveHandler::CheckEpochShardingReceiveComplete(ctx, epoch) &&
+                      EpochMessageReceiveHandler::CheckEpochBackUpComplete(ctx, epoch))
+                    ) && Merger::CheckEpochMergeComplete(ctx, epoch))) {
+//                LOG(INFO) << "**** Check Merge State epoch : " << epoch << "****\n";
+//                OUTPUTLOG(ctx, "**** Check Merge State epoch", epoch);
+                usleep(logical_sleep_timme);
+            }
+
+            EpochManager::SetShardingMergeComplete(epoch, true);
+            merge_epoch.fetch_add(1);
+            LOG(INFO) << "**** Finished Epoch Merge Epoch : " << epoch << "****\n";
+            /// in multi master mode, there is no need to send and merge sharding abort set
+            EpochManager::SetAbortSetMergeComplete(epoch, true);
+            abort_set_epoch.fetch_add(1);
+            LOG(INFO) << "******* Finished Abort Set Merge Epoch : " << epoch << "********\n";
+
+            while(!( epoch < abort_set_epoch.load() && EpochManager::IsShardingMergeComplete(epoch) &&
+                     EpochManager::IsAbortSetMergeComplete(epoch) &&
+                     Merger::CheckEpochCommitComplete(ctx, epoch))) {
+                usleep(logical_sleep_timme);
+            }
+            EpochManager::SetCommitComplete(epoch, true);
+            last_total_commit_txn_num = EpochMessageSendHandler::TotalTxnNum.load();
+            commit_epoch.fetch_add(1);
+            EpochManager::AddLogicalEpoch();
+
+            auto epoch_commit_success_txn_num = Merger::epoch_record_committed_txn_num.GetCount(epoch);
+            total_commit_txn_num += epoch_commit_success_txn_num;///success
+            LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %lu, EpochSuccessCommitTxnNum: %lu, EpochCommitTxnNum: %lu ************\n",
+                                        epoch, epoch_commit_success_txn_num, EpochMessageSendHandler::TotalTxnNum.load() - last_total_commit_txn_num);
+            if(epoch % ctx.print_mode_size == 0) {
+                LOG(INFO) << PrintfToString("Epoch: %lu ClearEpoch: %lu, SuccessTxnNumber %lu, ToTalSuccessLatency %lu, SuccessAvgLatency %lf, TotalCommitTxnNum %lu, TotalCommitlatency %lu, TotalCommitAvglatency %lf ************\n",
+                                            epoch, clear_epoch.load(),
+                                            EpochMessageSendHandler::TotalSuccessTxnNUm.load(), EpochMessageSendHandler::TotalSuccessLatency.load(),
+                                            (((double)EpochMessageSendHandler::TotalSuccessLatency.load()) / ((double)EpochMessageSendHandler::TotalSuccessTxnNUm.load())),
+                                            EpochMessageSendHandler::TotalTxnNum.load(),///receive from client
+                                            EpochMessageSendHandler::TotalLatency.load(),
+                                            (((double)EpochMessageSendHandler::TotalLatency.load()) / ((double)EpochMessageSendHandler::TotalTxnNum.load())));
+            }
+            epoch ++;
+        }
+        printf("total commit txn num: %lu\n", total_commit_txn_num);
+    }
 }
 

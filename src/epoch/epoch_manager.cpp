@@ -14,6 +14,7 @@
 #include "sys/time.h"
 #include "string"
 #include "algorithm"
+#include "storage/tikv.h"
 
 namespace Taas {
 
@@ -110,15 +111,7 @@ namespace Taas {
         }
     }
 
-/**
- * @brief 打印目前的系统变量相关信息
- *
- * @param s 待输出的自定义字符串
- * @param epoch_mod epoch号
- */
-
-    std::string PrintfToString(const char* format, ...)
-    {
+    std::string PrintfToString(const char* format, ...) {
         char buffer[2048]; // 假设输出不超过1024个字符
         va_list args;
         va_start(args, format);
@@ -185,13 +178,22 @@ namespace Taas {
        EpochMessageReceiveHandler::insert_set_received_ack_num.GetCount(epoch_mod),      EpochMessageReceiveHandler::abort_set_received_ack_num.GetCount(epoch_mod),
 
        (uint64_t)0,
-       now_to_us()) << PrintfToString("Epoch: %lu ClearEpoch: %lu, SuccessTxnNumber %lu, ToTalSuccessLatency %lu, SuccessAvgLatency %lf, TotalCommitTxnNum %lu, TotalCommitlatency %lu, TotalCommitAvglatency %lf ************\n",
-                                    epoch_, clear_epoch.load(),
-                                    EpochMessageSendHandler::TotalSuccessTxnNUm.load(), EpochMessageSendHandler::TotalSuccessLatency.load(),
-                                    (((double)EpochMessageSendHandler::TotalSuccessLatency.load()) / ((double)EpochMessageSendHandler::TotalSuccessTxnNUm.load())),
-                                    EpochMessageSendHandler::TotalTxnNum.load(),///receive from client
-                                    EpochMessageSendHandler::TotalLatency.load(),
-                                    (((double)EpochMessageSendHandler::TotalLatency.load()) / ((double)EpochMessageSendHandler::TotalTxnNum.load())));
+        now_to_us()) << PrintfToString("Epoch: %lu ClearEpoch: %lu, SuccessTxnNumber %lu, ToTalSuccessLatency %lu, SuccessAvgLatency %lf, TotalCommitTxnNum %lu, TotalCommitlatency %lu, TotalCommitAvglatency %lf \n",
+                                       epoch_, clear_epoch.load(),
+                                       EpochMessageSendHandler::TotalSuccessTxnNUm.load(), EpochMessageSendHandler::TotalSuccessLatency.load(),
+                                       (((double)EpochMessageSendHandler::TotalSuccessLatency.load()) / ((double)EpochMessageSendHandler::TotalSuccessTxnNUm.load())),
+                                       EpochMessageSendHandler::TotalTxnNum.load(),///receive from client
+                                       EpochMessageSendHandler::TotalLatency.load(),
+                                       (((double)EpochMessageSendHandler::TotalLatency.load()) / ((double)EpochMessageSendHandler::TotalTxnNum.load())))
+          << PrintfToString("EpochMerge MergeTxnNumber %lu, ToTalMergeLatency %lu, MergeAvgLatency %lf \n",
+                            Merger::total_merge_txn_num.load(), Merger::total_merge_latency.load(),
+                            (((double)Merger::total_merge_latency.load()) / ((double)Merger::total_merge_txn_num.load())))
+          << PrintfToString("EpochCommit CommitTxnNumber %lu, ToTalMCommitLatency %lu, CommitAvgLatency %lf \n",
+                            Merger::total_commit_txn_num.load(), Merger::total_commit_latency.load(),
+                            (((double)Merger::total_commit_latency.load()) / ((double)Merger::total_commit_txn_num.load())))
+          << PrintfToString("Storage Push Down TiKVTotalTxnNumber %lu ,TiKVSuccessTxnNum %lu, TiKVFailedTxnNum %lu \n",
+                            TiKV::total_commit_txn_num.load(), TiKV::total_commit_txn_num.load() - TiKV::failed_commit_txn_num.load(), TiKV::failed_commit_txn_num.load())
+          << "**************************************************************************************************************************************************************************************\n";
     }
 
     bool CheckRedoLogPushDownState(const Context& ctx) {

@@ -14,6 +14,8 @@ namespace Taas {
         static bool CheckEpochMergeState(const Context& ctx);
         static bool CheckEpochAbortMergeState(const Context& ctx);
         static bool CheckEpochCommitState(const Context& ctx);
+
+        static void EpochLogicalTimerManagerThreadMain(const Context &ctx);
     };
 }
 #endif //TAAS_EPOCH_MANAGER_MULTI_MASTER_H

@@ -45,6 +45,7 @@ namespace Taas {
         bool sleep_flag;
         std::unique_ptr<proto::Transaction> txn_ptr;
         uint64_t epoch;
+        proto::Transaction* ptr;
         epoch = EpochManager::GetPushDownEpoch();
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         sleep_flag = true;
@@ -68,8 +69,9 @@ namespace Taas {
                 push_response->set_result(proto::Success);
                 push_response->set_epoch_id(epoch);
                 push_response->set_txn_num(1);
-                auto *ptr = push_response->add_txns();
+                ptr = push_response->add_txns();
                 ptr = txn_ptr.release();
+                /// *(ptr) = (*txn_ptr);
                 auto serialized_pull_resp_str = std::make_unique<std::string>();
                 Gzip(push_msg.get(), serialized_pull_resp_str.get());
                 MessageQueue::send_to_storage_queue->enqueue(std::make_unique<send_params>(0, 0,
@@ -85,6 +87,7 @@ namespace Taas {
     void MOT::SendTransactionToDB_Block() {
         std::unique_ptr<proto::Transaction> txn_ptr;
         uint64_t epoch;
+        proto::Transaction* ptr = nullptr;
         epoch = EpochManager::GetPushDownEpoch();
         while (!EpochManager::IsTimerStop()) {
             redo_log_queue->wait_dequeue(txn_ptr);
@@ -97,8 +100,9 @@ namespace Taas {
             push_response->set_result(proto::Success);
             push_response->set_epoch_id(epoch);
             push_response->set_txn_num(1);
-            auto *ptr = push_response->add_txns();
+            ptr = push_response->add_txns();
             ptr = txn_ptr.release();
+            /// *(ptr) = (*txn_ptr);
             auto serialized_pull_resp_str = std::make_unique<std::string>();
             Gzip(push_msg.get(), serialized_pull_resp_str.get());
             MessageQueue::send_to_storage_queue->enqueue(std::make_unique<send_params>(0, 0,

@@ -99,11 +99,9 @@ namespace Taas {
 
     void TiKV::SendTransactionToDB_Block() {
         std::unique_ptr<proto::Transaction> txn_ptr;
-        uint64_t epoch;
         while(!EpochManager::IsTimerStop()) {
             redo_log_queue->wait_dequeue(txn_ptr);
             if(txn_ptr == nullptr) continue;
-            epoch = txn_ptr->commit_epoch();
             if(tikv_client_ptr == nullptr) continue;
             auto tikv_txn = tikv_client_ptr->begin();
             for (auto i = 0; i < txn_ptr->row_size(); i++) {
@@ -113,10 +111,12 @@ namespace Taas {
                 }
             }
             try{
+                total_commit_txn_num.fetch_add(1);
                 tikv_txn.commit();
             }
             catch (std::exception &e) {
                 LOG(INFO) << "*** Commit Txn To Tikv Failed: " << e.what();
+                failed_commit_txn_num.fetch_add(1);
             }
             epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);
         }

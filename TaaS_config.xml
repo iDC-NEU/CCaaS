@@ -6,14 +6,14 @@
     <!--    client use push/pull mode send txn to taas through 5551 port-->
     <!--    client use push/pull mode receive result from taas through 5552 port-->
     <taas_server_mode>1</taas_server_mode><!-- 1: multi-master epoch, 2: Sharding epoch, 3: 2PC-->
-    <txn_node_num>1</txn_node_num>
+    <txn_node_num>2</txn_node_num>
     <txn_node_ip_index>0</txn_node_ip_index><!-- 0, 1, 2, ...-->
     <txn_node_ip>
-        <txn_ip>172.30.67.194</txn_ip>
-        <txn_ip>172.30.67.193</txn_ip>
+        <txn_ip>202.199.6.123</txn_ip>
+        <txn_ip>202.199.6.181</txn_ip>
         <txn_ip>172.30.67.195</txn_ip>
     </txn_node_ip>
-    <sync_start>0</sync_start>
+    <sync_start>1</sync_start>
     <epoch_size_us>5000</epoch_size_us><!-- us -->
     <cache_max_length>1000</cache_max_length> <!-- 10 min  600s 600000ms 60000 epochs-->
     <worker_thread_num>2</worker_thread_num>
