@@ -61,7 +61,8 @@ namespace Taas {
                 epoch_merge_complete,
                 epoch_commit_complete;
 
-        static std::atomic<uint64_t> total_merge_txn_num, total_merge_latency, total_commit_txn_num, total_commit_latency;
+        static std::atomic<uint64_t> total_merge_txn_num, total_merge_latency, total_commit_txn_num, total_commit_latency,
+            total_read_version_check_failed_txn_num;
 
         static void StaticInit(const Context& ctx);
         static void ClearMergerEpochState(const Context& ctx, uint64_t &epoch);

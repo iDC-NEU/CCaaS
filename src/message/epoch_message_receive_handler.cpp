@@ -221,7 +221,9 @@ namespace Taas {
             }
             case proto::TxnType::RemoteServerTxn : {
                 sharding_should_handle_remote_txn_num.IncCount(message_epoch, thread_id, 1);
+                Merger::epoch_should_merge_txn_num.IncCount(epoch, message_server_id, 1);
                 Merger::epoch_merge_queue[message_epoch_mod]->enqueue(std::move(txn_ptr));
+                Merger::epoch_merge_queue[message_epoch_mod]->enqueue(nullptr);
 //                Merger::EpochMerge(ctx, message_epoch, std::move(txn_ptr));
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
                 sharding_handled_remote_txn_num.IncCount(message_epoch, thread_id, 1);
@@ -303,6 +305,121 @@ namespace Taas {
         return true;
     }
 
+    bool EpochMessageReceiveHandler::HandleClientTxn() {
+        if(ctx.taas_mode == TaasMode::Sharding) {
+            std::vector<std::unique_ptr<proto::Transaction>> sharding_row_vector;
+            for(uint64_t i = 0; i < sharding_num; i ++) {
+                sharding_row_vector.emplace_back(std::make_unique<proto::Transaction>());
+                sharding_row_vector[i]->set_csn(txn_ptr->csn());
+                sharding_row_vector[i]->set_commit_epoch(txn_ptr->commit_epoch());
+                sharding_row_vector[i]->set_server_id(txn_ptr->server_id());
+                sharding_row_vector[i]->set_client_ip(txn_ptr->client_ip());
+                sharding_row_vector[i]->set_client_txn_id(txn_ptr->client_txn_id());
+                sharding_row_vector[i]->set_sharding_id(i);
+            }
+            for(auto i = 0; i < txn_ptr->row_size(); i ++) {
+                const auto& row = txn_ptr->row(i);
+                auto row_ptr = sharding_row_vector[GetHashValue(row.key())]->add_row();
+                (*row_ptr) = row;
+            }
+            for(uint64_t i = 0; i < sharding_num; i ++) {
+                if(sharding_row_vector[i]->row_size() > 0) {
+                    ///sharding sending
+                    if(i == ctx.txn_node_ip_index) {
+                        continue;
+                    }
+                    else {
+                        sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
+                        EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, i, *(sharding_row_vector[i]), proto::TxnType::RemoteServerTxn);
+                        sharding_send_txn_num.IncCount(message_epoch, i, 1);
+                    }
+                }
+            }
+            if(sharding_row_vector[ctx.txn_node_ip_index]->row_size() > 0) {
+                ///read version check need to wait until last epoch has committed.
+                Merger::epoch_should_merge_txn_num.IncCount(epoch, message_server_id, 1);
+                Merger::epoch_merge_queue[message_epoch_mod]->enqueue(std::move(sharding_row_vector[ctx.txn_node_ip_index]));
+                Merger::epoch_merge_queue[message_epoch_mod]->enqueue(nullptr);
+//            res = Merger::EpochMerge(ctx, message_epoch, std::move(sharding_row_vector[ctx.txn_node_ip_index]));
+//            if(!res) {
+//                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(sharding_row_vector[ctx.txn_node_ip_index]), proto::TxnState::Abort);
+//            }
+            }
+        }
+        else if(ctx.taas_mode == TaasMode::MultiMaster) {
+            sharding_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+            EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, ctx.txn_node_ip_index, *(txn_ptr), proto::TxnType::RemoteServerTxn);
+            Merger::epoch_merge_queue[message_epoch_mod]->enqueue(std::make_unique<proto::Transaction>(*txn_ptr));
+            Merger::epoch_merge_queue[message_epoch_mod]->enqueue(nullptr);
+            sharding_send_txn_num.IncCount(message_epoch, 0, 1);
+        }
+
+        {///backup sending full txn
+            backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+            EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, message_server_id, *(txn_ptr), proto::TxnType::BackUpTxn);
+            backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+
+            epoch_backup_txn[message_epoch_mod]->enqueue(std::make_unique<proto::Transaction>(*txn_ptr));
+            epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
+        }
+        return true;
+    }
+
+    bool EpochMessageReceiveHandler::UpdateEpochAbortSet() {
+        message_epoch = txn_ptr->commit_epoch();
+        message_epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
+        for(int i = 0; i < txn_ptr->row_size(); i ++) {
+            Merger::epoch_insert_set[message_epoch_mod]->insert(txn_ptr->row(i).key(), txn_ptr->row(i).data());
+        }
+        return true;
+    }
+
+
+
+
+    bool EpochMessageReceiveHandler::CheckReceivedStatesAndReply() {
+        res = false;
+        auto& id = server_reply_ack_id;
+        ///to all server
+        /// change epoch_record_committed_txn_num to tikv check
+        if(redo_log_push_down_reply < EpochManager::GetLogicalEpoch() &&
+           (Merger::IsEpochCommitComplete(ctx, redo_log_push_down_reply) || redo_log_push_down_reply < EpochManager::GetPushDownEpoch() )) {
+            EpochMessageSendHandler::SendTxnToServer(ctx, redo_log_push_down_reply,
+                                                     server_reply_ack_id, empty_txn, proto::TxnType::EpochLogPushDownComplete);
+//            LOG(INFO) << "send EpochLogPushDownComplete ack, epoch: " << redo_log_push_down_reply << ", server id:" << id;
+            redo_log_push_down_reply ++;
+            res = true;
+        }
+
+        ///to single server  send ack
+        if(id != ctx.txn_node_ip_index) {
+            auto &sharding_epoch = sharding_send_ack_epoch_num[id];
+            if(sharding_epoch < EpochManager::GetPhysicalEpoch() &&
+               IsShardingPackReceiveComplete(sharding_epoch, id) &&
+               IsShardingTxnReceiveComplete(sharding_epoch, id)) {
+                EpochMessageSendHandler::SendTxnToServer(ctx, sharding_epoch,
+                                                         id, empty_txn, proto::TxnType::EpochShardingACK);
+//                printf("= send sharding ack epoch, %lu server_id %lu\n", sharding_epoch, id);
+                sharding_epoch ++;
+                res = true;
+            }
+
+            auto& backup_epoch = backup_send_ack_epoch_num[id];
+            if(backup_epoch < EpochManager::GetPhysicalEpoch() &&
+               IsBackUpPackReceiveComplete(backup_epoch, id) &&
+               IsBackUpTxnReceiveComplete(backup_epoch, id)) {
+                EpochMessageSendHandler::SendTxnToServer(ctx, backup_epoch,
+                                                         id, empty_txn, proto::TxnType::BackUpACK);
+//                printf(" == send backup ack epoch, %lu server_id %lu\n", backup_epoch, id);
+                backup_epoch ++;
+                res = true;
+            }
+
+        }
+        id = (id + 1) % ctx.kTxnNodeNum;
+        return res;
+    }
+
     bool EpochMessageReceiveHandler::StaticClear(const Context& ctx, uint64_t& epoch) {
 //        printf("clean receive cache epoch %lu\n", epoch);
         auto cache_clear_epoch_num_mod = epoch % ctx.kCacheMaxLength;
@@ -363,122 +480,6 @@ namespace Taas {
         txn = std::make_unique<proto::Transaction>();
         while (epoch_abort_set[cache_clear_epoch_num_mod]->try_dequeue(txn));
         return true;
-    }
-
-
-
-    bool EpochMessageReceiveHandler::HandleClientTxn() {
-        if(ctx.taas_mode == TaasMode::Sharding) {
-            std::vector<std::unique_ptr<proto::Transaction>> sharding_row_vector;
-            for(uint64_t i = 0; i < sharding_num; i ++) {
-                sharding_row_vector.emplace_back(std::make_unique<proto::Transaction>());
-                sharding_row_vector[i]->set_csn(txn_ptr->csn());
-                sharding_row_vector[i]->set_commit_epoch(txn_ptr->commit_epoch());
-                sharding_row_vector[i]->set_server_id(txn_ptr->server_id());
-                sharding_row_vector[i]->set_client_ip(txn_ptr->client_ip());
-                sharding_row_vector[i]->set_client_txn_id(txn_ptr->client_txn_id());
-                sharding_row_vector[i]->set_sharding_id(i);
-            }
-            for(auto i = 0; i < txn_ptr->row_size(); i ++) {
-                const auto& row = txn_ptr->row(i);
-                auto row_ptr = sharding_row_vector[GetHashValue(row.key())]->add_row();
-                (*row_ptr) = row;
-            }
-            for(uint64_t i = 0; i < sharding_num; i ++) {
-                if(sharding_row_vector[i]->row_size() > 0) {
-                    ///sharding sending
-                    if(i == ctx.txn_node_ip_index) {
-                        continue;
-                    }
-                    else {
-                        sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
-                        EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, i, *(sharding_row_vector[i]), proto::TxnType::RemoteServerTxn);
-                        sharding_send_txn_num.IncCount(message_epoch, i, 1);
-                    }
-                }
-            }
-            if(sharding_row_vector[ctx.txn_node_ip_index]->row_size() > 0) {
-                ///read version check need to wait until last epoch has committed.
-                Merger::epoch_merge_queue[message_epoch_mod]->enqueue(std::move(sharding_row_vector[ctx.txn_node_ip_index]));
-                Merger::epoch_merge_queue[message_epoch_mod]->enqueue(nullptr);
-//            res = Merger::EpochMerge(ctx, message_epoch, std::move(sharding_row_vector[ctx.txn_node_ip_index]));
-//            if(!res) {
-//                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(sharding_row_vector[ctx.txn_node_ip_index]), proto::TxnState::Abort);
-//            }
-            }
-        }
-        else if(ctx.taas_mode == TaasMode::MultiMaster) {
-            sharding_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-            EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, ctx.txn_node_ip_index, *(txn_ptr), proto::TxnType::RemoteServerTxn);
-            Merger::epoch_merge_queue[message_epoch_mod]->enqueue(std::make_unique<proto::Transaction>(*txn_ptr));
-            Merger::epoch_merge_queue[message_epoch_mod]->enqueue(nullptr);
-            sharding_send_txn_num.IncCount(message_epoch, 0, 1);
-        }
-
-        {///backup sending full txn
-            backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-            EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, message_server_id, *(txn_ptr), proto::TxnType::BackUpTxn);
-            backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-
-            epoch_backup_txn[message_epoch_mod]->enqueue(std::make_unique<proto::Transaction>(*txn_ptr));
-            epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
-        }
-        return true;
-    }
-
-    bool EpochMessageReceiveHandler::UpdateEpochAbortSet() {
-        message_epoch = txn_ptr->commit_epoch();
-        message_epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
-        for(int i = 0; i < txn_ptr->row_size(); i ++) {
-            Merger::epoch_insert_set[message_epoch_mod]->insert(txn_ptr->row(i).key(), txn_ptr->row(i).data());
-        }
-        return true;
-    }
-
-
-
-
-    bool EpochMessageReceiveHandler::CheckReceivedStatesAndReply() {
-        res = false;
-        auto& id = server_reply_ack_id;
-        ///to all server
-        /// change epoch_record_committed_txn_num to tikv check
-        if(redo_log_push_down_reply < EpochManager::GetLogicalEpoch() &&
-                (Merger::IsEpochCommitComplete(ctx, redo_log_push_down_reply) || redo_log_push_down_reply < EpochManager::GetPushDownEpoch() )) {
-            EpochMessageSendHandler::SendTxnToServer(ctx, redo_log_push_down_reply,
-                            server_reply_ack_id, empty_txn, proto::TxnType::EpochLogPushDownComplete);
-//            LOG(INFO) << "send EpochLogPushDownComplete ack, epoch: " << redo_log_push_down_reply << ", server id:" << id;
-            redo_log_push_down_reply ++;
-            res = true;
-        }
-
-        ///to single server  send ack
-        if(id != ctx.txn_node_ip_index) {
-            auto &sharding_epoch = sharding_send_ack_epoch_num[id];
-            if(sharding_epoch < EpochManager::GetPhysicalEpoch() &&
-                    IsShardingPackReceiveComplete(sharding_epoch, id) &&
-               IsShardingTxnReceiveComplete(sharding_epoch, id)) {
-                EpochMessageSendHandler::SendTxnToServer(ctx, sharding_epoch,
-                            id, empty_txn, proto::TxnType::EpochShardingACK);
-//                printf("= send sharding ack epoch, %lu server_id %lu\n", sharding_epoch, id);
-                sharding_epoch ++;
-                res = true;
-            }
-
-            auto& backup_epoch = backup_send_ack_epoch_num[id];
-            if(backup_epoch < EpochManager::GetPhysicalEpoch() &&
-                    IsBackUpPackReceiveComplete(backup_epoch, id) &&
-                    IsBackUpTxnReceiveComplete(backup_epoch, id)) {
-                EpochMessageSendHandler::SendTxnToServer(ctx, backup_epoch,
-                            id, empty_txn, proto::TxnType::BackUpACK);
-//                printf(" == send backup ack epoch, %lu server_id %lu\n", backup_epoch, id);
-                backup_epoch ++;
-                res = true;
-            }
-
-        }
-        id = (id + 1) % ctx.kTxnNodeNum;
-        return res;
     }
 
 //    bool EpochMessageReceiveHandler::CheckReceivedStatesAndReply_for_RedoLOG() {

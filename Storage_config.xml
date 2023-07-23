@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <root>
 <!--Storage config-->
-    <is_mot_enable>1</is_mot_enable>
+    <is_mot_enable>0</is_mot_enable>
     <!--    tikv config -->
     <is_tikv_enable>0</is_tikv_enable>
     <tikv_ip>47.92.250.79:2379</tikv_ip>

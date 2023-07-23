@@ -44,7 +44,8 @@ namespace Taas {
             Merger::epoch_merge_complete,
             Merger::epoch_commit_complete;
 
-    std::atomic<uint64_t> Merger::total_merge_txn_num(0), Merger::total_merge_latency(0), Merger::total_commit_txn_num(0), Merger::total_commit_latency(0);
+    std::atomic<uint64_t> Merger::total_merge_txn_num(0), Merger::total_merge_latency(0), Merger::total_commit_txn_num(0), Merger::total_commit_latency(0),
+        Merger::total_read_version_check_failed_txn_num(0);
 
 
     void Merger::StaticInit(const Context &ctx) {
@@ -175,6 +176,7 @@ namespace Taas {
                 auto time1 = now_to_us();
                 if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
                     res = false;
+                    total_read_version_check_failed_txn_num.fetch_add(1);
                     total_merge_txn_num.fetch_add(1);
                     total_merge_latency.fetch_add(now_to_us() - time1);
                     epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
@@ -205,19 +207,15 @@ namespace Taas {
             epoch = txn_ptr->commit_epoch();
             auto time1 = now_to_us();
             if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
-                res = false;
                 total_merge_txn_num.fetch_add(1);
                 total_merge_latency.fetch_add(now_to_us() - time1);
                 epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
-                sleep_flag = false;
                 continue;
             }
             if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
-                res = false;
                 total_merge_txn_num.fetch_add(1);
                 total_merge_latency.fetch_add(now_to_us() - time1);
                 epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
-                sleep_flag = false;
                 continue;
             }
         }

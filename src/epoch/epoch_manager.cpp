@@ -185,8 +185,9 @@ namespace Taas {
                                        EpochMessageSendHandler::TotalTxnNum.load(),///receive from client
                                        EpochMessageSendHandler::TotalLatency.load(),
                                        (((double)EpochMessageSendHandler::TotalLatency.load()) / ((double)EpochMessageSendHandler::TotalTxnNum.load())))
-          << PrintfToString("EpochMerge MergeTxnNumber %lu, ToTalMergeLatency %lu, MergeAvgLatency %lf \n",
+          << PrintfToString("EpochMerge MergeTxnNumber %lu, ToTalMergeLatency %lu, FailedReadCheckTxnNum %lu, MergeAvgLatency %lf \n",
                             Merger::total_merge_txn_num.load(), Merger::total_merge_latency.load(),
+                            Merger::total_read_version_check_failed_txn_num.load(),
                             (((double)Merger::total_merge_latency.load()) / ((double)Merger::total_merge_txn_num.load())))
           << PrintfToString("EpochCommit CommitTxnNumber %lu, ToTalMCommitLatency %lu, CommitAvgLatency %lf \n",
                             Merger::total_commit_txn_num.load(), Merger::total_commit_latency.load(),
