@@ -92,7 +92,10 @@ namespace Taas {
     }
 
     void Merger::MergeQueueEnqueue(const Context &ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr) {
-        ///not use for now
+        auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        Merger::epoch_should_merge_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+        Merger::epoch_merge_queue[epoch_mod]->enqueue(std::make_unique<proto::Transaction>(*txn_ptr));
+        Merger::epoch_merge_queue[epoch_mod]->enqueue(nullptr);
     }
     bool Merger::MergeQueueTryDequeue(const Context &ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr) {
         ///not use for now
@@ -253,7 +256,7 @@ namespace Taas {
                     EpochMessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
                 }
                 total_commit_txn_num.fetch_add(1);
-                total_commit_txn_num.fetch_add(now_to_us() - time1);
+                total_commit_latency.fetch_add(now_to_us() - time1);
                 epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
                 sleep_flag = false;
             }
@@ -284,7 +287,7 @@ namespace Taas {
                 EpochMessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
             }
             total_commit_txn_num.fetch_add(1);
-            total_commit_txn_num.fetch_add(now_to_us() - time1);
+            total_commit_latency.fetch_add(now_to_us() - time1);
             epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
         }
     }

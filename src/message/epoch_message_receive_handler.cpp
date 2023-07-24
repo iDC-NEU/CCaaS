@@ -221,9 +221,7 @@ namespace Taas {
             }
             case proto::TxnType::RemoteServerTxn : {
                 sharding_should_handle_remote_txn_num.IncCount(message_epoch, thread_id, 1);
-                Merger::epoch_should_merge_txn_num.IncCount(epoch, message_server_id, 1);
-                Merger::epoch_merge_queue[message_epoch_mod]->enqueue(std::move(txn_ptr));
-                Merger::epoch_merge_queue[message_epoch_mod]->enqueue(nullptr);
+                Merger::MergeQueueEnqueue(ctx, message_epoch, std::make_unique<proto::Transaction>(*txn_ptr));
 //                Merger::EpochMerge(ctx, message_epoch, std::move(txn_ptr));
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
                 sharding_handled_remote_txn_num.IncCount(message_epoch, thread_id, 1);
@@ -337,9 +335,7 @@ namespace Taas {
             }
             if(sharding_row_vector[ctx.txn_node_ip_index]->row_size() > 0) {
                 ///read version check need to wait until last epoch has committed.
-                Merger::epoch_should_merge_txn_num.IncCount(epoch, message_server_id, 1);
-                Merger::epoch_merge_queue[message_epoch_mod]->enqueue(std::move(sharding_row_vector[ctx.txn_node_ip_index]));
-                Merger::epoch_merge_queue[message_epoch_mod]->enqueue(nullptr);
+                Merger::MergeQueueEnqueue(ctx, message_epoch, std::make_unique<proto::Transaction>(*txn_ptr));
 //            res = Merger::EpochMerge(ctx, message_epoch, std::move(sharding_row_vector[ctx.txn_node_ip_index]));
 //            if(!res) {
 //                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(sharding_row_vector[ctx.txn_node_ip_index]), proto::TxnState::Abort);
@@ -349,8 +345,7 @@ namespace Taas {
         else if(ctx.taas_mode == TaasMode::MultiMaster) {
             sharding_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
             EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, ctx.txn_node_ip_index, *(txn_ptr), proto::TxnType::RemoteServerTxn);
-            Merger::epoch_merge_queue[message_epoch_mod]->enqueue(std::make_unique<proto::Transaction>(*txn_ptr));
-            Merger::epoch_merge_queue[message_epoch_mod]->enqueue(nullptr);
+            Merger::MergeQueueEnqueue(ctx, message_epoch, std::make_unique<proto::Transaction>(*txn_ptr));
             sharding_send_txn_num.IncCount(message_epoch, 0, 1);
         }
 
