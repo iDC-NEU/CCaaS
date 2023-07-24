@@ -93,9 +93,9 @@ namespace Taas {
 
     void Merger::MergeQueueEnqueue(const Context &ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
-        Merger::epoch_should_merge_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-        Merger::epoch_merge_queue[epoch_mod]->enqueue(std::make_unique<proto::Transaction>(*txn_ptr));
-        Merger::epoch_merge_queue[epoch_mod]->enqueue(nullptr);
+        epoch_should_merge_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+        epoch_merge_queue[epoch_mod]->enqueue(std::move(txn_ptr));
+        epoch_merge_queue[epoch_mod]->enqueue(nullptr);
     }
     bool Merger::MergeQueueTryDequeue(const Context &ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr) {
         ///not use for now

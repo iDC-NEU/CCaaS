@@ -203,16 +203,15 @@ namespace Taas {
     }
 
     bool EpochMessageReceiveHandler::HandleReceivedTxn() {
-        if(txn_ptr->txn_type() == proto::TxnType::ClientTxn) {
-            txn_ptr->set_commit_epoch(EpochManager::GetPhysicalEpoch());
-            txn_ptr->set_csn(now_to_us());
-            txn_ptr->set_server_id(ctx.txn_node_ip_index);
-        }
         SetMessageRelatedCountersInfo();
         switch (txn_ptr->txn_type()) {
             ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
             case proto::TxnType::ClientTxn : {/// sql node --> txn node
+                txn_ptr->set_commit_epoch(EpochManager::GetPhysicalEpoch());
                 sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
+                txn_ptr->set_csn(now_to_us());
+                txn_ptr->set_server_id(ctx.txn_node_ip_index);
+                SetMessageRelatedCountersInfo();
                 HandleClientTxn();
                 assert(txn_ptr != nullptr);
                 Merger::LocalTxnCommitQueueEnqueue(ctx, message_epoch, std::move(txn_ptr));
@@ -343,9 +342,9 @@ namespace Taas {
             }
         }
         else if(ctx.taas_mode == TaasMode::MultiMaster) {
+            Merger::MergeQueueEnqueue(ctx, message_epoch, std::make_unique<proto::Transaction>(*txn_ptr));
             sharding_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
             EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, ctx.txn_node_ip_index, *(txn_ptr), proto::TxnType::RemoteServerTxn);
-            Merger::MergeQueueEnqueue(ctx, message_epoch, std::make_unique<proto::Transaction>(*txn_ptr));
             sharding_send_txn_num.IncCount(message_epoch, 0, 1);
         }
 
