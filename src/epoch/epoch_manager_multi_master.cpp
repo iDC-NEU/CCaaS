@@ -119,15 +119,6 @@ namespace Taas {
             total_commit_txn_num += epoch_commit_success_txn_num;///success
             LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %lu, EpochSuccessCommitTxnNum: %lu, EpochCommitTxnNum: %lu ************\n",
                                         epoch, epoch_commit_success_txn_num, EpochMessageSendHandler::TotalTxnNum.load() - last_total_commit_txn_num);
-            if(epoch % ctx.print_mode_size == 0) {
-                LOG(INFO) << PrintfToString("Epoch: %lu ClearEpoch: %lu, SuccessTxnNumber %lu, ToTalSuccessLatency %lu, SuccessAvgLatency %lf, TotalCommitTxnNum %lu, TotalCommitlatency %lu, TotalCommitAvglatency %lf ************\n",
-                                            epoch, clear_epoch.load(),
-                                            EpochMessageSendHandler::TotalSuccessTxnNUm.load(), EpochMessageSendHandler::TotalSuccessLatency.load(),
-                                            (((double)EpochMessageSendHandler::TotalSuccessLatency.load()) / ((double)EpochMessageSendHandler::TotalSuccessTxnNUm.load())),
-                                            EpochMessageSendHandler::TotalTxnNum.load(),///receive from client
-                                            EpochMessageSendHandler::TotalLatency.load(),
-                                            (((double)EpochMessageSendHandler::TotalLatency.load()) / ((double)EpochMessageSendHandler::TotalTxnNum.load())));
-            }
             epoch ++;
         }
         printf("total commit txn num: %lu\n", total_commit_txn_num);

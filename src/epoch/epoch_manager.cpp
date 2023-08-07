@@ -189,8 +189,9 @@ namespace Taas {
                             Merger::total_merge_txn_num.load(), Merger::total_merge_latency.load(),
                             Merger::total_read_version_check_failed_txn_num.load(),
                             (((double)Merger::total_merge_latency.load()) / ((double)Merger::total_merge_txn_num.load())))
-          << PrintfToString("EpochCommit CommitTxnNumber %lu, ToTalMCommitLatency %lu, CommitAvgLatency %lf \n",
+          << PrintfToString("EpochCommit CommitTxnNumber %lu, ToTalMCommitLatency %lu, FailedMergeTxnNUm %lu, SuccessCommitTxnNum %lu, TotalCommitAvgLatency %lf \n",
                             Merger::total_commit_txn_num.load(), Merger::total_commit_latency.load(),
+                            Merger::total_failed_txn_num.load(), Merger::total_commit_txn_num.load() - Merger::total_failed_txn_num.load(),
                             (((double)Merger::total_commit_latency.load()) / ((double)Merger::total_commit_txn_num.load())))
           << PrintfToString("Storage Push Down TiKVTotalTxnNumber %lu ,TiKVSuccessTxnNum %lu, TiKVFailedTxnNum %lu \n",
                             TiKV::total_commit_txn_num.load(), TiKV::total_commit_txn_num.load() - TiKV::failed_commit_txn_num.load(), TiKV::failed_commit_txn_num.load())
