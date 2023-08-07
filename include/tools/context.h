@@ -9,6 +9,14 @@
 
 #include <vector>
 #include <string>
+#include "blocking_mpmc_queue.h"
+#include "blocking_concurrent_queue.hpp"
+
+template<typename T>
+using  BlockingConcurrentQueue = BlockingMPMCQueue<T>;
+
+template<typename T>
+using  MessageBlockingConcurrentQueue = moodycamel::BlockingConcurrentQueue<T>;
 
 namespace Taas {
     enum ServerMode {
@@ -21,6 +29,7 @@ namespace Taas {
         Sharding = 2,
         TwoPC = 3
     };
+
     class Context {
     public:
         explicit Context() {

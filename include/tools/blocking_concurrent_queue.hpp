@@ -17,10 +17,6 @@
 #include <chrono>
 #include <ctime>
 
-template<typename T>
-//    using  BlockingConcurrentQueue = BlockingConcurrentQueue<T>;
-using  BlockingConcurrentQueue = BlockingMPMCQueue<T>;
-
 namespace moodycamel
 {
 // This is a blocking version of the queue. It has an almost identical interface to

@@ -9,13 +9,13 @@
 
 #include "tools/atomic_counters.h"
 #include "tools/blocking_concurrent_queue.hpp"
+#include "tools/blocking_mpmc_queue.h"
 #include "tools/concurrent_hash_map.h"
 #include "tools/context.h"
 
 #include "zmq.hpp"
 #include "tikv_client.h"
 #include "proto/message.pb.h"
-#include "tools/blocking_mpmc_queue.h"
 
 namespace Taas {
 
@@ -46,13 +46,13 @@ namespace Taas {
                 id(id_), time(time_), ip(std::move(ip_)), epoch(e), type(ty), str(std::move(s)), txn(std::move(t)){}
         send_params()= default;
     };
-    
+
     class MessageQueue{
     public:
-        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>> listen_message_queue, listen_message_txn_queue, listen_message_epoch_queue;
-//        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> listen_message_txn_queue, listen_message_epoch_queue;
-        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<send_params>>> send_to_server_queue, send_to_client_queue, send_to_storage_queue;
-        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Message>>> request_queue, raft_message_queue;
+        static std::unique_ptr<MessageBlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>> listen_message_queue, listen_message_txn_queue, listen_message_epoch_queue;
+//        static std::unique_ptr<MessageBlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> listen_message_txn_queue, listen_message_epoch_queue;
+        static std::unique_ptr<MessageBlockingConcurrentQueue<std::unique_ptr<send_params>>> send_to_server_queue, send_to_client_queue, send_to_storage_queue;
+        static std::unique_ptr<MessageBlockingConcurrentQueue<std::unique_ptr<proto::Message>>> request_queue, raft_message_queue;
         static void StaticInitMessageQueue(const Context& ctx);
     };
 
