@@ -15,6 +15,7 @@
 #include "zmq.hpp"
 #include "tikv_client.h"
 #include "proto/message.pb.h"
+#include "tools/blocking_mpmc_queue.h"
 
 namespace Taas {
 
