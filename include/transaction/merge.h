@@ -49,20 +49,13 @@ namespace Taas {
         static concurrent_unordered_map<std::string, std::string> read_version_map_data, read_version_map_csn, insert_set, abort_txn_set;
 
         ///queues
-//        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> task_queue;
-//        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> merge_queue;///merge_queue 存放需要进行merge的子事务 不区分epoch
-//        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> commit_queue;
-//        static std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
-//                epoch_merge_queue,///merge_queue 存放需要进行merge的子事务 不区分epoch
-//                epoch_local_txn_queue, ///epoch_local_txn_queue 本地接收到的完整的事务  txn receive from client (used to push log down to storage)
-//                epoch_commit_queue;///epoch_commit_queue 当前epoch的涉及当前分片的要进行validate和commit的子事务 receive from servers and local sharding txn, wait to validate
-        static std::unique_ptr<BlockingMPMCQueue<std::unique_ptr<proto::Transaction>>> task_queue;
-        static std::unique_ptr<BlockingMPMCQueue<std::unique_ptr<proto::Transaction>>> merge_queue;///merge_queue 存放需要进行merge的子事务 不区分epoch
-        static std::unique_ptr<BlockingMPMCQueue<std::unique_ptr<proto::Transaction>>> commit_queue;
-        static std::vector<std::unique_ptr<BlockingMPMCQueue<std::unique_ptr<proto::Transaction>>>>
+        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> task_queue;
+        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> merge_queue;///merge_queue 存放需要进行merge的子事务 不区分epoch
+        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> commit_queue;
+        static std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
                 epoch_merge_queue,///merge_queue 存放需要进行merge的子事务 不区分epoch
-        epoch_local_txn_queue, ///epoch_local_txn_queue 本地接收到的完整的事务  txn receive from client (used to push log down to storage)
-        epoch_commit_queue;///epoch_commit_queue 当前epoch的涉及当前分片的要进行validate和commit的子事务 receive from servers and local sharding txn, wait to validate
+                epoch_local_txn_queue, ///epoch_local_txn_queue 本地接收到的完整的事务  txn receive from client (used to push log down to storage)
+                epoch_commit_queue;///epoch_commit_queue 当前epoch的涉及当前分片的要进行validate和commit的子事务 receive from servers and local sharding txn, wait to validate
 
         static std::vector<std::unique_ptr<std::atomic<bool>>>
                 epoch_merge_complete,

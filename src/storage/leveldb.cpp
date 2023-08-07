@@ -13,8 +13,8 @@ namespace Taas {
     std::atomic<uint64_t> LevelDB::total_commit_txn_num(0), LevelDB::success_commit_txn_num(0), LevelDB::failed_commit_txn_num(0);
     AtomicCounters_Cache
             LevelDB::epoch_should_push_down_txn_num(10, 1), LevelDB::epoch_pushed_down_txn_num(10, 1);
-    std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>  LevelDB::task_queue, LevelDB::redo_log_queue;
-    std::vector<std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
+    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>  LevelDB::task_queue, LevelDB::redo_log_queue;
+    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
             LevelDB::epoch_redo_log_queue;
     std::vector<std::unique_ptr<std::atomic<bool>>> LevelDB::epoch_redo_log_complete;
 
@@ -23,15 +23,15 @@ namespace Taas {
 
     void LevelDB::StaticInit(const Context &ctx_) {
         ctx = ctx_;
-        task_queue = std::make_unique<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-        redo_log_queue = std::make_unique<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+        task_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+        redo_log_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
         epoch_should_push_down_txn_num.Init(ctx.kCacheMaxLength, ctx.kTxnNodeNum);
         epoch_pushed_down_txn_num.Init(ctx.kCacheMaxLength, ctx.kTxnNodeNum);
         epoch_redo_log_complete.resize(ctx.kCacheMaxLength);
         epoch_redo_log_queue.resize(ctx.kCacheMaxLength);
         for(int i = 0; i < static_cast<int>(ctx.kCacheMaxLength); i ++) {
             epoch_redo_log_complete[i] = std::make_unique<std::atomic<bool>>(false);
-            epoch_redo_log_queue[i] = std::make_unique<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+            epoch_redo_log_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
         }
         brpc::ChannelOptions options;
         LevelDB::channel.Init(ctx.kLevevDBIP.c_str(), &options);

@@ -32,20 +32,13 @@ namespace Taas {
             Merger::insert_set,   ///插入集合，用于判断插入是否可以执行成功 check key exits?
             Merger::abort_txn_set; /// 所有abort的事务，不区分epoch
 
-//    std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> Merger::task_queue;
-//    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> Merger::merge_queue;///存放要进行merge的事务，分片
-//    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> Merger::commit_queue;
-//    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
-//            Merger::epoch_merge_queue,///存放要进行merge的事务，分片
-//            Merger::epoch_local_txn_queue,///存放epoch由client发送过来的事务，存放每个epoch要进行写日志的事务，整个事务写日志
-//            Merger::epoch_commit_queue;///存放每个epoch要进行写日志的事务，分片写日志
-    std::unique_ptr<BlockingMPMCQueue<std::unique_ptr<proto::Transaction>>> Merger::task_queue;
-    std::unique_ptr<BlockingMPMCQueue<std::unique_ptr<proto::Transaction>>> Merger::merge_queue;///存放要进行merge的事务，分片
-    std::unique_ptr<BlockingMPMCQueue<std::unique_ptr<proto::Transaction>>> Merger::commit_queue;
-    std::vector<std::unique_ptr<BlockingMPMCQueue<std::unique_ptr<proto::Transaction>>>>
+    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> Merger::task_queue;
+    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> Merger::merge_queue;///存放要进行merge的事务，分片
+    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> Merger::commit_queue;
+    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
             Merger::epoch_merge_queue,///存放要进行merge的事务，分片
-    Merger::epoch_local_txn_queue,///存放epoch由client发送过来的事务，存放每个epoch要进行写日志的事务，整个事务写日志
-    Merger::epoch_commit_queue;///存放每个epoch要进行写日志的事务，分片写日志
+            Merger::epoch_local_txn_queue,///存放epoch由client发送过来的事务，存放每个epoch要进行写日志的事务，整个事务写日志
+            Merger::epoch_commit_queue;///存放每个epoch要进行写日志的事务，分片写日志
 
     std::vector<std::unique_ptr<std::atomic<bool>>>
             Merger::epoch_merge_complete,
@@ -66,12 +59,9 @@ namespace Taas {
         epoch_insert_set.resize(max_length);
 
 //        ///transaction concurrent queue
-//        task_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-//        merge_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-//        commit_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-        task_queue = std::make_unique<BlockingMPMCQueue<std::unique_ptr<proto::Transaction>>>();
-        merge_queue = std::make_unique<BlockingMPMCQueue<std::unique_ptr<proto::Transaction>>>();
-        commit_queue = std::make_unique<BlockingMPMCQueue<std::unique_ptr<proto::Transaction>>>();
+        task_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+        merge_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+        commit_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
 
         epoch_merge_queue.resize(max_length);
         epoch_local_txn_queue.resize(max_length);
@@ -95,11 +85,9 @@ namespace Taas {
             epoch_abort_txn_set[i] = std::make_unique<concurrent_crdt_unordered_map<std::string, std::string, std::string>>();
             epoch_insert_set[i] = std::make_unique<concurrent_unordered_map<std::string, std::string>>();
 
-            epoch_merge_queue[i] = std::make_unique<BlockingMPMCQueue<std::unique_ptr<proto::Transaction>>>();
-            epoch_local_txn_queue[i] = std::make_unique<BlockingMPMCQueue<std::unique_ptr<proto::Transaction>>>();
-//            epoch_merge_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-//            epoch_local_txn_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-//            epoch_commit_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+            epoch_merge_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+            epoch_local_txn_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+            epoch_commit_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
         }
         RedoLoger::StaticInit(ctx);
     }

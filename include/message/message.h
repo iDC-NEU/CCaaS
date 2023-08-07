@@ -46,10 +46,7 @@ namespace Taas {
                 id(id_), time(time_), ip(std::move(ip_)), epoch(e), type(ty), str(std::move(s)), txn(std::move(t)){}
         send_params()= default;
     };
-
-    template<typename T>
-    using  BlockingConcurrentQueue = moodycamel::BlockingConcurrentQueue<T>;
-
+    
     class MessageQueue{
     public:
         static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>> listen_message_queue, listen_message_txn_queue, listen_message_epoch_queue;

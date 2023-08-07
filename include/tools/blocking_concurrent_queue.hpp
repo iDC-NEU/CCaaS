@@ -9,12 +9,17 @@
 
 #include "concurrent_queue.hpp"
 #include "light_weight_semaphore.hpp"
+#include "blocking_mpmc_queue.h"
 
 #include <type_traits>
 #include <cerrno>
 #include <memory>
 #include <chrono>
 #include <ctime>
+
+template<typename T>
+//    using  BlockingConcurrentQueue = BlockingConcurrentQueue<T>;
+using  BlockingConcurrentQueue = BlockingMPMCQueue<T>;
 
 namespace moodycamel
 {

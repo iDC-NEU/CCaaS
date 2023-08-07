@@ -12,23 +12,23 @@ namespace Taas {
     Context MOT::ctx;
     AtomicCounters_Cache
             MOT::epoch_should_push_down_txn_num(10, 1), MOT::epoch_pushed_down_txn_num(10, 1);
-    std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>  MOT::task_queue, MOT::redo_log_queue;
-    std::vector<std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
+    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>  MOT::task_queue, MOT::redo_log_queue;
+    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
             MOT::epoch_redo_log_queue;
     std::vector<std::unique_ptr<std::atomic<bool>>> MOT::epoch_redo_log_complete;
 
     bool MOT::StaticInit(const Context &ctx_) {
         ctx = ctx_;
         MOT::pushed_down_mot_epoch.store(1);
-        task_queue = std::make_unique<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-        redo_log_queue = std::make_unique<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+        task_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+        redo_log_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
         epoch_should_push_down_txn_num.Init(ctx.kCacheMaxLength, ctx.kTxnNodeNum);
         epoch_pushed_down_txn_num.Init(ctx.kCacheMaxLength, ctx.kTxnNodeNum);
         epoch_redo_log_complete.resize(ctx.kCacheMaxLength);
         epoch_redo_log_queue.resize(ctx.kCacheMaxLength);
         for(int i = 0; i < static_cast<int>(ctx.kCacheMaxLength); i ++) {
             epoch_redo_log_complete[i] = std::make_unique<std::atomic<bool>>(false);
-            epoch_redo_log_queue[i] = std::make_unique<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+            epoch_redo_log_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
         }
         return true;
     }
