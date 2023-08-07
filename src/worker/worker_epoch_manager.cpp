@@ -17,6 +17,8 @@ namespace Taas {
     }
 
     void WorkerForLogicalThreadMain(const Context& ctx) {
+        std::string name = "EpochLogical";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         SetCPU();
         switch(ctx.taas_mode) {
             case TaasMode::MultiMaster : {

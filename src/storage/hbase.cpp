@@ -109,6 +109,7 @@ namespace Taas {
         CHbaseHandler hbase_txn;
         hbase_txn.connect(ctx.kHbaseIP,9090);
         while(!EpochManager::IsTimerStop()) {
+            redo_log_queue->wait_dequeue(txn_ptr);
             if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                 continue;
             }

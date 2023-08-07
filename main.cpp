@@ -46,10 +46,12 @@ namespace Taas {
             EpochManager epochManager;
             Taas::EpochManager::ctx = ctx;
             threads.push_back(std::make_unique<std::thread>(WorkerForPhysicalThreadMain, ctx));
-//        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalThreadMain, ctx));
-            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalTxnMergeCheckThreadMain, ctx));
-            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalAbortSetMergeCheckThreadMain, ctx));
-            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalCommitCheckThreadMain, ctx));
+        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalThreadMain, ctx));
+
+//            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalTxnMergeCheckThreadMain, ctx));
+//            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalAbortSetMergeCheckThreadMain, ctx));
+//            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalCommitCheckThreadMain, ctx));
+
             threads.push_back(std::make_unique<std::thread>(WorkerForLogicalRedoLogPushDownCheckThreadMain, ctx));
 
             threads.push_back(std::make_unique<std::thread>(WorkerForLogicalReceiveAndReplyCheckThreadMain, ctx));
