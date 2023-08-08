@@ -217,14 +217,20 @@ namespace Taas {
     void Merger::EpochCommit_Usleep() {
         auto sleep_flag = true;
         while (!EpochManager::IsTimerStop()) {
+            commit_begin:
             epoch = EpochManager::GetLogicalEpoch();
             epoch_mod = epoch % ctx.kCacheMaxLength;
             sleep_flag = true;
+            while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
+                usleep(50);
+                goto commit_begin;
+            }
             while(epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                 if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     continue;
                 }
                 commit_queue->enqueue(std::move(txn_ptr));
+                commit_queue->enqueue(nullptr);
             }
 
             while (commit_queue->try_dequeue(txn_ptr)) {

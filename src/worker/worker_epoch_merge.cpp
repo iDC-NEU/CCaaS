@@ -17,21 +17,21 @@ namespace Taas {
         uint64_t epoch_mod;
         auto txn_ptr = std::make_unique<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        if(id < ctx.kUsleepThreadNum ) {
-            while(!EpochManager::IsTimerStop()){
-//                epoch = EpochManager::GetLogicalEpoch();
-                epoch_mod = EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength;
-                while (Merger::epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr)) {
-//                    if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
-//                        continue;
-//                    }
-                    Merger::merge_queue->enqueue(std::move(txn_ptr));
-                    Merger::merge_queue->enqueue(nullptr);
-                }
-                usleep(logical_sleep_timme);
-            }
-        }
-        else {
+//        if(id < ctx.kUsleepThreadNum ) {
+//            while(!EpochManager::IsTimerStop()){
+////                epoch = EpochManager::GetLogicalEpoch();
+//                epoch_mod = EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength;
+//                while (Merger::epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+////                    if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
+////                        continue;
+////                    }
+//                    Merger::merge_queue->enqueue(std::move(txn_ptr));
+//                    Merger::merge_queue->enqueue(nullptr);
+//                }
+//                usleep(logical_sleep_timme);
+//            }
+//        }
+//        else {
             switch(ctx.taas_mode) {
                 case TaasMode::MultiMaster :
                 case TaasMode::Sharding : {
@@ -49,7 +49,7 @@ namespace Taas {
                     break;
                 }
             }
-        }
+//        }
     }
 
     void WorkerFroCommitThreadMain(const Context& ctx, uint64_t id) {
@@ -61,19 +61,19 @@ namespace Taas {
         uint64_t epoch_mod;
         auto txn_ptr = std::make_unique<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        if(id < ctx.kUsleepThreadNum ) {
-            while(!EpochManager::IsTimerStop()){
-//                epoch = EpochManager::GetLogicalEpoch();
-                epoch_mod = EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength;
-                while(!EpochManager::IsAbortSetMergeComplete(epoch_mod)) usleep(logical_sleep_timme);
-                while(Merger::epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
-                    Merger::commit_queue->enqueue(std::move(txn_ptr));
-                    Merger::commit_queue->enqueue(nullptr);
-                }
-                usleep(logical_sleep_timme);
-            }
-        }
-        else {
+//        if(id < ctx.kUsleepThreadNum ) {
+//            while(!EpochManager::IsTimerStop()){
+////                epoch = EpochManager::GetLogicalEpoch();
+//                epoch_mod = EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength;
+//                while(!EpochManager::IsAbortSetMergeComplete(epoch_mod)) usleep(logical_sleep_timme);
+//                while(Merger::epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+//                    Merger::commit_queue->enqueue(std::move(txn_ptr));
+//                    Merger::commit_queue->enqueue(nullptr);
+//                }
+//                usleep(logical_sleep_timme);
+//            }
+//        }
+//        else {
             switch (ctx.taas_mode) {
                 case TaasMode::MultiMaster :
                 case TaasMode::Sharding : {
@@ -89,7 +89,7 @@ namespace Taas {
                     break;
                 }
             }
-        }
+//        }
     }
 
 }
