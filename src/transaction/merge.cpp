@@ -163,13 +163,13 @@ namespace Taas {
                 if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     continue;
                 }
-                merge_queue->enqueue(std::move(txn_ptr));
-                merge_queue->enqueue(nullptr);
-            }
-            while(merge_queue->try_dequeue(txn_ptr)) {
-                if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
-                    continue;
-                }
+//                merge_queue->enqueue(std::move(txn_ptr));
+//                merge_queue->enqueue(nullptr);
+//            }
+//            while(merge_queue->try_dequeue(txn_ptr)) {
+//                if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
+//                    continue;
+//                }
                 auto time1 = now_to_us();
                 epoch = txn_ptr->commit_epoch();
                 if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
@@ -185,6 +185,7 @@ namespace Taas {
                 total_merge_txn_num.fetch_add(1);
                 total_merge_latency.fetch_add(now_to_us() - time1);
                 epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
+                sleep_flag = false;
             }
             if(sleep_flag) {
                 usleep(sleep_time);
@@ -229,14 +230,14 @@ namespace Taas {
                 if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     continue;
                 }
-                commit_queue->enqueue(std::move(txn_ptr));
-                commit_queue->enqueue(nullptr);
-            }
-
-            while (commit_queue->try_dequeue(txn_ptr)) {
-                if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
-                    continue;
-                }
+//                commit_queue->enqueue(std::move(txn_ptr));
+//                commit_queue->enqueue(nullptr);
+//            }
+//
+//            while (commit_queue->try_dequeue(txn_ptr)) {
+//                if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
+//                    continue;
+//                }
                 epoch = txn_ptr->commit_epoch();
                 auto time1 = now_to_us();
                 ///validation phase
