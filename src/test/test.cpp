@@ -41,15 +41,10 @@ namespace Taas {
                 row->set_key(key);
                 switch (op_type) {
                     case 0 : {
-                        if(Merger::read_version_map_data.getValue(key, read_version)) {
-                            row->set_op_type(proto::Read);
-                            row->set_data(read_version);
-                            break;
-                        }
-                        else {
-                            row->set_op_type(proto::Insert);
-                            break;
-                        }
+                        Merger::read_version_map_data.getValue(key, read_version);
+                        row->set_op_type(proto::Read);
+                        row->set_data(read_version);
+                        break;
                     }
                     case 1 : {
                         row->set_op_type(proto::Insert);
