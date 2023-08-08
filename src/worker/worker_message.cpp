@@ -41,42 +41,36 @@ namespace Taas {
     void WorkerForClientListenThreadMain(const Context& ctx) {
         std::string name = "EpochClientListen";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
-        SetCPU();
         ListenClientThreadMain(ctx);
     }
 
     void WorkerForClientSendThreadMain(const Context& ctx) {
         std::string name = "EpochClientSend";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
-        SetCPU();
         SendClientThreadMain(ctx);
     }
 
     void WorkerForServerListenThreadMain(const Context& ctx) {
         std::string name = "EpochServerListen";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
-        SetCPU();
         ListenServerThreadMain(ctx);
     }
 
     void WorkerForServerListenThreadMain_Epoch(const Context& ctx) {
         std::string name = "EpochServerListen";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
-        SetCPU();
         ListenServerThreadMain_Epoch(ctx);
     }
 
     void WorkerForServerSendThreadMain(const Context& ctx) {
         std::string name = "EpochServerSend";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
-        SetCPU();
         SendServerThreadMain(ctx);
     }
 
     void WorkerForStorageSendThreadMain(const Context& ctx) {
         std::string name = "EpochStorageSend";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
-        SetCPU();
         SendStoragePUBThreadMain(ctx);
     }
 
