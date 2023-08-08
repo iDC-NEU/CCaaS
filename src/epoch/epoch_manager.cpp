@@ -202,26 +202,12 @@ namespace Taas {
     bool CheckRedoLogPushDownState(const Context& ctx) {
         auto i = redo_log_epoch.load();
         while(!EpochManager::IsTimerStop()) {
-
-            while(!EpochManager::IsCommitComplete(i)) {
-                usleep(50);
-            }
-            while(!RedoLoger::CheckPushDownComplete(ctx, i)) {
-                usleep(50);
-            }
-            while(!EpochMessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) {
-                usleep(50);
-            }
-
-//            if(redo_log_epoch.load() < commit_epoch.load() &&
-//               EpochManager::IsCommitComplete(i) &&
-//               RedoLoger::CheckPushDownComplete(ctx, i) &&
-//               EpochMessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i))
+            while(i >= commit_epoch.load()) usleep(50);
+            while(!EpochManager::IsCommitComplete(i)) usleep(50);
+            while(!RedoLoger::CheckPushDownComplete(ctx, i)) usleep(50);
+            while(!EpochMessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) usleep(50);
             {
                 LOG(INFO) << PrintfToString("=-=-=-=-=-=-= 完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", commit_epoch.load(), i);
-                if(i % ctx.print_mode_size == 0) {
-                    printf("=-=-=-=-=-=-= 完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", commit_epoch.load(), i);
-                }
                 EpochManager::ClearMergeEpochState(i); //清空当前epoch的merge信息
                 EpochMessageReceiveHandler::StaticClear(ctx, i);//清空current epoch的receive cache num信息
                 Merger::ClearMergerEpochState(ctx, i);
