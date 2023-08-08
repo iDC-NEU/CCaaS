@@ -229,11 +229,8 @@ namespace Taas {
                 case TaasMode::MultiMaster :
                 case TaasMode::Sharding :{
                     while(!EpochManager::IsTimerStop()) {
-                        ///check and send abort set
-                        /// send epoch end flag
-                        /// send epoch backup end message
                         while(!EpochMessageSendHandler::SendEpochEndMessage(ctx)) {
-                            usleep(200);
+                            usleep(100);
                         }
                     }
                     break;
@@ -258,7 +255,7 @@ namespace Taas {
                 case TaasMode::Sharding :{
                     while(!EpochManager::IsTimerStop()) {
                         while(! EpochMessageSendHandler::SendBackUpEpochEndMessage(ctx)) { ///send epoch backup end message
-                            usleep(200);
+                            usleep(100);
                         }
                     }
                     break;
@@ -278,7 +275,7 @@ namespace Taas {
         while(!EpochManager::IsTimerStop()){
             while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum ||
                   !CheckRedoLogPushDownState(ctx)) { //this check do in mot push down
-                usleep(200);
+                usleep(100);
             }
         }
     }

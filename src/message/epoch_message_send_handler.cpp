@@ -207,8 +207,6 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, pr
                 sleep_flag = true;
             }
         }
-        sleep_flag |= SendBackUpEpochEndMessage(ctx);
-        sleep_flag |= SendAbortSet(ctx);
         return sleep_flag;
     }
 
