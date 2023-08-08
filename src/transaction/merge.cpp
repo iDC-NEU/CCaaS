@@ -181,19 +181,17 @@ namespace Taas {
                 epoch = txn_ptr->commit_epoch();
                 if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
                     total_read_version_check_failed_txn_num.fetch_add(1);
-                    total_merge_txn_num.fetch_add(1);
-                    total_merge_latency.fetch_add(now_to_us() - time1);
-                    epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
-                    sleep_flag = false;
-                    continue;
+                    sleep_time = false;
+                    goto end;
                 }
                 if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
-                    total_merge_txn_num.fetch_add(1);
-                    total_merge_latency.fetch_add(now_to_us() - time1);
-                    epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
-                    sleep_flag = false;
-                    continue;
+                    sleep_time = false;
+                    goto end;
                 }
+                end:
+                total_merge_txn_num.fetch_add(1);
+                total_merge_latency.fetch_add(now_to_us() - time1);
+                epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
             }
             if(sleep_flag) {
                 usleep(sleep_time);
@@ -211,17 +209,15 @@ namespace Taas {
             auto time1 = now_to_us();
             if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
                 total_read_version_check_failed_txn_num.fetch_add(1);
-                total_merge_txn_num.fetch_add(1);
-                total_merge_latency.fetch_add(now_to_us() - time1);
-                epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
-                continue;
+                goto end;
             }
             if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
-                total_merge_txn_num.fetch_add(1);
-                total_merge_latency.fetch_add(now_to_us() - time1);
-                epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
-                continue;
+                goto end;
             }
+            end:
+            total_merge_txn_num.fetch_add(1);
+            total_merge_latency.fetch_add(now_to_us() - time1);
+            epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
         }
     }
 
