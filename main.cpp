@@ -63,6 +63,7 @@ namespace Taas {
 
             for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
                 threads.push_back(std::make_unique<std::thread>(WorkerFroMessageThreadMain, ctx, i));///txn message
+                threads.push_back(std::make_unique<std::thread>(WorkerFroMessageEpochThreadMain, ctx, i));///epoch message
                 threads.push_back(std::make_unique<std::thread>(WorkerFroMergeThreadMain, ctx, i));///merge
                 threads.push_back(std::make_unique<std::thread>(WorkerFroCommitThreadMain, ctx, i));///commit
             }

@@ -58,14 +58,14 @@ namespace Taas {
             assert(params->id != ctx.txn_node_ip_index);
             assert(params->id < ctx.kTxnNodeNum);
             msg = std::make_unique<zmq::message_t>(*(params->str));
-//            if(params->type == proto::TxnType::RemoteServerTxn || params->type == proto::TxnType::BackUpTxn) {
+            if(params->type == proto::TxnType::RemoteServerTxn || params->type == proto::TxnType::BackUpTxn) {
                 socket_map_txn[params->id]->send(*msg, sendFlags);
 //                printf("send message txn %lu server_id %lu type %d\n", params->epoch, params->id, params->type);
-//            }
-//            else {
-////                printf("send message epoch %lu server_id %lu type %d\n", params->epoch, params->id, params->type);
-//                socket_map_epoch[params->id]->send(*msg, sendFlags);
-//            }
+            }
+            else {
+//                printf("send message epoch %lu server_id %lu type %d\n", params->epoch, params->id, params->type);
+                socket_map_epoch[params->id]->send(*msg, sendFlags);
+            }
         }
         socket_map_txn[0]->send((zmq::message_t &) "end", sendFlags);
     }
@@ -94,9 +94,9 @@ namespace Taas {
             assert(recvResult >= 0);
 //            if(recvResult < 0) assert(false);
             if (is_epoch_advance_started.load()) {
-                auto res = MessageQueue::listen_message_queue->enqueue(std::move(message_ptr));
+                auto res = MessageQueue::listen_message_txn_queue->enqueue(std::move(message_ptr));
                 assert(res);
-                res = MessageQueue::listen_message_queue->enqueue(std::make_unique<zmq::message_t>());
+                res = MessageQueue::listen_message_txn_queue->enqueue(std::make_unique<zmq::message_t>());
                 assert(res); //防止moodycamel取不出
                 break;
             }
@@ -106,9 +106,9 @@ namespace Taas {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);
             assert(recvResult >= 0);
-            auto res = MessageQueue::listen_message_queue->enqueue(std::move(message_ptr));
+            auto res = MessageQueue::listen_message_txn_queue->enqueue(std::move(message_ptr));
             assert(res);
-            res = MessageQueue::listen_message_queue->enqueue(std::make_unique<zmq::message_t>());
+            res = MessageQueue::listen_message_txn_queue->enqueue(std::make_unique<zmq::message_t>());
             assert(res); //防止moodycamel取不出
         }
     }
@@ -130,9 +130,9 @@ namespace Taas {
             recvResult = socket_listen.recv((*message_ptr), recvFlags);//防止上次遗留消息造成message cache出现问题
             assert(recvResult >= 0);
             if (is_epoch_advance_started.load()) {
-                auto res = MessageQueue::listen_message_queue->enqueue(std::move(message_ptr));
+                auto res = MessageQueue::listen_message_epoch_queue->enqueue(std::move(message_ptr));
                 assert(res);
-                res = MessageQueue::listen_message_queue->enqueue(std::make_unique<zmq::message_t>());
+                res = MessageQueue::listen_message_epoch_queue->enqueue(std::make_unique<zmq::message_t>());
                 assert(res); //防止moodycamel取不出
                 break;
             }
@@ -142,9 +142,9 @@ namespace Taas {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);
             assert(recvResult >= 0);
-            auto res = MessageQueue::listen_message_queue->enqueue(std::move(message_ptr));
+            auto res = MessageQueue::listen_message_epoch_queue->enqueue(std::move(message_ptr));
             assert(res);
-            res = MessageQueue::listen_message_queue->enqueue(std::make_unique<zmq::message_t>());
+            res = MessageQueue::listen_message_epoch_queue->enqueue(std::make_unique<zmq::message_t>());
             assert(res); //防止moodycamel取不出
         }
     }

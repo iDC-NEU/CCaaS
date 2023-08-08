@@ -21,6 +21,7 @@ namespace Taas {
         bool Init(const Context& ctx_, const uint64_t &id);
 
         void HandleReceivedMessage();
+        void HandleReceivedControlMessage();
         bool SetMessageRelatedCountersInfo();
         bool HandleReceivedTxn();
         bool HandleClientTxn();
