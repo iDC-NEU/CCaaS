@@ -63,7 +63,7 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, pr
             TotalSuccessLatency.fetch_add(tim);
             TotalSuccessTxnNUm.fetch_add(1);
         }
-        printf("Taas Totallatency %lu TotalNum %lu avg %f\n", TotalLatency.load(), TotalTxnNum.load(), (((double)TotalLatency.load()) / ((double)TotalTxnNum.load())));
+//        printf("Taas Totallatency %lu TotalNum %lu avg %f\n", TotalLatency.load(), TotalTxnNum.load(), (((double)TotalLatency.load()) / ((double)TotalTxnNum.load())));
         // 将序列化的Transaction放到send_to_client_queue中，等待发送给client
         MessageQueue::send_to_client_queue->enqueue(std::make_unique<send_params>(txn.client_txn_id(), txn.csn(), txn.client_ip(), txn.commit_epoch(), proto::TxnType::CommittedTxn, std::move(serialized_txn_str_ptr), nullptr));
         return MessageQueue::send_to_client_queue->enqueue(std::make_unique<send_params>(0, 0, "", 0, proto::TxnType::NullMark, nullptr, nullptr));

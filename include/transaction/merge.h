@@ -79,8 +79,6 @@ namespace Taas {
         static bool MergeQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
         static void CommitQueueEnqueue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
         static bool CommitQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
-        static void LocalTxnCommitQueueEnqueue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
-        static bool LocalTxnCommitQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
 
 
 

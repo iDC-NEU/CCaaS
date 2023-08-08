@@ -64,7 +64,7 @@ namespace Taas {
         commit_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
 
         epoch_merge_queue.resize(max_length);
-        epoch_local_txn_queue.resize(max_length);
+        epoch_commit_queue.resize(max_length);
 //        epoch_commit_queue.resize(max_length);
 
         epoch_merge_complete.resize(max_length);
@@ -86,7 +86,7 @@ namespace Taas {
             epoch_insert_set[i] = std::make_unique<concurrent_unordered_map<std::string, std::string>>();
 
             epoch_merge_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-            epoch_local_txn_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+            epoch_commit_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
 //            epoch_commit_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
         }
         RedoLoger::StaticInit(ctx);
@@ -102,22 +102,15 @@ namespace Taas {
         ///not use for now
         return false;
     }
-    void Merger::CommitQueueEnqueue(const Context &ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr) {
-        ///not use for now
-    }
-    bool Merger::CommitQueueTryDequeue(const Context &ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr) {
-        ///not use for now
-        return false;
-    }
-    void Merger::LocalTxnCommitQueueEnqueue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr) {
+    void Merger::CommitQueueEnqueue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>&& txn_ptr) {
         epoch_should_commit_txn_num.IncCount(epoch, ctx.txn_node_ip_index, 1);
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
-        epoch_local_txn_queue[epoch_mod]->enqueue(std::move(txn_ptr));
-        epoch_local_txn_queue[epoch_mod]->enqueue(nullptr);
+        epoch_commit_queue[epoch_mod]->enqueue(std::move(txn_ptr));
+        epoch_commit_queue[epoch_mod]->enqueue(nullptr);
     }
-    bool Merger::LocalTxnCommitQueueTryDequeue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr) {
+    bool Merger::CommitQueueTryDequeue(const Context& ctx, uint64_t& epoch, std::unique_ptr<proto::Transaction>& txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
-        return epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr);
+        return epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr);
     }
 
     void Merger::ClearMergerEpochState(const Context& ctx, uint64_t& epoch) {
@@ -227,7 +220,7 @@ namespace Taas {
             epoch = EpochManager::GetLogicalEpoch();
             epoch_mod = epoch % ctx.kCacheMaxLength;
             sleep_flag = true;
-            while(epoch_local_txn_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+            while(epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                 if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     continue;
                 }
@@ -249,7 +242,7 @@ namespace Taas {
                 } else {
                     epoch_record_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
                     CRDTMerge::Commit(ctx, *(txn_ptr));
-                    if(ctx.taas_mode == TaasMode::Sharding && txn_ptr->server_id() == ctx.txn_node_ip_index) { /// only local txn do redo log
+                    if(txn_ptr->server_id() == ctx.txn_node_ip_index) { /// only local txn do redo log
                         RedoLoger::RedoLog(ctx, *(txn_ptr));
                     }
                     epoch_record_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
@@ -285,7 +278,9 @@ namespace Taas {
             } else {
                 epoch_record_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
                 CRDTMerge::Commit(ctx, *(txn_ptr));
-                RedoLoger::RedoLog(ctx, *(txn_ptr));
+                if(txn_ptr->server_id() == ctx.txn_node_ip_index) { /// only local txn do redo log
+                    RedoLoger::RedoLog(ctx, *(txn_ptr));
+                }
                 epoch_record_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
                 success_commit_txn_num.fetch_add(1);
                 success_commit_latency.fetch_add(now_to_us() - time1);

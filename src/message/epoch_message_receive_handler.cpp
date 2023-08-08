@@ -215,17 +215,14 @@ namespace Taas {
                 SetMessageRelatedCountersInfo();
                 HandleClientTxn();
                 assert(txn_ptr != nullptr);
-                Merger::LocalTxnCommitQueueEnqueue(ctx, message_epoch, std::move(txn_ptr));
+                Merger::CommitQueueEnqueue(ctx, message_epoch, std::move(txn_ptr));
                 sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
                 break;
             }
             case proto::TxnType::RemoteServerTxn : {
                 sharding_should_handle_remote_txn_num.IncCount(message_epoch, thread_id, 1);
                 Merger::MergeQueueEnqueue(ctx, message_epoch, std::make_unique<proto::Transaction>(*txn_ptr));
-//                Merger::EpochMerge(ctx, message_epoch, std::move(txn_ptr));
-                if(ctx.taas_mode == TaasMode::MultiMaster) {
-                    Merger::LocalTxnCommitQueueEnqueue(ctx, message_epoch, std::move(txn_ptr));
-                }
+                Merger::CommitQueueEnqueue(ctx, message_epoch, std::move(txn_ptr));
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
                 sharding_handled_remote_txn_num.IncCount(message_epoch, thread_id, 1);
                 break;
@@ -483,22 +480,5 @@ namespace Taas {
         while (epoch_abort_set[cache_clear_epoch_num_mod]->try_dequeue(txn));
         return true;
     }
-
-//    bool EpochMessageReceiveHandler::CheckReceivedStatesAndReply_for_RedoLOG() {
-//        res = false;
-//        auto& id = server_reply_ack_id;
-//        ///to all server
-//        /// change epoch_record_committed_txn_num to tikv check
-//        if(Merger::IsEpochCommitComplete(ctx, redo_log_push_down_reply) &&
-//           redo_log_push_down_reply < EpochManager::GetLogicalEpoch()) {
-//            MessageSendHandler::SendTxnToServer(ctx, redo_log_push_down_reply,
-//                                                server_reply_ack_id, empty_txn, proto::TxnType::EpochLogPushDownComplete);
-//            redo_log_push_down_reply ++;
-//            res = true;
-//        }
-//
-//        id = (id + 1) % ctx.kTxnNodeNum;
-//        return res;
-//    }
 
 }
