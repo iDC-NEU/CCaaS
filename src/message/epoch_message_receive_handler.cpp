@@ -207,8 +207,9 @@ namespace Taas {
         switch (txn_ptr->txn_type()) {
             ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
             case proto::TxnType::ClientTxn : {/// sql node --> txn node
-                txn_ptr->set_commit_epoch(EpochManager::GetPhysicalEpoch());
+                message_epoch = EpochManager::GetPhysicalEpoch();
                 sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
+                txn_ptr->set_commit_epoch(message_epoch);
                 txn_ptr->set_csn(now_to_us());
                 txn_ptr->set_server_id(ctx.txn_node_ip_index);
                 SetMessageRelatedCountersInfo();

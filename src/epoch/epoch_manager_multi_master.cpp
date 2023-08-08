@@ -89,10 +89,10 @@ namespace Taas {
                 auto time1 = now_to_us();
                 while(epoch >= EpochManager::GetPhysicalEpoch()) usleep(logical_sleep_timme);
                 LOG(INFO) << "**** Start Epoch Merge Epoch : " << epoch << "****\n";
-                while(!EpochMessageReceiveHandler::IsShardingACKReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
-                LOG(INFO) << "**** finished IsShardingACKReceiveComplete : " << epoch << "****\n";
                 while(!EpochMessageReceiveHandler::IsShardingSendFinish(epoch)) usleep(logical_sleep_timme);
                 LOG(INFO) << "**** finished IsShardingSendFinish : " << epoch << "****\n";
+                while(!EpochMessageReceiveHandler::IsShardingACKReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
+                LOG(INFO) << "**** finished IsShardingACKReceiveComplete : " << epoch << "****\n";
                 while(!EpochMessageReceiveHandler::CheckEpochShardingSendComplete(ctx, epoch)) usleep(logical_sleep_timme);
                 auto time2 = now_to_us();
                 LOG(INFO) << "**** Finished CheckEpochShardingSendComplete Epoch : " << epoch << ",time cost : " << time2 - time1 << "****\n";
