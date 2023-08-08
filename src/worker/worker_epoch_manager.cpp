@@ -273,10 +273,7 @@ namespace Taas {
         SetCPU();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while(!EpochManager::IsTimerStop()){
-            while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum ||
-                  !CheckRedoLogPushDownState(ctx)) { //this check do in mot push down
-                usleep(100);
-            }
+            CheckRedoLogPushDownState(ctx);
         }
     }
 
