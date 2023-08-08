@@ -234,6 +234,13 @@ namespace Taas {
                 sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
                 CheckEpochShardingReceiveComplete(ctx,message_epoch);
+//                if(message_epoch < EpochManager::GetPhysicalEpoch() &&
+//                   IsShardingPackReceiveComplete(message_epoch, message_server_id) &&
+//                   IsShardingTxnReceiveComplete(message_epoch, message_server_id)) {
+//                    EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch,
+//                                                             message_server_id, empty_txn, proto::TxnType::EpochShardingACK);
+////                printf("= send sharding ack epoch, %lu server_id %lu\n", sharding_epoch, id);
+//                }
 //                printf("EpochEndFlag epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
@@ -246,6 +253,13 @@ namespace Taas {
             case proto::TxnType::BackUpEpochEndFlag : {
                 backup_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 backup_received_pack_num.IncCount(message_epoch,message_server_id, 1);
+//                if(message_epoch < EpochManager::GetPhysicalEpoch() &&
+//                   IsBackUpPackReceiveComplete(message_epoch, message_server_id) &&
+//                   IsBackUpTxnReceiveComplete(message_epoch, message_server_id)) {
+//                    EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch,
+//                                                             message_server_id, empty_txn, proto::TxnType::BackUpACK);
+////                printf(" == send backup ack epoch, %lu server_id %lu\n", backup_epoch, id);
+//                }
 //                printf("BackUpEpochEndFlag epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
@@ -378,16 +392,6 @@ namespace Taas {
     bool EpochMessageReceiveHandler::CheckReceivedStatesAndReply() {
         res = false;
         auto& id = server_reply_ack_id;
-        ///to all server
-        /// change epoch_record_committed_txn_num to tikv check
-        if(redo_log_push_down_reply < EpochManager::GetLogicalEpoch() &&
-           (Merger::IsEpochCommitComplete(ctx, redo_log_push_down_reply) || redo_log_push_down_reply < EpochManager::GetPushDownEpoch() )) {
-            EpochMessageSendHandler::SendTxnToServer(ctx, redo_log_push_down_reply,
-                                                     server_reply_ack_id, empty_txn, proto::TxnType::EpochLogPushDownComplete);
-//            LOG(INFO) << "send EpochLogPushDownComplete ack, epoch: " << redo_log_push_down_reply << ", server id:" << id;
-            redo_log_push_down_reply ++;
-            res = true;
-        }
 
         ///to single server  send ack
         if(id != ctx.txn_node_ip_index) {

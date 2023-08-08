@@ -16,6 +16,7 @@ namespace Taas {
     extern void WorkerForLogicalCommitCheckThreadMain(const Context& ctx);
     extern void WorkerForLogicalRedoLogPushDownCheckThreadMain(const Context& ctx);
 
+    extern void WorkerForEpochControlMessageThreadMain(const Context& ctx);
     extern void WorkerForLogicalReceiveAndReplyCheckThreadMain(const Context& ctx) ;
     extern void WorkerForEpochAbortSendThreadMain(const Context& ctx);
     extern void WorkerForEpochEndFlagSendThreadMain(const Context& ctx) ;

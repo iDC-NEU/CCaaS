@@ -176,6 +176,15 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, pr
 
 
     ///一下函数都由0号线程执行
+    bool EpochMessageSendHandler::SendEpochControlMessage(const Context &ctx, EpochMessageReceiveHandler &receiveHandler) {
+        auto sleep_flag = false;
+        sleep_flag |= SendEpochEndMessage(ctx);
+        sleep_flag |= SendBackUpEpochEndMessage(ctx);
+        sleep_flag |= SendAbortSet(ctx);
+        sleep_flag |= receiveHandler.CheckReceivedStatesAndReply();
+        return sleep_flag;
+    }
+
     bool EpochMessageSendHandler::SendEpochEndMessage(const Context &ctx) {
         auto sleep_flag = false;
         for(uint64_t server_id = 0; server_id < ctx.kTxnNodeNum; server_id ++) { /// send to everyone  sharding_num == TxnNodeNum
@@ -198,6 +207,8 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, pr
                 sleep_flag = true;
             }
         }
+        sleep_flag |= SendBackUpEpochEndMessage(ctx);
+        sleep_flag |= SendAbortSet(ctx);
         return sleep_flag;
     }
 
@@ -222,7 +233,6 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, pr
             }
             MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(0, 0, "", backup_sent_epoch, proto::TxnType::NullMark, nullptr, nullptr));
             backup_sent_epoch ++;
-
             sleep_flag = true;
         }
         return sleep_flag;
@@ -255,7 +265,6 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, pr
             abort_sent_epoch ++;
             sleep_flag = true;
         }
-
         return sleep_flag;
     }
 

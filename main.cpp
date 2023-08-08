@@ -46,7 +46,7 @@ namespace Taas {
             EpochManager epochManager;
             Taas::EpochManager::ctx = ctx;
             threads.push_back(std::make_unique<std::thread>(WorkerForPhysicalThreadMain, ctx));
-        threads.push_back(std::make_unique<std::thread>(WorkerForLogicalThreadMain, ctx));
+            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalThreadMain, ctx));
 
 //            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalTxnMergeCheckThreadMain, ctx));
 //            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalAbortSetMergeCheckThreadMain, ctx));
@@ -54,10 +54,12 @@ namespace Taas {
 
             threads.push_back(std::make_unique<std::thread>(WorkerForLogicalRedoLogPushDownCheckThreadMain, ctx));
 
-            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalReceiveAndReplyCheckThreadMain, ctx));
-            threads.push_back(std::make_unique<std::thread>(WorkerForEpochAbortSendThreadMain, ctx));
-            threads.push_back(std::make_unique<std::thread>(WorkerForEpochEndFlagSendThreadMain, ctx));
-            threads.push_back(std::make_unique<std::thread>(WorkerForEpochBackUpEndFlagSendThreadMain, ctx));
+            threads.push_back(std::make_unique<std::thread>(WorkerForEpochControlMessageThreadMain, ctx));
+
+//            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalReceiveAndReplyCheckThreadMain, ctx));
+//            threads.push_back(std::make_unique<std::thread>(WorkerForEpochAbortSendThreadMain, ctx));
+//            threads.push_back(std::make_unique<std::thread>(WorkerForEpochEndFlagSendThreadMain, ctx));
+//            threads.push_back(std::make_unique<std::thread>(WorkerForEpochBackUpEndFlagSendThreadMain, ctx));
 
             for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
                 threads.push_back(std::make_unique<std::thread>(WorkerFroMessageThreadMain, ctx, i));///txn message

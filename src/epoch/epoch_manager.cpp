@@ -216,9 +216,12 @@ namespace Taas {
             RedoLoger::ClearRedoLog(ctx, i);
 
             redo_log_epoch.fetch_add(1);
-            i ++;
+
             clear_epoch.fetch_add(1);
             EpochManager::AddPushDownEpoch();
+            auto empty_txn = std::make_unique<proto::Transaction>();
+            EpochMessageSendHandler::SendMessageToAll(ctx, i, proto::TxnType::EpochLogPushDownComplete);
+            i ++;
             res = true;
         }
         return res;
