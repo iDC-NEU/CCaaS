@@ -261,6 +261,7 @@ namespace Taas {
                 break;
             }
             case proto::TxnType::AbortSet : {
+                auto time1 = now_to_us();
                 UpdateEpochAbortSet();
                 epoch_abort_set[message_epoch_mod]->enqueue(std::move(txn_ptr));
                 epoch_abort_set[message_epoch_mod]->enqueue(nullptr);
@@ -268,6 +269,7 @@ namespace Taas {
                 ///send abort set ack
                 EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch,
                             message_server_id, empty_txn, proto::TxnType::AbortSetACK);
+                LOG(INFO) << "=== Receive and Merge Abort Set time cost " << now_to_us() - time1 << "===\n";
 //                printf("AbortSet epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
@@ -296,6 +298,7 @@ namespace Taas {
             case proto::TxnType::AbortSetACK : {
                 abort_set_received_ack_num.IncCount(message_epoch,message_server_id, 1);
                 CheckEpochAbortSetMergeComplete(ctx, message_epoch);
+                LOG(INFO) << "=== Receive Abort Set ACK ===\n";
 //                printf("AbortSetACK epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
