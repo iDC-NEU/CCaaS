@@ -389,6 +389,15 @@ namespace Taas {
     bool EpochMessageReceiveHandler::CheckReceivedStatesAndReply() {
         res = false;
         auto& id = server_reply_ack_id;
+        if(redo_log_push_down_reply < EpochManager::GetLogicalEpoch() &&
+           (Merger::IsEpochCommitComplete(ctx, redo_log_push_down_reply) || redo_log_push_down_reply < EpochManager::GetPushDownEpoch() )) {
+//            EpochMessageSendHandler::SendMessageToAll(ctx, redo_log_push_down_reply, proto::TxnType::EpochLogPushDownComplete);
+            EpochMessageSendHandler::SendTxnToServer(ctx, redo_log_push_down_reply,
+                                                     server_reply_ack_id, empty_txn, proto::TxnType::EpochLogPushDownComplete);
+//            LOG(INFO) << "send EpochLogPushDownComplete ack, epoch: " << redo_log_push_down_reply << ", server id:" << id;
+            redo_log_push_down_reply ++;
+            res = true;
+        }
 
         ///to single server  send ack
         if(id != ctx.txn_node_ip_index) {
