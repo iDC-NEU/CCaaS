@@ -44,7 +44,6 @@ namespace Taas {
 bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::Transaction &txn, proto::TxnState txn_state) {
 //        return true; ///test
         //不是本地事务不进行回复
-        TotalTxnNum.fetch_add(1);
         if(txn.server_id() != ctx.txn_node_ip_index) return true;
 
         // 设置txn的状态并创建proto对象
@@ -59,12 +58,12 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, pr
         Gzip(msg.get(), serialized_txn_str_ptr.get());
         auto tim = now_to_us() - txn.csn();
         TotalLatency.fetch_add(tim);
-//        TotalTxnNum.fetch_add(1);
+        TotalTxnNum.fetch_add(1);
         if(txn_state == proto::TxnState::Commit) {
             TotalSuccessLatency.fetch_add(tim);
             TotalSuccessTxnNUm.fetch_add(1);
         }
-//        printf("Taas Totallatency %lu TotalNum %lu avg %f\n", TotalLatency.load(), TotalTxnNum.load(), (((double)TotalLatency.load()) / ((double)TotalTxnNum.load())));
+        printf("Taas Totallatency %lu TotalNum %lu avg %f\n", TotalLatency.load(), TotalTxnNum.load(), (((double)TotalLatency.load()) / ((double)TotalTxnNum.load())));
         // 将序列化的Transaction放到send_to_client_queue中，等待发送给client
         MessageQueue::send_to_client_queue->enqueue(std::make_unique<send_params>(txn.client_txn_id(), txn.csn(), txn.client_ip(), txn.commit_epoch(), proto::TxnType::CommittedTxn, std::move(serialized_txn_str_ptr), nullptr));
         return MessageQueue::send_to_client_queue->enqueue(std::make_unique<send_params>(0, 0, "", 0, proto::TxnType::NullMark, nullptr, nullptr));

@@ -249,7 +249,9 @@ namespace Taas {
                 } else {
                     epoch_record_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
                     CRDTMerge::Commit(ctx, *(txn_ptr));
-                    RedoLoger::RedoLog(ctx, *(txn_ptr));
+                    if(ctx.taas_mode == TaasMode::Sharding && txn_ptr->server_id() == ctx.txn_node_ip_index) { /// only local txn do redo log
+                        RedoLoger::RedoLog(ctx, *(txn_ptr));
+                    }
                     epoch_record_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
                     success_commit_txn_num.fetch_add(1);
                     success_commit_latency.fetch_add(now_to_us() - time1);

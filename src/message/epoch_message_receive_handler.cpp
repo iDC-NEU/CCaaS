@@ -223,6 +223,9 @@ namespace Taas {
                 sharding_should_handle_remote_txn_num.IncCount(message_epoch, thread_id, 1);
                 Merger::MergeQueueEnqueue(ctx, message_epoch, std::make_unique<proto::Transaction>(*txn_ptr));
 //                Merger::EpochMerge(ctx, message_epoch, std::move(txn_ptr));
+                if(ctx.taas_mode == TaasMode::MultiMaster) {
+                    Merger::LocalTxnCommitQueueEnqueue(ctx, message_epoch, std::move(txn_ptr));
+                }
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
                 sharding_handled_remote_txn_num.IncCount(message_epoch, thread_id, 1);
                 break;

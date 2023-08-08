@@ -178,7 +178,7 @@ namespace Taas {
        EpochMessageReceiveHandler::insert_set_received_ack_num.GetCount(epoch_mod),      EpochMessageReceiveHandler::abort_set_received_ack_num.GetCount(epoch_mod),
 
        (uint64_t)0,
-        now_to_us()) << PrintfToString("Epoch: %lu ClearEpoch: %lu, SuccessTxnNumber %lu, ToTalSuccessLatency %lu, SuccessAvgLatency %lf, TotalCommitTxnNum %lu, TotalCommitlatency %lu, TotalCommitAvglatency %lf \n",
+        now_to_us()) << PrintfToString("\n Epoch: %lu ClearEpoch: %lu, SuccessTxnNumber %lu, ToTalSuccessLatency %lu, SuccessAvgLatency %lf, TotalCommitTxnNum %lu, TotalCommitlatency %lu, TotalCommitAvglatency %lf \n",
                                        epoch_, clear_epoch.load(),
                                        EpochMessageSendHandler::TotalSuccessTxnNUm.load(), EpochMessageSendHandler::TotalSuccessLatency.load(),
                                        (((double)EpochMessageSendHandler::TotalSuccessLatency.load()) / ((double)EpochMessageSendHandler::TotalSuccessTxnNUm.load())),
@@ -189,10 +189,11 @@ namespace Taas {
                             Merger::total_merge_txn_num.load(), Merger::total_merge_latency.load(),
                             Merger::total_read_version_check_failed_txn_num.load(),
                             (((double)Merger::total_merge_latency.load()) / ((double)Merger::total_merge_txn_num.load())))
-          << PrintfToString("EpochCommit CommitTxnNumber %lu, ToTalMCommitLatency %lu, FailedMergeTxnNUm %lu, SuccessCommitTxnNum %lu, TotalCommitAvgLatency %lf \n",
+          << PrintfToString("EpochCommit CommitTxnNumber %lu, ToTalMCommitLatency %lu, FailedTxnNUm %lu, SuccessTxnNum %lu, TotalCommitAvgLatency %lf SuccessCommitLatency %lf\n",
                             Merger::total_commit_txn_num.load(), Merger::total_commit_latency.load(),
-                            Merger::total_failed_txn_num.load(), Merger::total_commit_txn_num.load() - Merger::total_failed_txn_num.load(),
-                            (((double)Merger::total_commit_latency.load()) / ((double)Merger::total_commit_txn_num.load())))
+                            Merger::total_failed_txn_num.load(), Merger::success_commit_txn_num.load(),
+                            (((double)Merger::total_commit_latency.load()) / ((double)Merger::total_commit_txn_num.load())),
+                            (((double)Merger::success_commit_txn_num.load()) / ((double)Merger::success_commit_latency.load())))
           << PrintfToString("Storage Push Down TiKVTotalTxnNumber %lu ,TiKVSuccessTxnNum %lu, TiKVFailedTxnNum %lu \n",
                             TiKV::total_commit_txn_num.load(), TiKV::total_commit_txn_num.load() - TiKV::failed_commit_txn_num.load(), TiKV::failed_commit_txn_num.load())
           << "**************************************************************************************************************************************************************************************\n";
