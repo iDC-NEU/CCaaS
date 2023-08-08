@@ -202,7 +202,7 @@ namespace Taas {
                 case TaasMode::Sharding : {
                     while(!EpochManager::IsTimerStop()) {
                         while(!EpochMessageSendHandler::SendAbortSet(ctx)) { ///check and send abort set
-                            usleep(100);
+                            usleep(50);
                         }
                     }
                     break;

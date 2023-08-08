@@ -238,7 +238,8 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, pr
 
     bool EpochMessageSendHandler::SendAbortSet(const Context &ctx) {
         auto sleep_flag = false;
-        if (Merger::CheckEpochMergeComplete(ctx, abort_sent_epoch)) {
+        if (EpochManager::IsShardingMergeComplete(abort_sent_epoch)) {
+            auto time1 = now_to_us();
             auto msg = std::make_unique<proto::Message>();
             auto *txn_end = msg->mutable_txn();
             txn_end->set_server_id(ctx.txn_node_ip_index);
@@ -261,6 +262,7 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, pr
             }
             MessageQueue::send_to_server_queue->enqueue( std::make_unique<send_params>(0, 0, "", abort_sent_epoch, proto::TxnType::NullMark, nullptr, nullptr));
             abort_sent_epoch ++;
+            LOG(INFO) << "=== Abort set send cost time " << now_to_us() - time1 << "===\n";
             sleep_flag = true;
         }
         return sleep_flag;
