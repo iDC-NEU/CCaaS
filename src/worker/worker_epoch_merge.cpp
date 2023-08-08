@@ -65,10 +65,8 @@ namespace Taas {
             while(!EpochManager::IsTimerStop()){
 //                epoch = EpochManager::GetLogicalEpoch();
                 epoch_mod = EpochManager::GetLogicalEpoch() % ctx.kCacheMaxLength;
+                while(!EpochManager::IsAbortSetMergeComplete(epoch_mod)) usleep(logical_sleep_timme);
                 while(Merger::epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
-//                    if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
-//                        continue;
-//                    }
                     Merger::commit_queue->enqueue(std::move(txn_ptr));
                     Merger::commit_queue->enqueue(nullptr);
                 }
