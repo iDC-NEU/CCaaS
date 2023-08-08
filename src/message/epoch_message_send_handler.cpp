@@ -262,7 +262,7 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, pr
             }
             MessageQueue::send_to_server_queue->enqueue( std::make_unique<send_params>(0, 0, "", abort_sent_epoch, proto::TxnType::NullMark, nullptr, nullptr));
             abort_sent_epoch ++;
-            LOG(INFO) << "=== Abort Set Send cost time " << now_to_us() - time1 << "===\n";
+            LOG(INFO) << "=== Abort Set Send cost time " << now_to_us() - time1 << ",epoch :" << abort_sent_epoch  << "===\n";
             sleep_flag = true;
         }
         return sleep_flag;
