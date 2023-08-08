@@ -233,6 +233,7 @@ namespace Taas {
                 v = _map_temp[k];
                 return true;
             }
+            v = value();
             return false;
         }
 
