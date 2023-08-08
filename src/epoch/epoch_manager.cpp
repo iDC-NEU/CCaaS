@@ -209,8 +209,6 @@ namespace Taas {
             while(!RedoLoger::CheckPushDownComplete(ctx, i)) {
                 usleep(50);
             }
-            EpochMessageSendHandler::SendMessageToAll(ctx, i, proto::TxnType::EpochLogPushDownComplete);
-
             while(!EpochMessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) {
                 usleep(50);
             }
