@@ -79,7 +79,7 @@ namespace Taas {
 
 
 
-    bool EpochMessageReceiveHandler::Init(const Context& ctx_, uint64_t id) {
+    bool EpochMessageReceiveHandler::Init(const Context& ctx_, const uint64_t &id) {
         message_ptr = nullptr;
         txn_ptr = nullptr;
 //        pack_param = nullptr;

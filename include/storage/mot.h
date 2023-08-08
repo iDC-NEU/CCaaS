@@ -28,14 +28,14 @@ namespace Taas {
 
         static bool StaticInit(const Context &ctx_);
 
-        static bool GeneratePushDownTask(uint64_t &epoch);
+        static bool GeneratePushDownTask(const uint64_t &epoch);
 
         static void SendTransactionToDB_Usleep();
         static void SendTransactionToDB_Block();
 
-        static bool CheckEpochPushDownComplete(uint64_t &epoch);
-        static void DBRedoLogQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
-        static bool DBRedoLogQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
+        static bool CheckEpochPushDownComplete(const uint64_t &epoch);
+        static void DBRedoLogQueueEnqueue(const uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
+        static bool DBRedoLogQueueTryDequeue(const uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
 
     };
 

@@ -33,7 +33,7 @@ namespace Taas {
         return true;
     }
 
-    bool MOT::GeneratePushDownTask(uint64_t &epoch) {
+    bool MOT::GeneratePushDownTask(const uint64_t &epoch) {
         auto txn_ptr = std::make_unique<proto::Transaction>();
         txn_ptr->set_commit_epoch(epoch);
         task_queue->enqueue(std::move(txn_ptr));
@@ -111,7 +111,7 @@ namespace Taas {
         }
     }
 
-    bool MOT::CheckEpochPushDownComplete(uint64_t &epoch) {
+    bool MOT::CheckEpochPushDownComplete(const uint64_t &epoch) {
         if(epoch_redo_log_complete[epoch % ctx.kCacheMaxLength]->load()) return true;
         if(epoch < EpochManager::GetLogicalEpoch() &&
            epoch_pushed_down_txn_num.GetCount(epoch) >= epoch_should_push_down_txn_num.GetCount(epoch)) {
@@ -122,13 +122,13 @@ namespace Taas {
         return false;
     }
 
-    void MOT::DBRedoLogQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr) {
+    void MOT::DBRedoLogQueueEnqueue(const uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_redo_log_queue[epoch_mod]->enqueue(std::move(txn_ptr));
         epoch_redo_log_queue[epoch_mod]->enqueue(nullptr);
     }
 
-    bool MOT::DBRedoLogQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr) {
+    bool MOT::DBRedoLogQueueTryDequeue(const uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         return epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr);
     }

@@ -28,16 +28,16 @@ namespace Taas {
         static std::vector<std::unique_ptr<std::atomic<bool>>> epoch_redo_log_complete;
 
         static void StaticInit(const Context &ctx_);
-        static void StaticClear(uint64_t &epoch);
+        static void StaticClear(const uint64_t &epoch);
 
         static void SendTransactionToDB_Usleep();
         static void SendTransactionToDB_Block();
 
-        static bool CheckEpochPushDownComplete(uint64_t &epoch);
-        static void DBRedoLogQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
-        static bool DBRedoLogQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
+        static bool CheckEpochPushDownComplete(const uint64_t &epoch);
+        static void DBRedoLogQueueEnqueue(const uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
+        static bool DBRedoLogQueueTryDequeue(const uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
 
-        static bool GeneratePushDownTask(uint64_t &epoch);
+        static bool GeneratePushDownTask(const uint64_t &epoch);
     };
 }
 

@@ -68,7 +68,7 @@ namespace Taas {
         return true;
     }
 
-    bool RedoLoger::GeneratePushDownTask(const Context &ctx, uint64_t &epoch) {
+    bool RedoLoger::GeneratePushDownTask(const Context &ctx, const uint64_t &epoch) {
         if(ctx.is_mot_enable) {
             MOT::GeneratePushDownTask(epoch);
         }
@@ -84,7 +84,7 @@ namespace Taas {
         return true;
     }
 
-    bool RedoLoger::CheckPushDownComplete(const Context &ctx, uint64_t &epoch) {
+    bool RedoLoger::CheckPushDownComplete(const Context &ctx, const uint64_t &epoch) {
         return (ctx.is_mot_enable == 0 || MOT::CheckEpochPushDownComplete(epoch))
             && (ctx.is_tikv_enable == 0 || TiKV::CheckEpochPushDownComplete(epoch))
             && (ctx.is_leveldb_enable == 0 || LevelDB::CheckEpochPushDownComplete(epoch))

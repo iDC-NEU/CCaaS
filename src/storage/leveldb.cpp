@@ -37,7 +37,7 @@ namespace Taas {
         LevelDB::channel.Init(ctx.kLevevDBIP.c_str(), &options);
     }
 
-    void LevelDB::StaticClear(uint64_t &epoch) {
+    void LevelDB::StaticClear(const uint64_t &epoch) {
         epoch_should_push_down_txn_num.Clear(epoch);
         epoch_pushed_down_txn_num.Clear(epoch);
         epoch_redo_log_complete[epoch % ctx.kCacheMaxLength]->store(false);
@@ -45,7 +45,7 @@ namespace Taas {
         while(epoch_redo_log_queue[epoch % ctx.kCacheMaxLength]->try_dequeue(txn_ptr));
     }
 
-    bool LevelDB::GeneratePushDownTask(uint64_t &epoch) {
+    bool LevelDB::GeneratePushDownTask(const uint64_t &epoch) {
         auto txn_ptr = std::make_unique<proto::Transaction>();
         txn_ptr->set_commit_epoch(epoch);
         task_queue->enqueue(std::move(txn_ptr));
@@ -107,17 +107,17 @@ namespace Taas {
         }
     }
 
-    void LevelDB::DBRedoLogQueueEnqueue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr) {
+    void LevelDB::DBRedoLogQueueEnqueue(const uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_redo_log_queue[epoch_mod]->enqueue(std::move(txn_ptr));
         epoch_redo_log_queue[epoch_mod]->enqueue(nullptr);
     }
-    bool LevelDB::DBRedoLogQueueTryDequeue(uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr) {
+    bool LevelDB::DBRedoLogQueueTryDequeue(const uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         return epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr);
     }
 
-    bool LevelDB::CheckEpochPushDownComplete(uint64_t &epoch) {
+    bool LevelDB::CheckEpochPushDownComplete(const uint64_t &epoch) {
         if(epoch_redo_log_complete[epoch % ctx.kCacheMaxLength]->load()) return true;
         if(epoch < EpochManager::GetLogicalEpoch() &&
            epoch_pushed_down_txn_num.GetCount(epoch) >= epoch_should_push_down_txn_num.GetCount(epoch)) {

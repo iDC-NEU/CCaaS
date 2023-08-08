@@ -86,32 +86,44 @@ namespace Taas {
         while(!EpochManager::IsInitOK()) usleep(logical_sleep_timme);
         if(ctx.kTxnNodeNum > 1) {
             while(!EpochManager::IsTimerStop()){
-                LOG(INFO) << "**** Start Epoch Merge Epoch : " << epoch << "****\n";
+                auto time1 = now_to_us();
                 while(epoch >= EpochManager::GetPhysicalEpoch()) usleep(logical_sleep_timme);
+                LOG(INFO) << "**** Start Epoch Merge Epoch : " << epoch << "****\n";
                 while(!EpochMessageReceiveHandler::CheckEpochShardingSendComplete(ctx, epoch)) usleep(logical_sleep_timme);
-                LOG(INFO) << "**** Finished CheckEpochShardingSendComplete Epoch : " << epoch << "****\n";
+                auto time2 = now_to_us();
+                LOG(INFO) << "**** Finished CheckEpochShardingSendComplete Epoch : " << epoch << ",time cost : " << time2 - time1 << "****\n";
                 while(!EpochMessageReceiveHandler::CheckEpochShardingReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
-                LOG(INFO) << "**** Finished CheckEpochShardingReceiveComplete Epoch : " << epoch << "****\n";
+                auto time3 = now_to_us();
+                LOG(INFO) << "**** Finished CheckEpochShardingReceiveComplete Epoch : " << epoch << ",time cost : " << time3 - time2 << "****\n";
                 while(!EpochMessageReceiveHandler::CheckEpochBackUpComplete(ctx, epoch)) usleep(logical_sleep_timme);
-                LOG(INFO) << "**** Finished CheckEpochBackUpComplete Epoch : " << epoch << "****\n";
+                auto time4 = now_to_us();
+                LOG(INFO) << "**** Finished CheckEpochBackUpComplete Epoch : " << epoch << ",time cost : " << time4 - time3 << "****\n";
                 while(!Merger::CheckEpochMergeComplete(ctx, epoch)) usleep(logical_sleep_timme);
                 EpochManager::SetShardingMergeComplete(epoch, true);
                 merge_epoch.fetch_add(1);
-                LOG(INFO) << "**** Finished Epoch Merge Epoch : " << epoch << "****\n";
+                auto time5 = now_to_us();
+                LOG(INFO) << "**** Finished Epoch Merge Epoch : " << epoch << ",time cost : " << time5 - time1 << ",rest time cost : " << time5 - time4 << "****\n";
                 /// in multi master mode, there is no need to send and merge sharding abort set
                 EpochManager::SetAbortSetMergeComplete(epoch, true);
                 abort_set_epoch.fetch_add(1);
-                LOG(INFO) << "******* Finished Abort Set Merge Epoch : " << epoch << "********\n";
+                auto time6 = now_to_us();
+                LOG(INFO) << "******* Finished Abort Set Merge Epoch : " << epoch << ",time cost : " << time6 - time5 << "********\n";
                 while(!Merger::CheckEpochCommitComplete(ctx, epoch)) usleep(logical_sleep_timme);
                 EpochManager::SetCommitComplete(epoch, true);
-                last_total_commit_txn_num = EpochMessageSendHandler::TotalTxnNum.load();
                 commit_epoch.fetch_add(1);
                 EpochManager::AddLogicalEpoch();
+                auto time7 = now_to_us();
                 auto epoch_commit_success_txn_num = Merger::epoch_record_committed_txn_num.GetCount(epoch);
                 total_commit_txn_num += epoch_commit_success_txn_num;///success
-                LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %lu, EpochSuccessCommitTxnNum: %lu, EpochCommitTxnNum: %lu ************\n",
-                                            epoch, epoch_commit_success_txn_num, EpochMessageSendHandler::TotalTxnNum.load() - last_total_commit_txn_num);
+                LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %lu, EpochSuccessCommitTxnNum: %lu, EpochCommitTxnNum: %lu ************ ",
+                                            epoch, epoch_commit_success_txn_num, EpochMessageSendHandler::TotalTxnNum.load() - last_total_commit_txn_num)
+                << "**** Epoch: " << epoch
+                << ",Merge time cost : " << time5 - time1
+                << ",Abort Set Merge time cost : " << time6 - time5
+                << ",Commit time cost : " << time7 - time6
+                << "Total Time Cost ****\n" << time7 - time1;
                 epoch ++;
+                last_total_commit_txn_num = EpochMessageSendHandler::TotalTxnNum.load();
             }
         }
         else {

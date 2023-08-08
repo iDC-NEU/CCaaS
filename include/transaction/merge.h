@@ -85,7 +85,7 @@ namespace Taas {
 
 
 
-        static bool CheckEpochMergeComplete(const Context &ctx, uint64_t& epoch) {
+        static bool CheckEpochMergeComplete(const Context &ctx, const uint64_t& epoch) {
             if(epoch_merge_complete[epoch % ctx.kCacheMaxLength]->load()) {
                 return true;
             }
@@ -95,11 +95,11 @@ namespace Taas {
             }
             return false;
         }
-        static bool IsEpochMergeComplete(const Context &ctx, uint64_t& epoch) {
+        static bool IsEpochMergeComplete(const Context &ctx, const uint64_t& epoch) {
             return epoch_merge_complete[epoch % ctx.kCacheMaxLength]->load();
         }
 
-        static bool CheckEpochCommitComplete(const Context &ctx, uint64_t& epoch) {
+        static bool CheckEpochCommitComplete(const Context &ctx, const uint64_t& epoch) {
             if (epoch_commit_complete[epoch % ctx.kCacheMaxLength]->load()) return true;
             if (epoch < EpochManager::GetPhysicalEpoch() && IsCommitComplete(ctx, epoch)) {
                 epoch_commit_complete[epoch % ctx.kCacheMaxLength]->store(true);
@@ -107,41 +107,41 @@ namespace Taas {
             }
             return false;
         }
-        static bool IsEpochCommitComplete(const Context &ctx, uint64_t& epoch) {
+        static bool IsEpochCommitComplete(const Context &ctx, const uint64_t& epoch) {
             return epoch_commit_complete[epoch % ctx.kCacheMaxLength]->load();
         }
 
 
 
-        static bool IsMergeComplete(const Context& ctx, uint64_t& epoch) {
+        static bool IsMergeComplete(const Context& ctx, const uint64_t& epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
                 if (epoch_should_merge_txn_num.GetCount(epoch, i) > epoch_merged_txn_num.GetCount(epoch, i))
                     return false;
             }
             return true;
         }
-        static bool IsMergeComplete(uint64_t epoch, uint64_t server_id) {
+        static bool IsMergeComplete(const uint64_t &epoch, const uint64_t &server_id) {
             return epoch_should_merge_txn_num.GetCount(epoch, server_id) <= epoch_merged_txn_num.GetCount(epoch, server_id);
         }
-        static bool IsCommitComplete(const Context& ctx, uint64_t& epoch) {
+        static bool IsCommitComplete(const Context& ctx, const uint64_t & epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
                 if (epoch_should_commit_txn_num.GetCount(epoch, i) > epoch_committed_txn_num.GetCount(epoch, i))
                     return false;
             }
             return true;
         }
-        static bool IsCommitComplete(uint64_t epoch, uint64_t server_id) {
+        static bool IsCommitComplete(const uint64_t & epoch, const uint64_t & server_id) {
             return epoch_should_commit_txn_num.GetCount(epoch, server_id) <= epoch_committed_txn_num.GetCount(epoch, server_id);
         }
 
-        static bool IsRedoLogComplete(const Context& ctx, uint64_t& epoch) {
+        static bool IsRedoLogComplete(const Context& ctx, const uint64_t & epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
                 if (epoch_record_commit_txn_num.GetCount(epoch, i) > epoch_record_committed_txn_num.GetCount(epoch, i))
                     return false;
             }
             return true;
         }
-        static bool IsRedoLogComplete(uint64_t epoch, uint64_t server_id) {
+        static bool IsRedoLogComplete(const uint64_t & epoch, const uint64_t & server_id) {
             return epoch_record_commit_txn_num.GetCount(epoch, server_id) <= epoch_record_committed_txn_num.GetCount(epoch, server_id);
         }
 
