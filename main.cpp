@@ -48,10 +48,10 @@ namespace Taas {
 
     static sched_param sch_params;
     void SetScheduling(std::thread &th, int policy, int priority) {
-        sch_params.sched_priority = priority;
-        if (pthread_setschedparam(th.native_handle(), policy, &sch_params)) {
-            std::cerr << "Failed to set Thread scheduling :" << std::strerror(errno) << std::endl;
-        }
+//        sch_params.sched_priority = priority;
+//        if (pthread_setschedparam(th.native_handle(), policy, &sch_params)) {
+//            std::cerr << "Failed to set Thread scheduling :" << std::strerror(errno) << std::endl;
+//        }
     }
 
     int main() {
