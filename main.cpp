@@ -70,69 +70,49 @@ namespace Taas {
             EpochManager epochManager;
             Taas::EpochManager::ctx = ctx;
             threads.push_back(std::make_unique<std::thread>(WorkerForPhysicalThreadMain, ctx));
-            SetScheduling(*threads[cnt], SCHED_RR, 5); cnt ++;
             threads.push_back(std::make_unique<std::thread>(WorkerForLogicalThreadMain, ctx));
-            SetScheduling(*threads[cnt], SCHED_RR, 5); cnt ++;
 //            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalTxnMergeCheckThreadMain, ctx));
 //            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalAbortSetMergeCheckThreadMain, ctx));
 //            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalCommitCheckThreadMain, ctx));
 
             threads.push_back(std::make_unique<std::thread>(WorkerForLogicalRedoLogPushDownCheckThreadMain, ctx));
-            SetScheduling(*threads[cnt], SCHED_RR, 4); cnt ++;
 //            threads.push_back(std::make_unique<std::thread>(WorkerForEpochControlMessageThreadMain, ctx));
 
             threads.push_back(std::make_unique<std::thread>(WorkerForLogicalReceiveAndReplyCheckThreadMain, ctx));
-            SetScheduling(*threads[cnt], SCHED_RR, 4); cnt ++;
             threads.push_back(std::make_unique<std::thread>(WorkerForEpochAbortSendThreadMain, ctx));
-            SetScheduling(*threads[cnt], SCHED_RR, 4); cnt ++;
             threads.push_back(std::make_unique<std::thread>(WorkerForEpochEndFlagSendThreadMain, ctx));
-            SetScheduling(*threads[cnt], SCHED_RR, 4); cnt ++;
             threads.push_back(std::make_unique<std::thread>(WorkerForEpochBackUpEndFlagSendThreadMain, ctx));
-            SetScheduling(*threads[cnt], SCHED_RR, 4); cnt ++;
 
             for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
                 threads.push_back(std::make_unique<std::thread>(WorkerFroMessageThreadMain, ctx, i));///txn message
-                SetScheduling(*threads[cnt], SCHED_RR, 3); cnt ++;
                 threads.push_back(std::make_unique<std::thread>(WorkerFroMessageEpochThreadMain, ctx, i));///epoch message
-                SetScheduling(*threads[cnt], SCHED_RR, 4); cnt ++;
                 threads.push_back(std::make_unique<std::thread>(WorkerFroMergeThreadMain, ctx, i));///merge
-                SetScheduling(*threads[cnt], SCHED_RR, 3); cnt ++;
                 threads.push_back(std::make_unique<std::thread>(WorkerFroCommitThreadMain, ctx, i));///commit
-                SetScheduling(*threads[cnt], SCHED_RR, 3); cnt ++;
             }
 
             threads.push_back(std::make_unique<std::thread>(WorkerForClientListenThreadMain, ctx));///client
-            SetScheduling(*threads[cnt], SCHED_RR, 4); cnt ++;
             threads.push_back(std::make_unique<std::thread>(WorkerForClientSendThreadMain, ctx));
-            SetScheduling(*threads[cnt], SCHED_RR, 4); cnt ++;
             if(ctx.kTxnNodeNum > 1) {
                 threads.push_back(std::make_unique<std::thread>(WorkerForServerListenThreadMain, ctx));
-                SetScheduling(*threads[cnt], SCHED_RR, 4); cnt ++;
                 threads.push_back(std::make_unique<std::thread>(WorkerForServerListenThreadMain_Epoch, ctx));
-                SetScheduling(*threads[cnt], SCHED_RR, 4); cnt ++;
                 threads.push_back(std::make_unique<std::thread>(WorkerForServerSendThreadMain, ctx));
-                SetScheduling(*threads[cnt], SCHED_RR, 4); cnt ++;
             }
 
             ///Storage
             threads.push_back(std::make_unique<std::thread>(WorkerForStorageSendThreadMain, ctx));
-            SetScheduling(*threads[cnt], SCHED_RR, 3); cnt ++;
             if(ctx.is_mot_enable) {
                 for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
                     threads.push_back(std::make_unique<std::thread>(WorkerFroMOTStorageThreadMain, ctx, i)); ///mot push down
-                    SetScheduling(*threads[cnt], SCHED_RR, 3); cnt++;
                 }
             }
             if(ctx.is_tikv_enable) {
                 TiKV::tikv_client_ptr = new tikv_client::TransactionClient({ctx.kTiKVIP});
                 for(int i = 0; i < (int)ctx.kWorkerThreadNum; i ++) {
                     threads.push_back(std::make_unique<std::thread>(WorkerFroTiKVStorageThreadMain, ctx, i));///tikv push down
-                    SetScheduling(*threads[cnt], SCHED_RR, 3); cnt++;
                 }
             }
             for(int i = 0; i < (int)ctx.kTestClientNum; i ++) {
                 threads.push_back(std::make_unique<std::thread>(Client, ctx, i));
-                SetScheduling(*threads[cnt], SCHED_RR, 3); cnt++;
             }
         }
         else if(ctx.server_type == ServerMode::LevelDB) { ///leveldb server
