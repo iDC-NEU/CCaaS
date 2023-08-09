@@ -167,6 +167,7 @@ namespace Taas {
     void WorkerForLogicalReceiveAndReplyCheckThreadMain(const Context& ctx) {
         EpochMessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, 0);
+        SetCPU();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while(!EpochManager::IsTimerStop()){
             switch(ctx.taas_mode) {
@@ -192,6 +193,7 @@ namespace Taas {
     void WorkerForEpochAbortSendThreadMain(const Context& ctx) {
         EpochMessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, 0);
+        SetCPU();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while(!EpochManager::IsTimerStop()){
             switch(ctx.taas_mode) {
@@ -216,6 +218,7 @@ namespace Taas {
     void WorkerForEpochEndFlagSendThreadMain(const Context& ctx) {
         EpochMessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, 0);
+        SetCPU();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while(!EpochManager::IsTimerStop()){
             switch(ctx.taas_mode) {
@@ -240,6 +243,7 @@ namespace Taas {
     void WorkerForEpochBackUpEndFlagSendThreadMain(const Context& ctx) {
         EpochMessageReceiveHandler receiveHandler;
         receiveHandler.Init(ctx, 0);
+        SetCPU();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while(!EpochManager::IsTimerStop()){
             switch(ctx.taas_mode) {
@@ -262,6 +266,7 @@ namespace Taas {
     }
 
     void WorkerForLogicalRedoLogPushDownCheckThreadMain(const Context& ctx) {
+        SetCPU();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while(!EpochManager::IsTimerStop()){
             CheckRedoLogPushDownState(ctx);

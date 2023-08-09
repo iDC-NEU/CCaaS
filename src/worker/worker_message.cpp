@@ -80,18 +80,21 @@ namespace Taas {
     void WorkerForServerListenThreadMain(const Context& ctx) {
         std::string name = "EpochServerListen";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
         ListenServerThreadMain(ctx);
     }
 
     void WorkerForServerListenThreadMain_Epoch(const Context& ctx) {
         std::string name = "EpochServerListen";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
         ListenServerThreadMain_Epoch(ctx);
     }
 
     void WorkerForServerSendThreadMain(const Context& ctx) {
         std::string name = "EpochServerSend";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
         SendServerThreadMain(ctx);
     }
 

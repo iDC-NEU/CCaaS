@@ -36,7 +36,7 @@ namespace Taas {
 //            int rc = sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
             if (rc != 0) {
                 std::cout << "Set CPU Error!!!" << std::endl;
-                assert(false);
+//                assert(false);
             }
         #elif __APPLE__
         #endif
