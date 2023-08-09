@@ -154,22 +154,18 @@ namespace Taas {
     }
 
     void Merger::EpochMerge_Usleep() {
-        bool sleep_flag;
         while (!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetLogicalEpoch();
+            while(EpochManager::IsShardingMergeComplete(epoch)) {
+                usleep(200);
+                epoch = EpochManager::GetLogicalEpoch();
+            }
             epoch_mod = epoch % ctx.kCacheMaxLength;
             sleep_flag = true;
             while(epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                 if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     continue;
                 }
-//                merge_queue->enqueue(std::move(txn_ptr));
-//                merge_queue->enqueue(nullptr);
-//            }
-//            while(merge_queue->try_dequeue(txn_ptr)) {
-//                if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
-//                    continue;
-//                }
                 auto time1 = now_to_us();
                 epoch = txn_ptr->commit_epoch();
                 if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
@@ -188,7 +184,7 @@ namespace Taas {
                 sleep_flag = false;
             }
             if(sleep_flag) {
-                usleep(sleep_time);
+                usleep(200);
             }
         }
     }
@@ -216,29 +212,18 @@ namespace Taas {
     }
 
     void Merger::EpochCommit_Usleep() {
-        auto sleep_flag = true;
         while (!EpochManager::IsTimerStop()) {
-            commit_begin:
             epoch = EpochManager::GetLogicalEpoch();
+            while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
+                usleep(200);
+                epoch = EpochManager::GetLogicalEpoch();
+            }
             epoch_mod = epoch % ctx.kCacheMaxLength;
             sleep_flag = true;
-            while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
-                usleep(50);
-                goto commit_begin;
-            }
             while(epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                 if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     continue;
                 }
-//                commit_queue->enqueue(std::move(txn_ptr));
-//                commit_queue->enqueue(nullptr);
-//            }
-//
-//            while (commit_queue->try_dequeue(txn_ptr)) {
-//                if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
-//                    continue;
-//                }
-                epoch = txn_ptr->commit_epoch();
                 auto time1 = now_to_us();
                 ///validation phase
                 if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
@@ -263,7 +248,7 @@ namespace Taas {
                 sleep_flag = false;
             }
             if(sleep_flag) {
-                usleep(sleep_time);
+                usleep(200);
             }
         }
     }
