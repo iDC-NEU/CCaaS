@@ -92,7 +92,7 @@ namespace Taas {
             while(!EpochManager::IsTimerStop()){
                 auto time1 = now_to_us();
                 while(epoch >= EpochManager::GetPhysicalEpoch()) usleep(logical_sleep_timme);
-                LOG(INFO) << "**** Start Epoch Merge Epoch : " << epoch << "****\n";
+//                LOG(INFO) << "**** Start Epoch Merge Epoch : " << epoch << "****\n";
                 while(!EpochMessageReceiveHandler::IsShardingSendFinish(epoch)) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** finished IsShardingSendFinish : " << epoch << "****\n";
                 while(!EpochMessageReceiveHandler::IsShardingACKReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
@@ -121,7 +121,7 @@ namespace Taas {
                 EpochManager::SetShardingMergeComplete(epoch, true);
                 merge_epoch.fetch_add(1);
                 auto time5 = now_to_us();
-                LOG(INFO) << "**** Finished Epoch Merge Epoch : " << epoch << ",time cost : " << time5 - time1 << ",rest time cost : " << time5 - time4 << "****\n";
+//                LOG(INFO) << "**** Finished Epoch Merge Epoch : " << epoch << ",time cost : " << time5 - time1 << ",rest time cost : " << time5 - time4 << "****\n";
 
                 while(!EpochMessageReceiveHandler::IsAbortSetACKReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** finished IsAbortSetACKReceiveComplete : " << epoch << "****\n";
@@ -131,7 +131,7 @@ namespace Taas {
                 EpochManager::SetAbortSetMergeComplete(epoch, true);
                 abort_set_epoch.fetch_add(1);
                 auto time6 = now_to_us();
-                LOG(INFO) << "******* Finished Abort Set Merge Epoch : " << epoch << ",time cost : " << time6 - time5 << "********\n";
+//                LOG(INFO) << "******* Finished Abort Set Merge Epoch : " << epoch << ",time cost : " << time6 - time5 << "********\n";
 
 
                 while(!Merger::CheckEpochCommitComplete(ctx, epoch)) usleep(logical_sleep_timme);
@@ -158,16 +158,16 @@ namespace Taas {
             while(!EpochManager::IsTimerStop()){
                 auto time1 = now_to_us();
                 while(epoch >= EpochManager::GetPhysicalEpoch()) usleep(logical_sleep_timme);
-                LOG(INFO) << "**** Start Epoch Merge Epoch : " << epoch << "****\n";
+//                LOG(INFO) << "**** Start Epoch Merge Epoch : " << epoch << "****\n";
                 while(!Merger::CheckEpochMergeComplete(ctx, epoch)) usleep(logical_sleep_timme);
                 EpochManager::SetShardingMergeComplete(epoch, true);
                 merge_epoch.fetch_add(1);
                 auto time5 = now_to_us();
-                LOG(INFO) << "**** Finished Epoch Merge Epoch : " << epoch << ",time cost : " << time5 - time1 << "****\n";
+//                LOG(INFO) << "**** Finished Epoch Merge Epoch : " << epoch << ",time cost : " << time5 - time1 << "****\n";
                 EpochManager::SetAbortSetMergeComplete(epoch, true);
                 abort_set_epoch.fetch_add(1);
                 auto time6 = now_to_us();
-                LOG(INFO) << "******* Finished Abort Set Merge Epoch : " << epoch << ",time cost : " << time6 - time5 << "********\n";
+//                LOG(INFO) << "******* Finished Abort Set Merge Epoch : " << epoch << ",time cost : " << time6 - time5 << "********\n";
                 while(!Merger::CheckEpochCommitComplete(ctx, epoch)) usleep(logical_sleep_timme);
                 EpochManager::SetCommitComplete(epoch, true);
                 commit_epoch.fetch_add(1);

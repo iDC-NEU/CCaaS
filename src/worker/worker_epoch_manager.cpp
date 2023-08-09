@@ -150,7 +150,7 @@ namespace Taas {
                         /// send epoch end flag
                         /// send epoch backup end message
                         while(!EpochMessageSendHandler::SendEpochControlMessage(ctx, receiveHandler)) {
-                            usleep(100);
+                            usleep(logical_sleep_timme);
                         }
                     }
                     break;
@@ -174,7 +174,7 @@ namespace Taas {
                 case TaasMode::Sharding :{
                     while(!EpochManager::IsTimerStop()) {
                         while(!receiveHandler.CheckReceivedStatesAndReply()) {
-                            usleep(100);
+                            usleep(logical_sleep_timme);
                         }
                     }
                     break;
@@ -202,7 +202,7 @@ namespace Taas {
                 case TaasMode::Sharding : {
                     while(!EpochManager::IsTimerStop()) {
                         while(!EpochMessageSendHandler::SendAbortSet(ctx)) { ///check and send abort set
-                            usleep(50);
+                            usleep(logical_sleep_timme);
                         }
                     }
                     break;
@@ -223,7 +223,7 @@ namespace Taas {
                 case TaasMode::Sharding :{
                     while(!EpochManager::IsTimerStop()) {
                         while(!EpochMessageSendHandler::SendEpochEndMessage(ctx)) {
-                            usleep(100);
+                            usleep(logical_sleep_timme);
                         }
                     }
                     break;
@@ -247,7 +247,7 @@ namespace Taas {
                 case TaasMode::Sharding :{
                     while(!EpochManager::IsTimerStop()) {
                         while(! EpochMessageSendHandler::SendBackUpEpochEndMessage(ctx)) { ///send epoch backup end message
-                            usleep(100);
+                            usleep(logical_sleep_timme);
                         }
                     }
                     break;
