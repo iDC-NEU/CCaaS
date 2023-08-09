@@ -139,10 +139,10 @@ namespace Taas {
                 auto time7 = now_to_us();
                 auto epoch_commit_success_txn_num = Merger::epoch_record_committed_txn_num.GetCount(epoch);
                 total_commit_txn_num += epoch_commit_success_txn_num;///success
-                LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %lu, Local EpochSuccessCommitTxnNum: %lu,TotalSuccessTxnNum: %lu, EpochCommitTxnNum: %lu ************\n",
+                LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %lu, Local EpochSuccessCommitTxnNum: %lu,TotalSuccessTxnNum: %lu, EpochCommitTxnNum: %lu ",
                                             epoch, epoch_commit_success_txn_num, total_commit_txn_num,
                                             EpochMessageSendHandler::TotalTxnNum.load() - last_total_commit_txn_num)
-                << "**** Time Cost  Epoch: " << epoch
+                << ",Time Cost  Epoch: " << epoch
                 << ",Merge time cost : " << time5 - time1
                 << ",Abort Set Merge time cost : " << time6 - time5
                 << ",Commit time cost : " << time7 - time6
@@ -173,10 +173,10 @@ namespace Taas {
                 auto time7 = now_to_us();
                 auto epoch_commit_success_txn_num = Merger::epoch_record_committed_txn_num.GetCount(epoch);
                 total_commit_txn_num += epoch_commit_success_txn_num;///success
-                LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %lu, EpochSuccessCommitTxnNum: %lu,TotalSuccessTxnNum: %lu, EpochCommitTxnNum: %lu ************\n",
+                LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %lu, Local EpochSuccessCommitTxnNum: %lu,TotalSuccessTxnNum: %lu, EpochCommitTxnNum: %lu ",
                                             epoch, epoch_commit_success_txn_num, total_commit_txn_num,
                                             EpochMessageSendHandler::TotalTxnNum.load() - last_total_commit_txn_num)
-                          << "**** Time Cost  Epoch: " << epoch
+                          << ",Time Cost  Epoch: " << epoch
                           << ",Merge time cost : " << time5 - time1
                           << ",Abort Set Merge time cost : " << time6 - time5
                           << ",Commit time cost : " << time7 - time6
