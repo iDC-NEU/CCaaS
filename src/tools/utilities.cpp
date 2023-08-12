@@ -3,6 +3,7 @@
 //
 
 #include "tools/utilities.h"
+#include "epoch/epoch_manager.h"
 
 namespace Taas {
 
@@ -40,6 +41,21 @@ namespace Taas {
             }
         #elif __APPLE__
         #endif
+    }
+
+    void signalHandler(int signal) {
+        if (signal == SIGINT){
+            std::cout << "Ctrl+C detected!" << std::endl;
+            EpochManager::SetTimerStop(true);
+        }
+    }
+
+    static sched_param sch_params;
+    void SetScheduling(std::thread &th, int policy, int priority) {
+        sch_params.sched_priority = priority;
+        if (pthread_setschedparam(th.native_handle(), policy, &sch_params)) {
+            std::cerr << "Failed to set Thread scheduling :" << std::strerror(errno) << std::endl;
+        }
     }
 
 

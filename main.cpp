@@ -16,10 +16,7 @@
 
 #include <iostream>
 #include <thread>
-#include <pthread.h>
-#include <cstring>
-#include <csignal>
-#include <sched.h>
+
 
 using namespace std;
 
@@ -37,22 +34,6 @@ using namespace std;
 //};
 
 namespace Taas {
-
-    void signalHandler(int signal) {
-        if (signal == SIGINT)
-        {
-            std::cout << "Ctrl+C detected!" << std::endl;
-            Taas::EpochManager::SetTimerStop(true);
-        }
-    }
-
-    static sched_param sch_params;
-    void SetScheduling(std::thread &th, int policy, int priority) {
-        sch_params.sched_priority = priority;
-        if (pthread_setschedparam(th.native_handle(), policy, &sch_params)) {
-            std::cerr << "Failed to set Thread scheduling :" << std::strerror(errno) << std::endl;
-        }
-    }
 
     int main() {
         Context ctx("../TaaS_config.xml", "../Storage_config.xml");
@@ -88,7 +69,8 @@ namespace Taas {
             }
             for(int i = 0; i < (int)ctx.kEpochMessageThreadNum; i ++) {/// handle remote server message
                 threads.push_back(std::make_unique<std::thread>(WorkerFroMessageEpochThreadMain, ctx, i));  cnt++;///epoch message
-//                SetScheduling(*threads[cnt - 1], SCHED_RR, 6);
+                if(i < 2)
+                SetScheduling(*threads[cnt - 1], SCHED_RR, 6);
             }
             for(int i = 0; i < (int)ctx.kMergeThreadNum; i ++) {
                 threads.push_back(std::make_unique<std::thread>(WorkerFroMergeThreadMain, ctx, i));  cnt++;///merge

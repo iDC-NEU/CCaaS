@@ -11,9 +11,14 @@
 #include "google/protobuf/io/gzip_stream.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <iostream>
 #include <glog/logging.h>
+#include <pthread.h>
+#include <cstring>
+#include <csignal>
+#include <sched.h>
+#include <thread>
 
 namespace Taas {
 #define UNUSED_VALUE(v) (void)(v);
@@ -23,6 +28,10 @@ namespace Taas {
     bool UnGzip(google::protobuf::MessageLite* ptr, const std::string* str);
 
     void SetCPU();
+
+    void signalHandler(int signal);
+
+    void SetScheduling(std::thread &th, int policy, int priority);
 
     uint64_t now_to_us();
 }
