@@ -155,11 +155,12 @@ namespace Taas {
 
     std::mutex merge_mutex, commit_mutex;
     std::condition_variable merge_cv, commit_cv;
+    uint64_t merge_sleep_time = 50;
     void Merger::EpochMerge_Usleep() {
         while (!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetLogicalEpoch();
             while(EpochManager::IsShardingMergeComplete(epoch)) {
-                usleep(100);
+                usleep(merge_sleep_time);
                 epoch = EpochManager::GetLogicalEpoch();
             }
             merge_cv.notify_all();
@@ -188,7 +189,7 @@ namespace Taas {
                 sleep_flag = false;
             }
             if(sleep_flag) {
-                usleep(100);
+                usleep(merge_sleep_time);
             }
         }
     }
@@ -233,7 +234,7 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetLogicalEpoch();
             while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
-                usleep(100);
+                usleep(merge_sleep_time);
                 epoch = EpochManager::GetLogicalEpoch();
             }
             commit_cv.notify_all();
@@ -268,7 +269,7 @@ namespace Taas {
                 sleep_flag = false;
             }
             if(sleep_flag) {
-                usleep(100);
+                usleep(merge_sleep_time);
             }
         }
     }
