@@ -163,7 +163,6 @@ namespace Taas {
                 usleep(merge_sleep_time);
                 epoch = EpochManager::GetLogicalEpoch();
             }
-            merge_cv.notify_all();
             epoch_mod = epoch % ctx.kCacheMaxLength;
             sleep_flag = true;
             while(epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr)) {
