@@ -42,10 +42,15 @@ namespace Taas {
         kEpochSize_us= std::stoull(epoch_size_us->GetText());
         tinyxml2::XMLElement* cachemaxlength = root->FirstChildElement("cache_max_length");
         kCacheMaxLength = std::stoull(cachemaxlength->GetText());
-        tinyxml2::XMLElement* merge_thread_num = root->FirstChildElement("worker_thread_num");
-        kWorkerThreadNum = std::stoull(merge_thread_num->GetText());
-        tinyxml2::XMLElement* usleep_thread_num = root->FirstChildElement("usleep_thread_num");
-        kUsleepThreadNum = std::stoull(usleep_thread_num->GetText());
+
+        tinyxml2::XMLElement* merge_thread_num = root->FirstChildElement("merge_thread_num");
+        kMergeThreadNum = std::stoull(merge_thread_num->GetText());
+        tinyxml2::XMLElement* commit_thread_num = root->FirstChildElement("commit_thread_num");
+        kCommitThreadNum = std::stoull(commit_thread_num->GetText());
+        tinyxml2::XMLElement* epoch_txn_thread_num = root->FirstChildElement("epoch_txn_thread_num");
+        kEpochTxnThreadNum = std::stoull(epoch_txn_thread_num->GetText());
+        tinyxml2::XMLElement* epoch_message_thread_num = root->FirstChildElement("epoch_message_thread_num");
+        kEpochMessageThreadNum = std::stoull(epoch_message_thread_num->GetText());
 
         tinyxml2::XMLElement* duration_time = root->FirstChildElement("duration_time_us");
         kDurationTime_us = std::stoull(duration_time->GetText());
@@ -75,7 +80,7 @@ namespace Taas {
         res += "\t ServerNum: "+ std::to_string(kTxnNodeNum) + "\n\t txn_node_ip_index: "
                 + std::to_string(txn_node_ip_index) + "\n\t EpochSize_us: " + std::to_string(kEpochSize_us) + "\n";
         res += "\t CacheLength: " + std::to_string(kCacheMaxLength) + "\n";
-        res += "\t WorkerNum: " + std::to_string(kWorkerThreadNum) + "\n\t DurationTime_us: " + std::to_string(kDurationTime_us) + "\n";
+        res += "\t MergeThreadNum: " + std::to_string(kMergeThreadNum) + "\n\t DurationTime_us: " + std::to_string(kDurationTime_us) + "\n";
         res += "\t TestClientNum: " + std::to_string(kTestClientNum) + "\n\t TestKeyRange: "
                 + std::to_string(kTestKeyRange) + "\n\t TestTxnOpNum: " + std::to_string(kTestTxnOpNum) + "\n";
         res += "\t SycnStart: " + std::to_string(is_sync_start) + "\n";
@@ -89,23 +94,32 @@ namespace Taas {
 
         tinyxml2::XMLElement* mot = root->FirstChildElement("is_mot_enable");
         is_mot_enable = std::stoull(mot->GetText());
+        tinyxml2::XMLElement* mot_thread_num = root->FirstChildElement("mot_thread_num");
+        kMOTThreadNum = std::stoull(mot_thread_num->GetText());
 
         tinyxml2::XMLElement* tikv = root->FirstChildElement("is_tikv_enable");
         is_tikv_enable = std::stoull(tikv->GetText());
         tinyxml2::XMLElement *ip_port= root->FirstChildElement("tikv_ip");
         auto tikv_ip=ip_port->GetText();
         kTiKVIP = std::string(tikv_ip);
+        tinyxml2::XMLElement* tikv_thread_num = root->FirstChildElement("tikv_thread_num");
+        kTiKVIP = std::stoull(tikv_thread_num->GetText());
 
         tinyxml2::XMLElement* leveldb = root->FirstChildElement("is_leveldb_enable");
         is_leveldb_enable = std::stoull(leveldb->GetText());
-        tinyxml2::XMLElement *leveldb_ip_port= root->FirstChildElement("tikv_ip");
+        tinyxml2::XMLElement *leveldb_ip_port= root->FirstChildElement("leveldb_ip");
         auto leveldb_ip = leveldb_ip_port->GetText();
         kLevevDBIP = std::string(leveldb_ip);
+        tinyxml2::XMLElement* leveldb_thread_num = root->FirstChildElement("leveldb_thread_num");
+        kLeveldbThreadNum = std::stoull(leveldb_thread_num->GetText());
 
         tinyxml2::XMLElement* hbase = root->FirstChildElement("is_hbase_enable");
         is_hbase_enable = std::stoull(hbase->GetText());
         tinyxml2::XMLElement *hbase_ip_port= root->FirstChildElement("hbase_ip");
         auto hbase_ip=hbase_ip_port->GetText();
         kHbaseIP = std::string(hbase_ip);
+        tinyxml2::XMLElement* hbase_thread_num = root->FirstChildElement("hbase_thread_num");
+        kHbaseTxnThreadNum = std::stoull(hbase_thread_num->GetText());
+
     }
 }

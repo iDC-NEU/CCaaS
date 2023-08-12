@@ -11,7 +11,7 @@
 
 namespace Taas {
 
-    void WorkerFroMessageThreadMain(const Context& ctx, uint64_t id) {/// handle message
+    void WorkerFroMessageThreadMain(const Context& ctx, uint64_t id) {/// handle client txn
         std::string name = "TxnMessage-" + std::to_string(id);
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         EpochMessageReceiveHandler receiveHandler;
@@ -45,6 +45,7 @@ namespace Taas {
         class TwoPC twoPC;
         receiveHandler.Init(ctx, id);
         twoPC.Init(ctx, id);
+        if(id < 2) SetCPU();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while(!EpochManager::IsTimerStop()){
             switch(ctx.taas_mode) {
@@ -68,12 +69,14 @@ namespace Taas {
     void WorkerForClientListenThreadMain(const Context& ctx) {
         std::string name = "EpochClientListen";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
         ListenClientThreadMain(ctx);
     }
 
     void WorkerForClientSendThreadMain(const Context& ctx) {
         std::string name = "EpochClientSend";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
         SendClientThreadMain(ctx);
     }
 
@@ -101,6 +104,7 @@ namespace Taas {
     void WorkerForStorageSendThreadMain(const Context& ctx) {
         std::string name = "EpochStorageSend";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
         SendStoragePUBThreadMain(ctx);
     }
 

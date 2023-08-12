@@ -153,11 +153,54 @@ namespace Taas {
         return res;
     }
 
+    std::mutex merge_mutex, commit_mutex;
+    std::condition_variable merge_cv, commit_cv;
     void Merger::EpochMerge_Usleep() {
         while (!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetLogicalEpoch();
             while(EpochManager::IsShardingMergeComplete(epoch)) {
-                usleep(200);
+                usleep(100);
+                epoch = EpochManager::GetLogicalEpoch();
+            }
+            merge_cv.notify_all();
+            epoch_mod = epoch % ctx.kCacheMaxLength;
+            sleep_flag = true;
+            while(epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+                if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
+                    continue;
+                }
+                merge_cv.notify_all();
+                auto time1 = now_to_us();
+                epoch = txn_ptr->commit_epoch();
+                if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
+                    total_read_version_check_failed_txn_num.fetch_add(1);
+                    sleep_time = false;
+                    goto end;
+                }
+                if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
+                    sleep_time = false;
+                    goto end;
+                }
+                end:
+                total_merge_txn_num.fetch_add(1);
+                total_merge_latency.fetch_add(now_to_us() - time1);
+                epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
+                sleep_flag = false;
+            }
+            if(sleep_flag) {
+                usleep(100);
+            }
+        }
+    }
+
+    void Merger::EpochMerge_Block() {
+        std::mutex mtx;
+        std::unique_lock lck(mtx);
+        while (!EpochManager::IsTimerStop()) {
+//            merge_queue->wait_dequeue(txn_ptr);
+            epoch = EpochManager::GetLogicalEpoch();
+            while(EpochManager::IsShardingMergeComplete(epoch)) {
+                merge_cv.wait(lck);
                 epoch = EpochManager::GetLogicalEpoch();
             }
             epoch_mod = epoch % ctx.kCacheMaxLength;
@@ -183,31 +226,6 @@ namespace Taas {
                 epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
                 sleep_flag = false;
             }
-            if(sleep_flag) {
-                usleep(200);
-            }
-        }
-    }
-
-    void Merger::EpochMerge_Block() {
-        while (!EpochManager::IsTimerStop()) {
-            merge_queue->wait_dequeue(txn_ptr);
-            if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
-                continue;
-            }
-            epoch = txn_ptr->commit_epoch();
-            auto time1 = now_to_us();
-            if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
-                total_read_version_check_failed_txn_num.fetch_add(1);
-                goto end;
-            }
-            if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
-                goto end;
-            }
-            end:
-            total_merge_txn_num.fetch_add(1);
-            total_merge_latency.fetch_add(now_to_us() - time1);
-            epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
         }
     }
 
@@ -215,15 +233,17 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetLogicalEpoch();
             while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
-                usleep(200);
+                usleep(500);
                 epoch = EpochManager::GetLogicalEpoch();
             }
+            commit_cv.notify_all();
             epoch_mod = epoch % ctx.kCacheMaxLength;
             sleep_flag = true;
             while(epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                 if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     continue;
                 }
+                commit_cv.notify_all();
                 auto time1 = now_to_us();
                 ///validation phase
                 if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
@@ -248,39 +268,70 @@ namespace Taas {
                 sleep_flag = false;
             }
             if(sleep_flag) {
-                usleep(200);
+                usleep(500);
             }
         }
     }
 
     void Merger::EpochCommit_Block() {
+        std::mutex mtx;
+        std::unique_lock lck(mtx);
         while (!EpochManager::IsTimerStop()) {
-            commit_queue->wait_dequeue(txn_ptr);
-            if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
-                continue;
+            epoch = EpochManager::GetLogicalEpoch();
+            while(EpochManager::IsShardingMergeComplete(epoch)) {
+                commit_cv.wait(lck);
+                epoch = EpochManager::GetLogicalEpoch();
             }
-            epoch = txn_ptr->commit_epoch();
-            auto time1 = now_to_us();
-            ///validation phase
-            if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
-                auto key = std::to_string(txn_ptr->client_txn_id());
-                abort_txn_set.insert(key, key);
-                total_failed_txn_num.fetch_add(1);
-                EpochMessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Abort);
-            } else {
-                epoch_record_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                CRDTMerge::Commit(ctx, *(txn_ptr));
-                if(txn_ptr->server_id() == ctx.txn_node_ip_index) { /// only local txn do redo log
-                    RedoLoger::RedoLog(ctx, *(txn_ptr));
+            epoch_mod = epoch % ctx.kCacheMaxLength;
+            sleep_flag = true;
+            while(epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+                if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
+                    continue;
                 }
-                epoch_record_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-                success_commit_txn_num.fetch_add(1);
-                success_commit_latency.fetch_add(now_to_us() - time1);
-                EpochMessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
+                auto time1 = now_to_us();
+                epoch = txn_ptr->commit_epoch();
+                if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
+                    total_read_version_check_failed_txn_num.fetch_add(1);
+                    sleep_time = false;
+                    goto end;
+                }
+                if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
+                    sleep_time = false;
+                    goto end;
+                }
+                end:
+                total_merge_txn_num.fetch_add(1);
+                total_merge_latency.fetch_add(now_to_us() - time1);
+                epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
+                sleep_flag = false;
             }
-            total_commit_txn_num.fetch_add(1);
-            total_commit_latency.fetch_add(now_to_us() - time1);
-            epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+
+//            commit_queue->wait_dequeue(txn_ptr);
+//            if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
+//                continue;
+//            }
+//            epoch = txn_ptr->commit_epoch();
+//            auto time1 = now_to_us();
+//            ///validation phase
+//            if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
+//                auto key = std::to_string(txn_ptr->client_txn_id());
+//                abort_txn_set.insert(key, key);
+//                total_failed_txn_num.fetch_add(1);
+//                EpochMessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Abort);
+//            } else {
+//                epoch_record_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+//                CRDTMerge::Commit(ctx, *(txn_ptr));
+//                if(txn_ptr->server_id() == ctx.txn_node_ip_index) { /// only local txn do redo log
+//                    RedoLoger::RedoLog(ctx, *(txn_ptr));
+//                }
+//                epoch_record_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+//                success_commit_txn_num.fetch_add(1);
+//                success_commit_latency.fetch_add(now_to_us() - time1);
+//                EpochMessageSendHandler::SendTxnCommitResultToClient(ctx, *(txn_ptr), proto::TxnState::Commit);
+//            }
+//            total_commit_txn_num.fetch_add(1);
+//            total_commit_latency.fetch_add(now_to_us() - time1);
+//            epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
         }
     }
 

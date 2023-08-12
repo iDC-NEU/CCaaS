@@ -20,13 +20,13 @@ namespace Taas {
             case TaasMode::Sharding : {
                 while(!EpochManager::IsTimerStop()) {
                     while(!EpochManager::IsTimerStop())
-                        merger.EpochMerge_Usleep();
-//                    if(id < ctx.kUsleepThreadNum)
-//                        while(!EpochManager::IsTimerStop())
-//                            merger.EpochMerge_Usleep();
-//                    else
-//                        while(!EpochManager::IsTimerStop())
-//                            merger.EpochMerge_Block();
+//                        merger.EpochMerge_Usleep();
+                    if(id == 0)
+                        while(!EpochManager::IsTimerStop())
+                            merger.EpochMerge_Usleep();
+                    else
+                        while(!EpochManager::IsTimerStop())
+                            merger.EpochMerge_Block();
                 }
                 break;
             }
@@ -47,13 +47,13 @@ namespace Taas {
             case TaasMode::MultiMaster :
             case TaasMode::Sharding : {
                 while (!EpochManager::IsTimerStop())
-                    merger.EpochCommit_Usleep();
-//                    if (id < ctx.kUsleepThreadNum)
-//                        while (!EpochManager::IsTimerStop())
-//                            merger.EpochCommit_Usleep();
-//                    else
-//                        while (!EpochManager::IsTimerStop())
-//                            merger.EpochCommit_Block();
+//                    merger.EpochCommit_Usleep();
+                    if (id == 0)
+                        while (!EpochManager::IsTimerStop())
+                            merger.EpochCommit_Usleep();
+                    else
+                        while (!EpochManager::IsTimerStop())
+                            merger.EpochCommit_Block();
                 break;
             }
             case TaasMode::TwoPC : {
