@@ -155,7 +155,7 @@ namespace Taas {
 
     std::mutex merge_mutex, commit_mutex;
     std::condition_variable merge_cv, commit_cv;
-    uint64_t merge_sleep_time = 50;
+    uint64_t merge_sleep_time = 200;
     void Merger::EpochMerge_Usleep() {
         while (!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetLogicalEpoch();
@@ -226,6 +226,9 @@ namespace Taas {
                 epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
                 sleep_flag = false;
             }
+            if(sleep_flag) {
+                usleep(merge_sleep_time);
+            }
         }
     }
 
@@ -236,7 +239,6 @@ namespace Taas {
                 usleep(merge_sleep_time);
                 epoch = EpochManager::GetLogicalEpoch();
             }
-            commit_cv.notify_all();
             epoch_mod = epoch % ctx.kCacheMaxLength;
             sleep_flag = true;
             while(epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
@@ -278,16 +280,16 @@ namespace Taas {
         std::unique_lock lck(mtx);
         while (!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetLogicalEpoch();
-            while(EpochManager::IsShardingMergeComplete(epoch)) {
+            while(!EpochManager::IsAbortSetMergeComplete(epoch)) {
                 commit_cv.wait(lck);
                 epoch = EpochManager::GetLogicalEpoch();
             }
+            sleep_flag = true;
             epoch_mod = epoch % ctx.kCacheMaxLength;
             while(epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                 if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     continue;
                 }
-                commit_cv.notify_all();
                 auto time1 = now_to_us();
                 ///validation phase
                 if (!CRDTMerge::ValidateWriteSet(ctx, *(txn_ptr))) {
@@ -309,6 +311,10 @@ namespace Taas {
                 total_commit_txn_num.fetch_add(1);
                 total_commit_latency.fetch_add(now_to_us() - time1);
                 epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+                sleep_flag = false;
+            }
+            if(sleep_flag) {
+                usleep(merge_sleep_time);
             }
 
 //            commit_queue->wait_dequeue(txn_ptr);
