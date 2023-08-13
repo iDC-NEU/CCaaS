@@ -10,8 +10,6 @@
 namespace Taas {
 
     extern void WorkerFroMergeThreadMain(const Context& ctx, uint64_t id);
-    extern void WorkerFroEpochMessageThreadMain(const Context& ctx, uint64_t id);
-    extern void WorkerFroTxnMessageThreadMain(const Context& ctx, uint64_t id);
     extern void WorkerFroCommitThreadMain(const Context& ctx, uint64_t id);
 
 }

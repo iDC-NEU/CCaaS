@@ -9,11 +9,15 @@
 
 namespace Taas {
 
+    extern void WorkerFroMessageThreadMain(const Context& ctx, uint64_t id);
+    extern void WorkerFroMessageEpochThreadMain(const Context& ctx, uint64_t id);
+
     extern void WorkerForClientListenThreadMain(const Context& ctx);
     extern void WorkerForClientSendThreadMain(const Context& ctx);
     extern void WorkerForServerListenThreadMain(const Context& ctx);
     extern void WorkerForServerListenThreadMain_Epoch(const Context& ctx);
     extern void WorkerForServerSendThreadMain(const Context& ctx);
+    extern void WorkerForStorageSendThreadMain(const Context& ctx);
 
 }
 

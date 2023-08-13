@@ -9,6 +9,7 @@
 
 #include "tools/atomic_counters.h"
 #include "tools/blocking_concurrent_queue.hpp"
+#include "tools/blocking_mpmc_queue.h"
 #include "tools/concurrent_hash_map.h"
 #include "tools/context.h"
 
@@ -46,15 +47,12 @@ namespace Taas {
         send_params()= default;
     };
 
-    template<typename T>
-    using  BlockingConcurrentQueue = moodycamel::BlockingConcurrentQueue<T>;
-
     class MessageQueue{
     public:
-        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>> listen_message_txn_queue, listen_message_epoch_queue;
-//        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> listen_message_txn_queue, listen_message_epoch_queue;
-        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<send_params>>> send_to_server_queue, send_to_client_queue, send_to_storage_queue;
-        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Message>>> request_queue, raft_message_queue;
+        static std::unique_ptr<MessageBlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>> listen_message_queue, listen_message_txn_queue, listen_message_epoch_queue;
+//        static std::unique_ptr<MessageBlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> listen_message_txn_queue, listen_message_epoch_queue;
+        static std::unique_ptr<MessageBlockingConcurrentQueue<std::unique_ptr<send_params>>> send_to_server_queue, send_to_client_queue, send_to_storage_queue;
+        static std::unique_ptr<MessageBlockingConcurrentQueue<std::unique_ptr<proto::Message>>> request_queue, raft_message_queue;
         static void StaticInitMessageQueue(const Context& ctx);
     };
 
@@ -66,8 +64,6 @@ namespace Taas {
     extern void ListenClientThreadMain(const Context& ctx);
     extern void ListenStorageThreadMain(const Context& ctx);
     extern void SendStoragePUBThreadMain(const Context& ctx);
-    extern void SendStoragePUBThreadMain2(const Context& ctx);
-
 
 }
 

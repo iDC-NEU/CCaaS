@@ -1,9 +1,9 @@
 //
-// Created by 周慰星 on 11/9/22.
+// Created by user on 23-7-17.
 //
 
-#ifndef TAAS_HANDLER_SEND_H
-#define TAAS_HANDLER_SEND_H
+#ifndef TAAS_TWOPCMESSAGESENDHANDLER_H
+#define TAAS_TWOPCMESSAGESENDHANDLER_H
 
 #pragma once
 
@@ -13,18 +13,16 @@
 
 #include "proto/message.pb.h"
 
-
 namespace Taas {
-
-    class MessageSendHandler {
+    class TwoPCMessageSendHandler {
     public:
-        static std::atomic<uint64_t> TotalLatency, TotalTxnNum;
+        static std::atomic<uint64_t> TotalLatency, TotalTxnNum, TotalSuccessTxnNUm, TotalSuccessLatency;
         static bool SendTxnCommitResultToClient(const Context& ctx, proto::Transaction& txn, proto::TxnState txn_state);
-        static bool SendTxnToServer(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn, proto::TxnType txn_type);
-        static bool SendRemoteServerTxn(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn, proto::TxnType txn_type);
-        static bool SendBackUpTxn(const Context &ctx, uint64_t& epoch, proto::Transaction& txn, proto::TxnType txn_type);
+        static bool SendTxnToServer(const Context& ctx, uint64_t& to_whom, proto::Transaction& txn, proto::TxnType txn_type);
+        static bool SendRemoteServerTxn(const Context& ctx, uint64_t& to_whom, proto::Transaction& txn, proto::TxnType txn_type);
+        static bool SendBackUpTxn(const Context &ctx, proto::Transaction& txn, proto::TxnType txn_type);
         static bool SendACK(const Context &ctx, uint64_t &epoch, uint64_t &to_whom, proto::TxnType txn_type);
-        static bool SendMessageToAll(const Context& ctx, uint64_t& epoch, proto::TxnType txn_type);
+        static bool SendMessageToAll(const Context& ctx, proto::TxnType txn_type);
 
         ///一下函数都由single one线程执行
         static void StaticInit(const Context& ctx);
@@ -43,4 +41,7 @@ namespace Taas {
         std::unique_ptr<pack_params> pack_param;
     };
 }
-#endif //TAAS_HANDLER_SEND_H
+
+
+
+#endif //TAAS_TWOPCMESSAGESENDHANDLER_H

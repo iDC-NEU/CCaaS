@@ -9,6 +9,7 @@
 namespace Taas {
     bool CRDTMerge::ValidateReadSet(const Context &ctx, proto::Transaction &txn) {
         ///RC & RR
+        auto epoch_mod = txn.commit_epoch() % ctx.kCacheMaxLength;
         std::string key, version;
         uint64_t csn = 0;
         for(auto i = 0; i < txn.row_size(); i ++) {
@@ -24,6 +25,9 @@ namespace Taas {
                 continue;
             }
             if (version != row.data()) {
+                auto csn_temp = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
+                Merger::epoch_abort_txn_set[epoch_mod]->insert(csn_temp, csn_temp);
+                Merger::local_epoch_abort_txn_set[epoch_mod]->insert(csn_temp, csn_temp);
 //                LOG(INFO) <<"Txn read version check failed";
 //                LOG(INFO) <<"read version check failed version : " << version << ", row.data() : " << row.data();
                 return false;

@@ -24,9 +24,9 @@ namespace Taas {
         static void ClearRedoLog(const Context& ctx, uint64_t& epoch_mod);
         static bool RedoLog(const Context& ctx, proto::Transaction& txn);
 
-        static bool GeneratePushDownTask(const Context& ctx, uint64_t& epoch);
+        static bool GeneratePushDownTask(const Context& ctx, const uint64_t& epoch);
 
-        static bool CheckPushDownComplete(const Context& ctx, uint64_t& epoch);
+        static bool CheckPushDownComplete(const Context& ctx, const uint64_t& epoch);
 
     };
 }

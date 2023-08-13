@@ -11,8 +11,8 @@ namespace Taas {
 //        static tikv_client::TransactionClient* tikv_client_ptr;
 //        static AtomicCounters_Cache
 //                epoch_should_push_down_txn_num, epoch_pushed_down_txn_num;
-//        static std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> task_queue, redo_log_queue;
-//        static std::vector<std::unique_ptr<moodycamel::BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
+//        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> task_queue, redo_log_queue;
+//        static std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
 //        epoch_redo_log_queue; ///store transactions receive from clients, wait to push down
 //        static std::vector<std::unique_ptr<std::atomic<bool>>> epoch_redo_log_complete;
 //

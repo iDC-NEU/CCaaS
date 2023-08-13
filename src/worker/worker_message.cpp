@@ -5,10 +5,66 @@
 #include "epoch/epoch_manager.h"
 #include "message/message.h"
 #include "transaction/merge.h"
+#include "transaction/two_phase_commit.h"
 #include "storage/tikv.h"
 #include "storage/mot.h"
 
 namespace Taas {
+
+    void WorkerFroMessageThreadMain(const Context& ctx, uint64_t id) {/// handle client txn
+        std::string name = "TxnMessage-" + std::to_string(id);
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        EpochMessageReceiveHandler receiveHandler;
+        class TwoPC twoPC;
+        receiveHandler.Init(ctx, id);
+        twoPC.Init(ctx, id);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while(!EpochManager::IsTimerStop()){
+            switch(ctx.taas_mode) {
+                case TaasMode::MultiMaster :
+                case TaasMode::Sharding : {
+                    while(!EpochManager::IsTimerStop()) {
+                        receiveHandler.HandleReceivedMessage();
+                    }
+                    break;
+                }
+                case TaasMode::TwoPC : {
+                    while(!EpochManager::IsTimerStop()) {
+                        twoPC.HandleReceivedMessage();
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    void WorkerFroMessageEpochThreadMain(const Context& ctx, uint64_t id) {/// handle message
+        std::string name = "EpochMessage-" + std::to_string(id);
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        EpochMessageReceiveHandler receiveHandler;
+        class TwoPC twoPC;
+        receiveHandler.Init(ctx, id);
+        twoPC.Init(ctx, id);
+        if(id < 2) SetCPU();
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while(!EpochManager::IsTimerStop()){
+            switch(ctx.taas_mode) {
+                case TaasMode::MultiMaster :
+                case TaasMode::Sharding : {
+                    while(!EpochManager::IsTimerStop()) {
+                        receiveHandler.HandleReceivedControlMessage();
+                    }
+                    break;
+                }
+                case TaasMode::TwoPC : {
+                    while(!EpochManager::IsTimerStop()) {
+//                        twoPC.HandleReceivedMessage();
+                    }
+                    break;
+                }
+            }
+        }
+    }
 
     void WorkerForClientListenThreadMain(const Context& ctx) {
         std::string name = "EpochClientListen";
@@ -43,6 +99,13 @@ namespace Taas {
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         SetCPU();
         SendServerThreadMain(ctx);
+    }
+
+    void WorkerForStorageSendThreadMain(const Context& ctx) {
+        std::string name = "EpochStorageSend";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
+        SendStoragePUBThreadMain(ctx);
     }
 
 }
