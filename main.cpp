@@ -69,8 +69,8 @@ namespace Taas {
             }
             for(int i = 0; i < (int)ctx.kEpochMessageThreadNum; i ++) {/// handle remote server message
                 threads.push_back(std::make_unique<std::thread>(WorkerFroMessageEpochThreadMain, ctx, i));  cnt++;///epoch message
-                if(i < 2)
-                SetScheduling(*threads[cnt - 1], SCHED_RR, 6);
+//                if(i < 2)
+//                SetScheduling(*threads[cnt - 1], SCHED_RR, 10);
             }
             for(int i = 0; i < (int)ctx.kMergeThreadNum; i ++) {
                 threads.push_back(std::make_unique<std::thread>(WorkerFroMergeThreadMain, ctx, i));  cnt++;///merge
