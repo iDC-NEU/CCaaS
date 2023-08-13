@@ -11,15 +11,16 @@
 
 namespace Taas {
 
-    Context TiKV::ctx;
     tikv_client::TransactionClient* TiKV::tikv_client_ptr = nullptr;
-    std::atomic<uint64_t> TiKV::total_commit_txn_num(0), TiKV::success_commit_txn_num(0), TiKV::failed_commit_txn_num(0);
-    AtomicCounters_Cache
-            TiKV::epoch_should_push_down_txn_num(10, 1), TiKV::epoch_pushed_down_txn_num(10, 1);
+
+    Context TiKV::ctx;
     std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>  TiKV::task_queue, TiKV::redo_log_queue;
-    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
-            TiKV::epoch_redo_log_queue;
+    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>> TiKV::epoch_redo_log_queue;
+    std::atomic<uint64_t> TiKV::pushed_down_epoch(1);
+    AtomicCounters_Cache TiKV::epoch_should_push_down_txn_num(10, 1), TiKV::epoch_pushed_down_txn_num(10, 1);
+    std::atomic<uint64_t> TiKV::total_commit_txn_num(0), TiKV::success_commit_txn_num(0), TiKV::failed_commit_txn_num(0);
     std::vector<std::unique_ptr<std::atomic<bool>>> TiKV::epoch_redo_log_complete;
+    std::condition_variable TiKV::commit_cv;
 
 
     void TiKV::StaticInit(const Context &ctx_) {
@@ -52,26 +53,24 @@ namespace Taas {
         return true;
     }
 
+
     void TiKV::SendTransactionToDB_Usleep() {
         auto sleep_flag = true;
         std::unique_ptr<proto::Transaction> txn_ptr;
-        uint64_t epoch;
+        uint64_t epoch, epoch_mod;
         while(!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetPushDownEpoch();
-            auto epoch_mod = epoch % ctx.kCacheMaxLength;
+            while(!EpochManager::IsCommitComplete(epoch)) {
+                usleep(storage_sleep_time);
+                epoch = EpochManager::GetPushDownEpoch();
+            }
+            epoch_mod = epoch % ctx.kCacheMaxLength;
             sleep_flag = true;
             while(epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                 if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     continue;
                 }
-                redo_log_queue->enqueue(std::move(txn_ptr));
-                redo_log_queue->enqueue(nullptr);
-            }
-
-            while(redo_log_queue->try_dequeue(txn_ptr)) {
-                if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
-                    continue;
-                }
+                commit_cv.notify_all();
                 if(tikv_client_ptr == nullptr) continue ;
                 auto tikv_txn = tikv_client_ptr->begin();
                 for (auto i = 0; i < txn_ptr->row_size(); i++) {
@@ -92,33 +91,50 @@ namespace Taas {
                 sleep_flag = false;
             }
             if(sleep_flag)
-                usleep(sleep_time);
+                usleep(storage_sleep_time);
         }
     }
 
 
     void TiKV::SendTransactionToDB_Block() {
+        std::mutex mtx;
+        std::unique_lock lck(mtx);
+        uint64_t epoch, epoch_mod;
+        bool sleep_flag;
         std::unique_ptr<proto::Transaction> txn_ptr;
         while(!EpochManager::IsTimerStop()) {
-            redo_log_queue->wait_dequeue(txn_ptr);
-            if(txn_ptr == nullptr) continue;
-            if(tikv_client_ptr == nullptr) continue;
-            auto tikv_txn = tikv_client_ptr->begin();
-            for (auto i = 0; i < txn_ptr->row_size(); i++) {
-                const auto& row = txn_ptr->row(i);
-                if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
-                    tikv_txn.put(row.key(), row.data());
+            epoch = EpochManager::GetPushDownEpoch();
+            while (!EpochManager::IsCommitComplete(epoch)) {
+                commit_cv.wait(lck);
+                epoch = EpochManager::GetPushDownEpoch();
+            }
+            epoch_mod = epoch % ctx.kCacheMaxLength;
+            sleep_flag = true;
+            while (epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+                if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
+                    continue;
                 }
+                if (tikv_client_ptr == nullptr) continue;
+                auto tikv_txn = tikv_client_ptr->begin();
+                for (auto i = 0; i < txn_ptr->row_size(); i++) {
+                    const auto &row = txn_ptr->row(i);
+                    if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
+                        tikv_txn.put(row.key(), row.data());
+                    }
+                }
+                try {
+                    total_commit_txn_num.fetch_add(1);
+                    tikv_txn.commit();
+                }
+                catch (std::exception &e) {
+                    LOG(INFO) << "*** Commit Txn To Tikv Failed: " << e.what();
+                    failed_commit_txn_num.fetch_add(1);
+                }
+                epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);
+                sleep_flag = false;
             }
-            try{
-                total_commit_txn_num.fetch_add(1);
-                tikv_txn.commit();
-            }
-            catch (std::exception &e) {
-                LOG(INFO) << "*** Commit Txn To Tikv Failed: " << e.what();
-                failed_commit_txn_num.fetch_add(1);
-            }
-            epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);
+            if(sleep_flag)
+                usleep(storage_sleep_time);
         }
     }
 

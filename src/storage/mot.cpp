@@ -8,20 +8,20 @@
 
 namespace Taas {
 
-    std::atomic<uint64_t> MOT::pushed_down_mot_epoch;
     Context MOT::ctx;
-    AtomicCounters_Cache
-            MOT::epoch_should_push_down_txn_num(10, 1), MOT::epoch_pushed_down_txn_num(10, 1);
     std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>  MOT::task_queue, MOT::redo_log_queue;
-    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
-            MOT::epoch_redo_log_queue;
+    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>> MOT::epoch_redo_log_queue;
+    std::atomic<uint64_t> MOT::pushed_down_epoch(1);
+    AtomicCounters_Cache MOT::epoch_should_push_down_txn_num(10, 1), MOT::epoch_pushed_down_txn_num(10, 1);
+    std::atomic<uint64_t> MOT::total_commit_txn_num(0), MOT::success_commit_txn_num(0), MOT::failed_commit_txn_num(0);
     std::vector<std::unique_ptr<std::atomic<bool>>> MOT::epoch_redo_log_complete;
+    std::condition_variable MOT::commit_cv;
 
     bool MOT::StaticInit(const Context &ctx_) {
         ctx = ctx_;
-        MOT::pushed_down_mot_epoch.store(1);
         task_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
         redo_log_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+        pushed_down_epoch.store(1);
         epoch_should_push_down_txn_num.Init(ctx.kCacheMaxLength, ctx.kTxnNodeNum);
         epoch_pushed_down_txn_num.Init(ctx.kCacheMaxLength, ctx.kTxnNodeNum);
         epoch_redo_log_complete.resize(ctx.kCacheMaxLength);
@@ -50,19 +50,17 @@ namespace Taas {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         sleep_flag = true;
         while (!EpochManager::IsTimerStop()) {
-            epoch = EpochManager::GetLogicalEpoch();
+            epoch = EpochManager::GetPushDownEpoch();
+            while(!EpochManager::IsCommitComplete(epoch)) {
+                usleep(storage_sleep_time);
+                epoch = EpochManager::GetPushDownEpoch();
+            }
+            epoch_mod = epoch % ctx.kCacheMaxLength;
             while(epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                 if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     continue;
                 }
-                redo_log_queue->enqueue(std::move(txn_ptr));
-                redo_log_queue->enqueue(nullptr);
-            }
-
-            while(redo_log_queue->try_dequeue(txn_ptr)) {
-                if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
-                    return;
-                }
+                commit_cv.notify_all();
                 epoch = txn_ptr->commit_epoch();
                 auto push_msg = std::make_unique<proto::Message>();
                 auto push_response = push_msg->mutable_storage_push_response();
@@ -81,33 +79,44 @@ namespace Taas {
             }
         }
         if(sleep_flag)
-            usleep(sleep_time);
+            usleep(storage_sleep_time);
     }
 
     void MOT::SendTransactionToDB_Block() {
+        proto::Transaction* ptr;
+        std::mutex mtx;
+        std::unique_lock lck(mtx);
+        uint64_t epoch, epoch_mod;
+        bool sleep_flag;
         std::unique_ptr<proto::Transaction> txn_ptr;
-        uint64_t epoch;
-        proto::Transaction* ptr = nullptr;
-        epoch = EpochManager::GetPushDownEpoch();
-        while (!EpochManager::IsTimerStop()) {
-            redo_log_queue->wait_dequeue(txn_ptr);
-            if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
-                return;
+        while(!EpochManager::IsTimerStop()) {
+            epoch = EpochManager::GetPushDownEpoch();
+            while(!EpochManager::IsCommitComplete(epoch)) {
+                commit_cv.wait(lck);
+                epoch = EpochManager::GetPushDownEpoch();
             }
-            epoch = txn_ptr->commit_epoch();
-            auto push_msg = std::make_unique<proto::Message>();
-            auto push_response = push_msg->mutable_storage_push_response();
-            push_response->set_result(proto::Success);
-            push_response->set_epoch_id(epoch);
-            push_response->set_txn_num(1);
-            ptr = push_response->add_txns();
-            ptr = txn_ptr.release();
-            /// *(ptr) = (*txn_ptr);
-            auto serialized_pull_resp_str = std::make_unique<std::string>();
-            Gzip(push_msg.get(), serialized_pull_resp_str.get());
-            MessageQueue::send_to_storage_queue->enqueue(std::make_unique<send_params>(0, 0,
-                   "", epoch,proto::TxnType::CommittedTxn,std::move(serialized_pull_resp_str),nullptr));
-            epoch_pushed_down_txn_num.IncCount(epoch, epoch, 1);
+            epoch_mod = epoch % ctx.kCacheMaxLength;
+            sleep_flag = true;
+            while(epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+                if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
+                    continue;
+                }
+                auto push_msg = std::make_unique<proto::Message>();
+                auto push_response = push_msg->mutable_storage_push_response();
+                push_response->set_result(proto::Success);
+                push_response->set_epoch_id(epoch);
+                push_response->set_txn_num(1);
+                ptr = push_response->add_txns();
+                ptr = txn_ptr.release();
+                /// *(ptr) = (*txn_ptr);
+                auto serialized_pull_resp_str = std::make_unique<std::string>();
+                Gzip(push_msg.get(), serialized_pull_resp_str.get());
+                MessageQueue::send_to_storage_queue->enqueue(std::make_unique<send_params>(0, 0,"", epoch, proto::TxnType::CommittedTxn, std::move(serialized_pull_resp_str), nullptr));
+                epoch_pushed_down_txn_num.IncCount(epoch, epoch, 1);
+                sleep_flag = false;
+            }
+            if(sleep_flag)
+                usleep(storage_sleep_time);
         }
     }
 
@@ -116,7 +125,7 @@ namespace Taas {
         if(epoch < EpochManager::GetLogicalEpoch() &&
            epoch_pushed_down_txn_num.GetCount(epoch) >= epoch_should_push_down_txn_num.GetCount(epoch)) {
             epoch_redo_log_complete[epoch % ctx.kCacheMaxLength]->store(true);
-            pushed_down_mot_epoch.fetch_add(1);
+            pushed_down_epoch.fetch_add(1);
             return true;
         }
         return false;

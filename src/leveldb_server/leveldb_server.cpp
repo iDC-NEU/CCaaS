@@ -5,7 +5,7 @@
 
 #include "leveldb_server/leveldb_server.h"
 #include "leveldb_server/rocksdb_connection.h"
-
+#include <future>
 
 namespace Taas {
 
@@ -23,7 +23,7 @@ namespace Taas {
             leveldb_connections.push_back(RocksDBConnection::NewConnection("leveldb"));
         }
 
-        leveldb_server.Start(context.kLevevDBIP.c_str(), &options);
+
         if(leveldb_server.AddService(&leveldb_get_service, brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
             LOG(FATAL) << "Fail to add leveldb_get_service";
             assert(false);
@@ -32,7 +32,9 @@ namespace Taas {
             LOG(FATAL) << "Fail to add leveldb_put_service";
             assert(false);
         }
-
+        if (leveldb_server.Start(context.kLevevDBIP.c_str(), &options) != 0) {
+            LOG(ERROR) << "Fail to start leveldb_server";
+        }
         leveldb_server.RunUntilAskedToQuit();
     }
 
@@ -40,26 +42,33 @@ namespace Taas {
                          ::proto::KvDBResponse *response, ::google::protobuf::Closure *done) {
         brpc::ClosureGuard done_guard(done);
 
-        brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-        auto num = connection_num.fetch_add(1);
+//        brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+        auto num = connection_num.fetch_add(1) % 10000;
         std::string value;
-        auto res = leveldb_connections[num % 10000]->get("1", &value);
+        const auto& data = request->data();
+        const std::string& key= data[num].key();
+//        LOG(INFO) << "get-key : " << key;
+        auto res = leveldb_connections[num]->get(key, &value);
+//        LOG(INFO) << "get-value : " << value;
         // 填写response
         response->set_result(res);
-//        KvDbGet::Get(controller, request, response, done);
+        const auto& response_data = response->add_data();
+        response_data->set_value(value);
+//        LOG(INFO) << "response result : " << res ;
+
     }
 
     void LevelDBPutService::Put(::google::protobuf::RpcController *controller, const ::proto::KvDBRequest *request,
                          ::proto::KvDBResponse *response, ::google::protobuf::Closure *done) {
         brpc::ClosureGuard done_guard(done);
 
-        brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+//        brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
         auto num = connection_num.fetch_add(1);
-        std::string value;
-        auto res = leveldb_connections[num % 10000]->syncPut("1", value);
-
+        const auto& data = request->data();
+        const std::string& key = data[0].key();
+        const std::string& value = data[0].value();
+        auto res = leveldb_connections[num % 10000]->syncPut(key, value);
         // 填写response
         response->set_result(res);
-//        KvDbPut::Put(controller, request, response, done);
     }
 }

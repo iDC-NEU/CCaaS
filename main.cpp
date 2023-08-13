@@ -16,6 +16,7 @@
 
 #include <iostream>
 #include <thread>
+#include <future>
 
 
 using namespace std;
@@ -116,11 +117,19 @@ namespace Taas {
             }
 
             for(int i = 0; i < (int)ctx.kTestClientNum; i ++) {
-                threads.push_back(std::make_unique<std::thread>(Client, ctx, i)); cnt++;
+                if(ctx.is_leveldb_enable) {
+                    threads.push_back(std::make_unique<std::thread>(LevelDBClient, ctx, i));
+                    cnt++;
+                }
+                else {
+                    threads.push_back(std::make_unique<std::thread>(Client, ctx, i));
+                    cnt++;
+                }
             }
         }
         else if(ctx.server_type == ServerMode::LevelDB) { ///leveldb server
-            ///todo : add brpc
+            EpochManager epochManager;
+            Taas::EpochManager::ctx = ctx;
             LevelDBServer(ctx);
         }
         else if(ctx.server_type == ServerMode::HBase) { ///hbase server

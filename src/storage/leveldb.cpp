@@ -10,13 +10,13 @@
 
 namespace Taas {
     Context LevelDB::ctx;
-    std::atomic<uint64_t> LevelDB::total_commit_txn_num(0), LevelDB::success_commit_txn_num(0), LevelDB::failed_commit_txn_num(0);
-    AtomicCounters_Cache
-            LevelDB::epoch_should_push_down_txn_num(10, 1), LevelDB::epoch_pushed_down_txn_num(10, 1);
     std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>  LevelDB::task_queue, LevelDB::redo_log_queue;
-    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
-            LevelDB::epoch_redo_log_queue;
+    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>> LevelDB::epoch_redo_log_queue;
+    std::atomic<uint64_t> LevelDB::pushed_down_epoch(1);
+    AtomicCounters_Cache LevelDB::epoch_should_push_down_txn_num(10, 1), LevelDB::epoch_pushed_down_txn_num(10, 1);
+    std::atomic<uint64_t> LevelDB::total_commit_txn_num(0), LevelDB::success_commit_txn_num(0), LevelDB::failed_commit_txn_num(0);
     std::vector<std::unique_ptr<std::atomic<bool>>> LevelDB::epoch_redo_log_complete;
+    std::condition_variable LevelDB::commit_cv;
 
     brpc::Channel LevelDB::channel;
 
@@ -34,7 +34,7 @@ namespace Taas {
             epoch_redo_log_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
         }
         brpc::ChannelOptions options;
-        LevelDB::channel.Init(ctx.kLevevDBIP.c_str(), &options);
+        channel.Init(ctx.kLevevDBIP.c_str(), &options);
     }
 
     void LevelDB::StaticClear(const uint64_t &epoch) {
@@ -57,53 +57,113 @@ namespace Taas {
         std::unique_ptr<proto::Transaction> txn_ptr;
         proto::KvDBPutService_Stub put_stub(&channel);
         proto::KvDBGetService_Stub get_stub(&channel);
-        uint64_t epoch;
-        epoch = EpochManager::GetPushDownEpoch();
-        while(redo_log_queue->try_dequeue(txn_ptr)) {
-            if(txn_ptr == nullptr) continue ;
-            proto::KvDBRequest request;
-            proto::KvDBResponse response;
-            brpc::Controller cntl;
-            cntl.set_timeout_ms(500);
-            auto csn = txn_ptr->csn();
-            for(auto i : txn_ptr->row()) {
-                if(i.op_type() == proto::OpType::Read) {
+        bool sleep_flag;
+        uint64_t epoch, epoch_mod;
+        while(!EpochManager::IsTimerStop()) {
+            epoch = EpochManager::GetPushDownEpoch();
+            while(!EpochManager::IsCommitComplete(epoch)) {
+                usleep(storage_sleep_time);
+                epoch = EpochManager::GetPushDownEpoch();
+            }
+            epoch_mod = epoch % ctx.kCacheMaxLength;
+            sleep_flag = true;
+            while(epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+                if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     continue;
                 }
-                auto data = request.add_data();
-                data->set_op_type(i.op_type());
-                data->set_key(i.key());
-                data->set_value(i.data());
-                data->set_csn(csn);
-                put_stub.Put(&cntl, &request, &response, NULL);
-                if (cntl.Failed()) {
-                    // RPC失败了. response里的值是未定义的，勿用。
-                } else {
-                    // RPC成功了，response里有我们想要的回复数据。
+                commit_cv.notify_all();
+                total_commit_txn_num.fetch_add(1);
+                proto::KvDBRequest request;
+                proto::KvDBResponse response;
+                brpc::Controller cntl;
+                cntl.set_timeout_ms(500);
+                auto csn = txn_ptr->csn();
+                for(const auto& i : txn_ptr->row()) {
+                    if (i.op_type() == proto::OpType::Read) {
+                        continue;
+                    }
+                    auto data = request.add_data();
+                    data->set_op_type(i.op_type());
+                    data->set_key(i.key());
+                    data->set_value(i.data());
+                    data->set_csn(csn);
+                    put_stub.Put(&cntl, &request, &response, nullptr);
+                    if (cntl.Failed()) {
+                        // RPC失败.
+                        failed_commit_txn_num.fetch_add(1);
+                        LOG(WARNING) << cntl.ErrorText();
+                    } else {
+                        // RPC成功
+//                        LOG(INFO) << "LevelDBStorageSend success ==="
+//                                  << "Received response from " << cntl.remote_side()
+//                                  << " to " << cntl.local_side()
+//                                  << ": " << response.result() << " (attached="
+//                                  << cntl.response_attachment() << ")"
+//                                  << " latency=" << cntl.latency_us() << "us";
+                    }
                 }
+                epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);
+                sleep_flag = false;
             }
-            epoch_pushed_down_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+            if(sleep_flag)
+                usleep(sleep_time);
         }
     }
 
 
     void LevelDB::SendTransactionToDB_Block() {
+        proto::KvDBPutService_Stub put_stub(&channel);
+        proto::KvDBGetService_Stub get_stub(&channel);
         std::unique_ptr<proto::Transaction> txn_ptr;
-        uint64_t epoch;
+        std::mutex mtx;
+        std::unique_lock lck(mtx);
+        uint64_t epoch, epoch_mod;
+        bool sleep_flag;
         while(!EpochManager::IsTimerStop()) {
-            redo_log_queue->wait_dequeue(txn_ptr);
-            if(txn_ptr == nullptr) continue;
-            epoch = txn_ptr->commit_epoch();
-//            if(tikv_client_ptr == nullptr) continue;
-//            auto tikv_txn = tikv_client_ptr->begin();
-//            for (auto i = 0; i < txn_ptr->row_size(); i++) {
-//                const auto& row = txn_ptr->row(i);
-//                if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
-//                    tikv_txn.put(row.key(), row.data());
-//                }
-//            }
-//            tikv_txn.commit();
-            epoch_pushed_down_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+            epoch = EpochManager::GetPushDownEpoch();
+            while (!EpochManager::IsCommitComplete(epoch)) {
+                commit_cv.wait(lck);
+                epoch = EpochManager::GetPushDownEpoch();
+            }
+            epoch_mod = epoch % ctx.kCacheMaxLength;
+            sleep_flag = true;
+            while (epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+                if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
+                    continue;
+                }
+                proto::KvDBRequest request;
+                proto::KvDBResponse response;
+                brpc::Controller cntl;
+                cntl.set_timeout_ms(500);
+                auto csn = txn_ptr->csn();
+                for(const auto& i : txn_ptr->row()) {
+                    if (i.op_type() == proto::OpType::Read) {
+                        continue;
+                    }
+                    auto data = request.add_data();
+                    data->set_op_type(i.op_type());
+                    data->set_key(i.key());
+                    data->set_value(i.data());
+                    data->set_csn(csn);
+                    put_stub.Put(&cntl, &request, &response, nullptr);
+                    if (cntl.Failed()) {
+                        // RPC失败.
+                        LOG(WARNING) << cntl.ErrorText();
+                    } else {
+                        // RPC成功
+//                        LOG(INFO) << "LevelDBStorageSend success ==="
+//                                  << "Received response from " << cntl.remote_side()
+//                                  << " to " << cntl.local_side()
+//                                  << ": " << response.result() << " (attached="
+//                                  << cntl.response_attachment() << ")"
+//                                  << " latency=" << cntl.latency_us() << "us";
+                    }
+                }
+                epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);
+                sleep_flag = false;
+            }
+            if(sleep_flag)
+                usleep(sleep_time);
         }
     }
 

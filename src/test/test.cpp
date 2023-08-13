@@ -31,19 +31,16 @@ namespace Taas {
             txn_id ++;
             txn_ptr->set_txn_type(proto::ClientTxn);
             op_num = op_num_dis(gen);
-//            op_num = rand() % ctx.kTestTxnOpNum + 1;
             for(unsigned int i = 0; i < op_num; i ++) {
                 auto key = std::to_string(key_range_dis(gen) % ctx.kTestKeyRange);
                 op_type = op_type_dis(gen);
-//                auto key = std::to_string(rand() % ctx.kTestKeyRange);
-//                op_type = rand() % 4;
                 auto row = txn_ptr->add_row();
                 row->set_key(key);
                 switch (op_type) {
                     case 0 : {
                         Merger::read_version_map_data.getValue(key, read_version);
                         row->set_op_type(proto::Read);
-                        row->set_data(read_version);
+                        write_version = read_version;
                         break;
                     }
                     case 1 : {
@@ -63,7 +60,6 @@ namespace Taas {
                 }
                 row->set_data(write_version);
             }
-//        printf("read version is %s, write version is %s\n", read_version.c_str(), write_version.c_str());
             txn_ptr->set_client_ip("127.0.0.1");
             auto serialized_txn_str = std::string();
             google::protobuf::io::GzipOutputStream::Options options;
