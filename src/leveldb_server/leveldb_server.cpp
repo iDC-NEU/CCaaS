@@ -18,8 +18,8 @@ namespace Taas {
         LevelDBGetService leveldb_get_service;
         LevelDBPutService leveldb_put_service;
 
-        leveldb_connections.resize(1);
-        for(int i = 0; i < 1; i ++) {
+        leveldb_connections.resize(context.kLeveldbThreadNum);
+        for(int i = 0; i < context.kLeveldbThreadNum; i ++) {
             leveldb_connections.push_back(RocksDBConnection::NewConnection("leveldb"));
         }
 
