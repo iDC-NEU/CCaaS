@@ -104,13 +104,13 @@ namespace Taas {
                 }
             }
             if(ctx.is_leveldb_enable) {
-                TiKV::tikv_client_ptr = new tikv_client::TransactionClient({ctx.kTiKVIP});
+                TiKV::tikv_client_ptr = new tikv_client::TransactionClient({ctx.kLevevDBIP});
                 for(int i = 0; i < (int)ctx.kLeveldbThreadNum; i ++) {
                     threads.push_back(std::make_unique<std::thread>(WorkerFroTiKVStorageThreadMain, ctx, i)); cnt++;///tikv push down
                 }
             }
             if(ctx.is_hbase_enable) {
-                TiKV::tikv_client_ptr = new tikv_client::TransactionClient({ctx.kTiKVIP});
+                TiKV::tikv_client_ptr = new tikv_client::TransactionClient({ctx.kHbaseIP});
                 for(int i = 0; i < (int)ctx.kHbaseTxnThreadNum; i ++) {
                     threads.push_back(std::make_unique<std::thread>(WorkerFroTiKVStorageThreadMain, ctx, i)); cnt++;///tikv push down
                 }

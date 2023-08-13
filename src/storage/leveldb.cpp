@@ -93,12 +93,12 @@ namespace Taas {
                         LOG(WARNING) << cntl.ErrorText();
                     } else {
                         // RPC成功
-//                        LOG(INFO) << "LevelDBStorageSend success ==="
-//                                  << "Received response from " << cntl.remote_side()
-//                                  << " to " << cntl.local_side()
-//                                  << ": " << response.result() << " (attached="
-//                                  << cntl.response_attachment() << ")"
-//                                  << " latency=" << cntl.latency_us() << "us";
+                        LOG(INFO) << "LevelDBStorageSend success === 0"
+                                  << "Received response from " << cntl.remote_side()
+                                  << " to " << cntl.local_side()
+                                  << ": " << response.result() << " (attached="
+                                  << cntl.response_attachment() << ")"
+                                  << " latency=" << cntl.latency_us() << "us";
                     }
                 }
                 epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);
@@ -150,12 +150,12 @@ namespace Taas {
                         LOG(WARNING) << cntl.ErrorText();
                     } else {
                         // RPC成功
-//                        LOG(INFO) << "LevelDBStorageSend success ==="
-//                                  << "Received response from " << cntl.remote_side()
-//                                  << " to " << cntl.local_side()
-//                                  << ": " << response.result() << " (attached="
-//                                  << cntl.response_attachment() << ")"
-//                                  << " latency=" << cntl.latency_us() << "us";
+                        LOG(INFO) << "LevelDBStorageSend success === 1"
+                                  << "Received response from " << cntl.remote_side()
+                                  << " to " << cntl.local_side()
+                                  << ": " << response.result() << " (attached="
+                                  << cntl.response_attachment() << ")"
+                                  << " latency=" << cntl.latency_us() << "us";
                     }
                 }
                 epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);

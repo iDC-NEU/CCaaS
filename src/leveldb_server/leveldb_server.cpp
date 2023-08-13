@@ -18,8 +18,8 @@ namespace Taas {
         LevelDBGetService leveldb_get_service;
         LevelDBPutService leveldb_put_service;
 
-        leveldb_connections.resize(10001);
-        for(int i = 0; i < 10000; i ++) {
+        leveldb_connections.resize(1);
+        for(int i = 0; i < 1; i ++) {
             leveldb_connections.push_back(RocksDBConnection::NewConnection("leveldb"));
         }
 
@@ -32,9 +32,10 @@ namespace Taas {
             LOG(FATAL) << "Fail to add leveldb_put_service";
             assert(false);
         }
-        if (leveldb_server.Start(context.kLevevDBIP.c_str(), &options) != 0) {
+        if (leveldb_server.Start(2379, &options) != 0) {
             LOG(ERROR) << "Fail to start leveldb_server";
         }
+        LOG(INFO) << "======*** LEVELDB SERVER START ***=====\n";
         leveldb_server.RunUntilAskedToQuit();
     }
 

@@ -10,8 +10,8 @@
     <tikv_thread_num>5</tikv_thread_num>
 
     <!--    leveldb config -->
-    <is_leveldb_enable>0</is_leveldb_enable>
-    <leveldb_ip>47.92.250.79:2379</leveldb_ip>
+    <is_leveldb_enable>1</is_leveldb_enable>
+    <leveldb_ip>202.199.6.181:2379</leveldb_ip>
     <leveldb_thread_num>5</leveldb_thread_num>
 
     <!--    hbase config -->
