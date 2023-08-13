@@ -19,8 +19,7 @@
 namespace Taas {
 
     using namespace std;
-
-    uint64_t sleep_time = 50, logical_sleep_timme = 50;
+    const uint64_t sleep_time = 200, logical_sleep_timme = 50, storage_sleep_time = 200, merge_sleep_time = 200;
     uint64_t cache_server_available = 1, total_commit_txn_num = 0;
     std::atomic<uint64_t> merge_epoch = 1, abort_set_epoch = 1,
             commit_epoch = 1, redo_log_epoch = 1, clear_epoch = 1;
@@ -151,7 +150,7 @@ namespace Taas {
         merge_num                    %6lu, time          %lu \n",
        s.c_str(),
        EpochManager::GetPhysicalEpoch(),                                                  EpochManager::GetLogicalEpoch(),
-       MOT::pushed_down_mot_epoch.load(),                                                EpochManager::GetPushDownEpoch(),
+       MOT::pushed_down_epoch.load(),                                                EpochManager::GetPushDownEpoch(),
        merge_epoch.load(), abort_set_epoch.load(), commit_epoch.load(), redo_log_epoch.load(),clear_epoch.load(),
        epoch_mod,                                                                         EpochManager::GetPhysicalEpoch() - EpochManager::GetLogicalEpoch(),
        (uint64_t)EpochMessageReceiveHandler::IsShardingPackReceiveComplete(ctx, epoch_mod),(uint64_t)EpochMessageReceiveHandler::IsShardingTxnReceiveComplete(ctx, epoch_mod),

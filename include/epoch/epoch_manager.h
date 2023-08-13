@@ -23,7 +23,7 @@
 
 namespace Taas {
 
-    extern uint64_t sleep_time, logical_sleep_timme;
+    extern const uint64_t sleep_time, logical_sleep_timme, storage_sleep_time, merge_sleep_time;
     extern uint64_t cache_server_available, total_commit_txn_num;
     extern std::atomic<uint64_t> merge_epoch , abort_set_epoch ,
             commit_epoch , redo_log_epoch , clear_epoch ;

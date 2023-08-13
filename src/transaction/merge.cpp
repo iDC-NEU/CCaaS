@@ -48,6 +48,9 @@ namespace Taas {
         Merger::total_commit_latency(0), Merger::success_commit_txn_num(0), Merger::success_commit_latency(0),
         Merger::total_read_version_check_failed_txn_num(0), Merger::total_failed_txn_num(0);
 
+    std::mutex Merger::merge_mutex, Merger::commit_mutex;
+    std::condition_variable Merger::merge_cv, Merger::commit_cv;
+
 
     void Merger::StaticInit(const Context &ctx) {
         auto max_length = ctx.kCacheMaxLength;
@@ -153,9 +156,6 @@ namespace Taas {
         return res;
     }
 
-    std::mutex merge_mutex, commit_mutex;
-    std::condition_variable merge_cv, commit_cv;
-    uint64_t merge_sleep_time = 200;
     void Merger::EpochMerge_Usleep() {
         while (!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetLogicalEpoch();
@@ -174,11 +174,9 @@ namespace Taas {
                 epoch = txn_ptr->commit_epoch();
                 if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
                     total_read_version_check_failed_txn_num.fetch_add(1);
-                    sleep_time = false;
                     goto end;
                 }
                 if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
-                    sleep_time = false;
                     goto end;
                 }
                 end:
@@ -197,7 +195,6 @@ namespace Taas {
         std::mutex mtx;
         std::unique_lock lck(mtx);
         while (!EpochManager::IsTimerStop()) {
-//            merge_queue->wait_dequeue(txn_ptr);
             epoch = EpochManager::GetLogicalEpoch();
             while(EpochManager::IsShardingMergeComplete(epoch)) {
                 merge_cv.wait(lck);
@@ -213,11 +210,9 @@ namespace Taas {
                 epoch = txn_ptr->commit_epoch();
                 if (!CRDTMerge::ValidateReadSet(ctx, *(txn_ptr))) {
                     total_read_version_check_failed_txn_num.fetch_add(1);
-                    sleep_time = false;
                     goto end;
                 }
                 if (!CRDTMerge::MultiMasterCRDTMerge(ctx, *(txn_ptr))) {
-                    sleep_time = false;
                     goto end;
                 }
                 end:

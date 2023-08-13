@@ -17,15 +17,21 @@
 namespace Taas {
     class TiKV {
     public:
-        static Context ctx;
         static tikv_client::TransactionClient* tikv_client_ptr;
-        static std::atomic<uint64_t> total_commit_txn_num, success_commit_txn_num, failed_commit_txn_num;
-        static AtomicCounters_Cache
-                epoch_should_push_down_txn_num, epoch_pushed_down_txn_num;
+
+        static Context ctx;
         static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> task_queue, redo_log_queue;
         static std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
-            epoch_redo_log_queue; ///store transactions receive from clients, wait to push down
+                epoch_redo_log_queue; ///store transactions receive from clients, wait to push down
+
+        static std::atomic<uint64_t> pushed_down_epoch;
+        static AtomicCounters_Cache
+                epoch_should_push_down_txn_num, epoch_pushed_down_txn_num;
+        static std::atomic<uint64_t> total_commit_txn_num, success_commit_txn_num, failed_commit_txn_num;
         static std::vector<std::unique_ptr<std::atomic<bool>>> epoch_redo_log_complete;
+
+        static std::condition_variable commit_cv;
+
 
         static void StaticInit(const Context& ctx_);
         static void StaticClear(const uint64_t &epoch);
