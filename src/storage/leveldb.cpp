@@ -20,7 +20,6 @@ namespace Taas {
 
     brpc::Channel LevelDB::channel;
 
-
     void LevelDB::StaticInit(const Context &ctx_) {
         ctx = ctx_;
         task_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();

@@ -44,10 +44,9 @@ namespace Taas {
     void MOT::SendTransactionToDB_Usleep() {
         bool sleep_flag;
         std::unique_ptr<proto::Transaction> txn_ptr;
-        uint64_t epoch;
+        uint64_t epoch, epoch_mod;
         proto::Transaction* ptr;
         epoch = EpochManager::GetPushDownEpoch();
-        auto epoch_mod = epoch % ctx.kCacheMaxLength;
         sleep_flag = true;
         while (!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetPushDownEpoch();

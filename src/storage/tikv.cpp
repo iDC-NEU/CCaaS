@@ -55,7 +55,7 @@ namespace Taas {
 
 
     void TiKV::SendTransactionToDB_Usleep() {
-        auto sleep_flag = true;
+        bool sleep_flag;
         std::unique_ptr<proto::Transaction> txn_ptr;
         uint64_t epoch, epoch_mod;
         while(!EpochManager::IsTimerStop()) {
