@@ -18,9 +18,9 @@ namespace Taas {
         LevelDBGetService leveldb_get_service;
         LevelDBPutService leveldb_put_service;
 
-        leveldb_connections.resize(context.kLeveldbThreadNum);
-        for(int i = 0; i < context.kLeveldbThreadNum; i ++) {
-            leveldb_connections.push_back(RocksDBConnection::NewConnection("leveldb"));
+        leveldb_connections.resize(1);
+        for(int i = 0; i < 1; i ++) {
+            leveldb_connections[i] = RocksDBConnection::NewConnection("leveldb");
         }
 
 
@@ -42,34 +42,24 @@ namespace Taas {
     void LevelDBGetService::Get(::google::protobuf::RpcController *controller, const ::proto::KvDBRequest *request,
                          ::proto::KvDBResponse *response, ::google::protobuf::Closure *done) {
         brpc::ClosureGuard done_guard(done);
-
-//        brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-        auto num = connection_num.fetch_add(1) % 10000;
         std::string value;
         const auto& data = request->data();
-        const std::string& key= data[num].key();
-//        LOG(INFO) << "get-key : " << key;
-        auto res = leveldb_connections[num]->get(key, &value);
-//        LOG(INFO) << "get-value : " << value;
-        // 填写response
+        const std::string& key= data[0].key();
+        auto res = leveldb_connections[0]->get(key, &value);
         response->set_result(res);
         const auto& response_data = response->add_data();
         response_data->set_value(value);
-//        LOG(INFO) << "response result : " << res ;
-
+        LOG(INFO) << "get-key : " << key << ",get-value : " << value << ",response result : " << res ;
     }
 
     void LevelDBPutService::Put(::google::protobuf::RpcController *controller, const ::proto::KvDBRequest *request,
                          ::proto::KvDBResponse *response, ::google::protobuf::Closure *done) {
         brpc::ClosureGuard done_guard(done);
-
-//        brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-        auto num = connection_num.fetch_add(1);
         const auto& data = request->data();
         const std::string& key = data[0].key();
         const std::string& value = data[0].value();
-        auto res = leveldb_connections[num % 10000]->syncPut(key, value);
-        // 填写response
+        auto res = leveldb_connections[0]->syncPut(key, value);
         response->set_result(res);
+        LOG(INFO) << "put-key : " << key << ",put-value : " << value << ",response result : " << res ;
     }
 }

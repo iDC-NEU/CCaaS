@@ -53,9 +53,12 @@ namespace Taas {
     }
 
     void LevelDB::SendTransactionToDB_Usleep() {
+        brpc::Channel chan;
+        brpc::ChannelOptions options;
+        chan.Init(ctx.kLevevDBIP.c_str(), &options);
         std::unique_ptr<proto::Transaction> txn_ptr;
-        proto::KvDBPutService_Stub put_stub(&channel);
-        proto::KvDBGetService_Stub get_stub(&channel);
+        proto::KvDBPutService_Stub put_stub(&chan);
+        proto::KvDBGetService_Stub get_stub(&chan);
         bool sleep_flag;
         uint64_t epoch, epoch_mod;
         while(!EpochManager::IsTimerStop()) {
@@ -72,15 +75,15 @@ namespace Taas {
                 }
                 commit_cv.notify_all();
                 total_commit_txn_num.fetch_add(1);
-                proto::KvDBRequest request;
-                proto::KvDBResponse response;
-                brpc::Controller cntl;
-                cntl.set_timeout_ms(500);
                 auto csn = txn_ptr->csn();
                 for(const auto& i : txn_ptr->row()) {
                     if (i.op_type() == proto::OpType::Read) {
                         continue;
                     }
+                    proto::KvDBRequest request;
+                    proto::KvDBResponse response;
+                    brpc::Controller cntl;
+                    cntl.set_timeout_ms(500);
                     auto data = request.add_data();
                     data->set_op_type(i.op_type());
                     data->set_key(i.key());
@@ -111,9 +114,13 @@ namespace Taas {
 
 
     void LevelDB::SendTransactionToDB_Block() {
-        proto::KvDBPutService_Stub put_stub(&channel);
-        proto::KvDBGetService_Stub get_stub(&channel);
+        brpc::Channel chan;
+        brpc::ChannelOptions options;
+        chan.Init(ctx.kLevevDBIP.c_str(), &options);
         std::unique_ptr<proto::Transaction> txn_ptr;
+        proto::KvDBPutService_Stub put_stub(&chan);
+        proto::KvDBGetService_Stub get_stub(&chan);
+
         std::mutex mtx;
         std::unique_lock lck(mtx);
         uint64_t epoch, epoch_mod;

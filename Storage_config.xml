@@ -12,7 +12,7 @@
     <!--    leveldb config -->
     <is_leveldb_enable>1</is_leveldb_enable>
     <leveldb_ip>202.199.6.181:2379</leveldb_ip>
-    <leveldb_thread_num>5</leveldb_thread_num>
+    <leveldb_thread_num>1</leveldb_thread_num>
 
     <!--    hbase config -->
     <is_hbase_enable>0</is_hbase_enable>
