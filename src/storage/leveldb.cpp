@@ -96,12 +96,12 @@ namespace Taas {
                         LOG(WARNING) << cntl.ErrorText();
                     } else {
                         // RPC成功
-                        LOG(INFO) << "LevelDBStorageSend success === 0"
-                                  << "Received response from " << cntl.remote_side()
-                                  << " to " << cntl.local_side()
-                                  << ": " << response.result() << " (attached="
-                                  << cntl.response_attachment() << ")"
-                                  << " latency=" << cntl.latency_us() << "us";
+//                        LOG(INFO) << "LevelDBStorageSend success === 0"
+//                                  << "Received response from " << cntl.remote_side()
+//                                  << " to " << cntl.local_side()
+//                                  << ": " << response.result() << " (attached="
+//                                  << cntl.response_attachment() << ")"
+//                                  << " latency=" << cntl.latency_us() << "us";
                     }
                 }
                 epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);
@@ -137,15 +137,15 @@ namespace Taas {
                 if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     continue;
                 }
-                proto::KvDBRequest request;
-                proto::KvDBResponse response;
-                brpc::Controller cntl;
-                cntl.set_timeout_ms(500);
                 auto csn = txn_ptr->csn();
                 for(const auto& i : txn_ptr->row()) {
                     if (i.op_type() == proto::OpType::Read) {
                         continue;
                     }
+                    proto::KvDBRequest request;
+                    proto::KvDBResponse response;
+                    brpc::Controller cntl;
+                    cntl.set_timeout_ms(500);
                     auto data = request.add_data();
                     data->set_op_type(i.op_type());
                     data->set_key(i.key());
@@ -157,12 +157,12 @@ namespace Taas {
                         LOG(WARNING) << cntl.ErrorText();
                     } else {
                         // RPC成功
-                        LOG(INFO) << "LevelDBStorageSend success === 1"
-                                  << "Received response from " << cntl.remote_side()
-                                  << " to " << cntl.local_side()
-                                  << ": " << response.result() << " (attached="
-                                  << cntl.response_attachment() << ")"
-                                  << " latency=" << cntl.latency_us() << "us";
+//                        LOG(INFO) << "LevelDBStorageSend success === 1"
+//                                  << "Received response from " << cntl.remote_side()
+//                                  << " to " << cntl.local_side()
+//                                  << ": " << response.result() << " (attached="
+//                                  << cntl.response_attachment() << ")"
+//                                  << " latency=" << cntl.latency_us() << "us";
                     }
                 }
                 epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);
