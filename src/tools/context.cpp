@@ -103,7 +103,7 @@ namespace Taas {
         auto tikv_ip=ip_port->GetText();
         kTiKVIP = std::string(tikv_ip);
         tinyxml2::XMLElement* tikv_thread_num = root->FirstChildElement("tikv_thread_num");
-        kTiKVIP = std::stoull(tikv_thread_num->GetText());
+        kTikvThreadNum = std::stoull(tikv_thread_num->GetText());
 
         tinyxml2::XMLElement* leveldb = root->FirstChildElement("is_leveldb_enable");
         is_leveldb_enable = std::stoull(leveldb->GetText());
