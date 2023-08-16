@@ -39,9 +39,9 @@ namespace Taas {
             recvResult = socket_listen.recv((*message_ptr), recvFlags);//防止上次遗留消息造成message cache出现问题
             assert(recvResult != -1);
             if (is_epoch_advance_started.load()) {
-                auto res = MessageQueue::listen_message_queue->enqueue(std::move(message_ptr));
+                auto res = MessageQueue::listen_message_txn_queue->enqueue(std::move(message_ptr));
                 assert(res);
-                res = MessageQueue::listen_message_queue->enqueue(std::make_unique<zmq::message_t>());
+                res = MessageQueue::listen_message_txn_queue->enqueue(std::make_unique<zmq::message_t>());
                 assert(res); //防止moodycamel取不出
                 break;
             }
@@ -51,10 +51,10 @@ namespace Taas {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);
             assert(recvResult != -1);
-            auto res = MessageQueue::listen_message_queue->enqueue(std::move(message_ptr));
+            auto res = MessageQueue::listen_message_txn_queue->enqueue(std::move(message_ptr));
 //            printf("线程开始工作 ListenClientThread receive a message\n");
             assert(res);
-            res = MessageQueue::listen_message_queue->enqueue(std::make_unique<zmq::message_t>());
+            res = MessageQueue::listen_message_txn_queue->enqueue(std::make_unique<zmq::message_t>());
             assert(res); //防止moodycamel取不出
         }
     }

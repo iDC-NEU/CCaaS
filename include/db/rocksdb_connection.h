@@ -1,31 +1,27 @@
 //
-// Created by peng on 23-6-30.
+// Created by peng on 2/20/23.
 //
-
-
-#ifndef TAAS_ROCKSDBCONNECTION_H
-#define TAAS_ROCKSDBCONNECTION_H
 
 #pragma once
 
 #include "rocksdb/db.h"
-#include "glog/logging.h"
-#include "tools/utilities.h"
 
+#include "glog/logging.h"
 #include <memory>
 
 namespace Taas {
-    class RocksDBConnection {
+    class RocksdbConnection {
     public:
-        RocksDBConnection(const RocksDBConnection&) = delete;
+        using WriteBatch = rocksdb::WriteBatch;
 
-        RocksDBConnection(RocksDBConnection&&) = delete;
+        RocksdbConnection(const RocksdbConnection&) = delete;
 
-        virtual ~RocksDBConnection() = default;
+        RocksdbConnection(RocksdbConnection&&) = delete;
+
+        virtual ~RocksdbConnection() = default;
 
         // create a new db connection
-        static std::unique_ptr<RocksDBConnection> NewConnection(const std::string& dbName) {
-            auto t1 = now_to_us();
+        static std::unique_ptr<RocksdbConnection> NewConnection(const std::string& dbName) {
             rocksdb::Options options;
             options.create_if_missing = true;
             rocksdb::DB* db;
@@ -34,11 +30,9 @@ namespace Taas {
                 LOG(WARNING) << "Can not open database: " << dbName;
                 return nullptr;
             }
-            std::unique_ptr<RocksDBConnection> dbc(new RocksDBConnection());
+            std::unique_ptr<RocksdbConnection> dbc(new RocksdbConnection());
             dbc->dbName = dbName;
             dbc->db.reset(db);
-            auto t2 = now_to_us();
-            printf("connect to leveldb cost %lu \n", t2 - t1);
             return dbc;
         }
 
@@ -87,7 +81,7 @@ namespace Taas {
         }
 
     protected:
-        RocksDBConnection() {
+        RocksdbConnection() {
             syncWrite.sync = true;
             asyncWrite.sync= false;
         }
@@ -98,5 +92,5 @@ namespace Taas {
         std::string dbName;
         std::unique_ptr<rocksdb::DB> db;
     };
+
 }
-#endif //TAAS_ROCKSDBCONNECTION_H

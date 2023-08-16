@@ -53,6 +53,13 @@ CPMAddPackage(
         GIT_SHALLOW TRUE
 )
 
+### greg7mdp/gtl gel template repo
+CPMAddPackage(
+        NAME gtl  ## include the project name
+        GITHUB_REPOSITORY greg7mdp/gtl
+        VERSION 1.1.5
+#        GIT_TAG 0f8cecf52c91bb8f265d6ff2fc32cd8144c987a6
+)
 CPMAddPackage(
         NAME yaml-cpp
         GITHUB_REPOSITORY jbeder/yaml-cpp
@@ -198,6 +205,7 @@ SET(COMMON_DEPENDENCIES
         crypto
         # Use thrift2 to connect HBase
         thriftd
+        gtl
         )
 
 # Link dependencies

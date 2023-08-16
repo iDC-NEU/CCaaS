@@ -4,12 +4,12 @@
 
 
 #include "leveldb_server/leveldb_server.h"
-#include "leveldb_server/rocksdb_connection.h"
+#include "db/db_interface.h"
 #include <future>
 
 namespace Taas {
 
-    static std::vector<std::unique_ptr<RocksDBConnection>> leveldb_connections;
+    static std::vector<std::unique_ptr<DBConnection>> leveldb_connections;
     static std::atomic<uint64_t> connection_num(0);
 
     void LevelDBServer(const Context &context){
@@ -20,7 +20,7 @@ namespace Taas {
 
         leveldb_connections.resize(1);
         for(int i = 0; i < 1; i ++) {
-            leveldb_connections[i] = RocksDBConnection::NewConnection("leveldb");
+            leveldb_connections[i] = DBConnection::NewConnection("leveldb");
         }
 
 
