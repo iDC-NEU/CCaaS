@@ -87,6 +87,7 @@ namespace Taas {
                 threads.push_back(std::make_unique<std::thread>(WorkerForServerListenThreadMain, ctx)); cnt++;
                 threads.push_back(std::make_unique<std::thread>(WorkerForServerListenThreadMain_Epoch, ctx)); cnt++;
                 threads.push_back(std::make_unique<std::thread>(WorkerForServerSendThreadMain, ctx)); cnt++;
+                threads.push_back(std::make_unique<std::thread>(WorkerForServerSendPUBThreadMain, ctx)); cnt++;
             }
 
             ///Storage

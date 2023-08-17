@@ -20,8 +20,8 @@ namespace Taas {
     class HBase {
     public:
         static Context ctx;
-        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> task_queue, redo_log_queue;
-        static std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
+        static std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>> task_queue, redo_log_queue;
+        static std::vector<std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>>
                 epoch_redo_log_queue; ///store transactions receive from clients, wait to push down
 
         static std::atomic<uint64_t> pushed_down_epoch;
@@ -39,8 +39,8 @@ namespace Taas {
         static void SendTransactionToDB_Block();
 
         static bool CheckEpochPushDownComplete(const uint64_t &epoch);
-        static void DBRedoLogQueueEnqueue(const uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
-        static bool DBRedoLogQueueTryDequeue(const uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
+        static void DBRedoLogQueueEnqueue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
+        static bool DBRedoLogQueueTryDequeue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
 
         static bool GeneratePushDownTask(const uint64_t &epoch);
     };

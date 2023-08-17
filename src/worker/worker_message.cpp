@@ -91,7 +91,7 @@ namespace Taas {
         std::string name = "EpochServerListen";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         SetCPU();
-        ListenServerThreadMain_Epoch(ctx);
+        ListenServerThreadMain_Sub(ctx);
     }
 
     void WorkerForServerSendThreadMain(const Context& ctx) {
@@ -99,6 +99,13 @@ namespace Taas {
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         SetCPU();
         SendServerThreadMain(ctx);
+    }
+
+    void WorkerForServerSendPUBThreadMain(const Context& ctx) {
+        std::string name = "EpochClientSend";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SetCPU();
+        SendServerPUBThreadMain(ctx);
     }
 
     void WorkerForStorageSendThreadMain(const Context& ctx) {

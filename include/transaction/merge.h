@@ -24,7 +24,7 @@ namespace Taas {
         std::unique_ptr<zmq::message_t> message_ptr;
         std::unique_ptr<std::string> message_string_ptr;
         std::unique_ptr<proto::Message> msg_ptr;
-        std::unique_ptr<proto::Transaction> txn_ptr;
+        std::shared_ptr<proto::Transaction> txn_ptr;
         std::unique_ptr<pack_params> pack_param;
         std::string csn_temp, key_temp, key_str, table_name, csn_result;
         uint64_t thread_id = 0, epoch = 0, epoch_mod = 0, txn_server_id = 0;
@@ -49,10 +49,10 @@ namespace Taas {
         static concurrent_unordered_map<std::string, std::string> read_version_map_data, read_version_map_csn, insert_set, abort_txn_set;
 
         ///queues
-        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> task_queue;
-        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> merge_queue;///merge_queue 存放需要进行merge的子事务 不区分epoch
-        static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> commit_queue;
-        static std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
+        static std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>> task_queue;
+        static std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>> merge_queue;///merge_queue 存放需要进行merge的子事务 不区分epoch
+        static std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>> commit_queue;
+        static std::vector<std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>>
                 epoch_merge_queue,///merge_queue 存放需要进行merge的子事务 不区分epoch
                 epoch_local_txn_queue, ///epoch_local_txn_queue 本地接收到的完整的事务  txn receive from client (used to push log down to storage)
                 epoch_commit_queue;///epoch_commit_queue 当前epoch的涉及当前分片的要进行validate和commit的子事务 receive from servers and local sharding txn, wait to validate
@@ -72,16 +72,16 @@ namespace Taas {
 
         void Init(const Context& ctx_, uint64_t id);
 
-        static bool EpochMerge(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
+        static bool EpochMerge(const Context& ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> &&txn_ptr);
         void EpochMerge_Usleep();
         void EpochMerge_Block();
         void EpochCommit_Usleep();
         void EpochCommit_Block();
 
-        static void MergeQueueEnqueue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
-        static bool MergeQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
-        static void CommitQueueEnqueue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr);
-        static bool CommitQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr);
+        static void MergeQueueEnqueue(const Context& ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
+        static bool MergeQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
+        static void CommitQueueEnqueue(const Context& ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
+        static bool CommitQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
 
 
 

@@ -10,8 +10,8 @@
 
 namespace Taas {
     Context HBase::ctx;
-    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>  HBase::task_queue, HBase::redo_log_queue;
-    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>> HBase::epoch_redo_log_queue;
+    std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>  HBase::task_queue, HBase::redo_log_queue;
+    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>> HBase::epoch_redo_log_queue;
     std::atomic<uint64_t> HBase::pushed_down_epoch(1);
     AtomicCounters_Cache HBase::epoch_should_push_down_txn_num(10, 1), HBase::epoch_pushed_down_txn_num(10, 1);
     std::atomic<uint64_t> HBase::total_commit_txn_num(0), HBase::success_commit_txn_num(0), HBase::failed_commit_txn_num(0);
@@ -21,8 +21,8 @@ namespace Taas {
 
     void HBase::StaticInit(const Context &ctx_) {
         ctx = ctx_;
-        task_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-        redo_log_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+        task_queue = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
+        redo_log_queue = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
         pushed_down_epoch.store(1);
         epoch_should_push_down_txn_num.Init(ctx.kCacheMaxLength, ctx.kTxnNodeNum);
         epoch_pushed_down_txn_num.Init(ctx.kCacheMaxLength, ctx.kTxnNodeNum);
@@ -30,7 +30,7 @@ namespace Taas {
         epoch_redo_log_queue.resize(ctx.kCacheMaxLength);
         for(int i = 0; i < static_cast<int>(ctx.kCacheMaxLength); i ++) {
             epoch_redo_log_complete[i] = std::make_unique<std::atomic<bool>>(false);
-            epoch_redo_log_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+            epoch_redo_log_queue[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
         }
     }
 
@@ -38,14 +38,14 @@ namespace Taas {
         epoch_should_push_down_txn_num.Clear(epoch);
         epoch_pushed_down_txn_num.Clear(epoch);
         epoch_redo_log_complete[epoch % ctx.kCacheMaxLength]->store(false);
-        auto txn_ptr = std::make_unique<proto::Transaction>();
+        auto txn_ptr = std::make_shared<proto::Transaction>();
         while(epoch_redo_log_queue[epoch % ctx.kCacheMaxLength]->try_dequeue(txn_ptr));
     }
 
     bool HBase::GeneratePushDownTask(const uint64_t &epoch) {
-        auto txn_ptr = std::make_unique<proto::Transaction>();
+        auto txn_ptr = std::make_shared<proto::Transaction>();
         txn_ptr->set_commit_epoch(epoch);
-        task_queue->enqueue(std::move(txn_ptr));
+        task_queue->enqueue(txn_ptr);
         task_queue->enqueue(nullptr);
         return true;
     }
@@ -58,7 +58,7 @@ namespace Taas {
 
     void HBase::SendTransactionToDB_Usleep() {
         bool sleep_flag;
-        std::unique_ptr<proto::Transaction> txn_ptr;
+        std::shared_ptr<proto::Transaction> txn_ptr;
         uint64_t epoch, epoch_mod;
         //connect to thrift2 server in order to communicate with hbase
         CHbaseHandler hbase_txn;
@@ -103,7 +103,7 @@ namespace Taas {
 
 
     void HBase::SendTransactionToDB_Block() {
-        std::unique_ptr<proto::Transaction> txn_ptr;
+        std::shared_ptr<proto::Transaction> txn_ptr;
         CHbaseHandler hbase_txn;
         hbase_txn.connect(ctx.kHbaseIP,9090);
         std::mutex mtx;
@@ -146,12 +146,12 @@ namespace Taas {
         }
     }
 
-    void HBase::DBRedoLogQueueEnqueue(const uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr) {
+    void HBase::DBRedoLogQueueEnqueue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
-        epoch_redo_log_queue[epoch_mod]->enqueue(std::move(txn_ptr));
+        epoch_redo_log_queue[epoch_mod]->enqueue(txn_ptr);
         epoch_redo_log_queue[epoch_mod]->enqueue(nullptr);
     }
-    bool HBase::DBRedoLogQueueTryDequeue(const uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr) {
+    bool HBase::DBRedoLogQueueTryDequeue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         return epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr);
     }

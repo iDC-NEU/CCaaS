@@ -43,6 +43,7 @@ namespace Taas {
         send_socket.set(zmq::sockopt::sndhwm, queue_length);
         send_socket.set(zmq::sockopt::rcvhwm, queue_length);
         recv_socket.bind("tcp://*:" + std::to_string(recv_port));
+        auto txn_ptr = std::make_shared<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
 
         while (!EpochManager::IsTimerStop()) {
@@ -70,7 +71,8 @@ namespace Taas {
                 for (uint64_t i = 0; i < total_num; i++) {
                     auto key = s + std::to_string(i);
                     auto *ptr = pull_resp->add_txns();
-                    RedoLoger::committed_txn_cache[epoch_mod]->getValue(key, (*ptr)); //copy
+                    RedoLoger::committed_txn_cache[epoch_mod]->getValue(key, txn_ptr); //copy
+                    *ptr = *(txn_ptr);
                 }
 //            for (auto iter = EpochManager::redo_log[epoch_id]->begin(); iter != EpochManager::redo_log[epoch_id]->end(); iter++) {
 //                proto::Transaction* ptr = pull_resp->add_txns();

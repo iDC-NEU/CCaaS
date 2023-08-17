@@ -26,9 +26,9 @@ namespace Taas {
         uint64_t epoch{};
         proto::TxnType type{};
         std::unique_ptr<std::string> str;
-        std::unique_ptr<proto::Transaction> txn;
+        std::shared_ptr<proto::Transaction> txn;
         explicit pack_params(uint64_t id_, uint64_t time_, std::string ip_, uint64_t e = 0, proto::TxnType ty = proto::TxnType::NullMark,
-                             std::unique_ptr<std::string> && s = nullptr, std::unique_ptr<proto::Transaction> &&t = nullptr):
+                             std::unique_ptr<std::string> && s = nullptr, std::shared_ptr<proto::Transaction> &&t = nullptr):
                 id(id_), time(time_), ip(std::move(ip_)), epoch(e), type(ty), str(std::move(s)), txn(std::move(t)){}
         pack_params()= default;
     };
@@ -40,9 +40,9 @@ namespace Taas {
         uint64_t epoch{};
         proto::TxnType type{};
         std::unique_ptr<std::string> str;
-        std::unique_ptr<proto::Transaction> txn;
+        std::shared_ptr<proto::Transaction> txn;
         send_params(uint64_t id_, uint64_t time_, std::string ip_, uint64_t e = 0, proto::TxnType ty = proto::TxnType::NullMark,
-                    std::unique_ptr<std::string> && s = nullptr, std::unique_ptr<proto::Transaction> &&t = nullptr):
+                    std::unique_ptr<std::string> && s = nullptr, std::shared_ptr<proto::Transaction> &&t = nullptr):
                 id(id_), time(time_), ip(std::move(ip_)), epoch(e), type(ty), str(std::move(s)), txn(std::move(t)){}
         send_params()= default;
     };
@@ -50,16 +50,17 @@ namespace Taas {
     class MessageQueue{
     public:
         static std::unique_ptr<MessageBlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>> listen_message_queue, listen_message_txn_queue, listen_message_epoch_queue;
-//        static std::unique_ptr<MessageBlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>> listen_message_txn_queue, listen_message_epoch_queue;
-        static std::unique_ptr<MessageBlockingConcurrentQueue<std::unique_ptr<send_params>>> send_to_server_queue, send_to_client_queue, send_to_storage_queue;
+//        static std::shared_ptr<MessageBlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>> listen_message_txn_queue, listen_message_epoch_queue;
+        static std::unique_ptr<MessageBlockingConcurrentQueue<std::unique_ptr<send_params>>> send_to_server_queue, send_to_client_queue, send_to_storage_queue, send_to_server_pub_queue;
         static std::unique_ptr<MessageBlockingConcurrentQueue<std::unique_ptr<proto::Message>>> request_queue, raft_message_queue;
         static void StaticInitMessageQueue(const Context& ctx);
     };
 
     //message transport threads
     extern void SendServerThreadMain(const Context& ctx);
+    extern void SendServerPUBThreadMain(const Context& ctx);
     extern void ListenServerThreadMain(const Context& ctx);
-    extern void ListenServerThreadMain_Epoch(const Context& ctx);
+    extern void ListenServerThreadMain_Sub(const Context& ctx);
     extern void SendClientThreadMain(const Context& ctx);
     extern void ListenClientThreadMain(const Context& ctx);
     extern void ListenStorageThreadMain(const Context& ctx);

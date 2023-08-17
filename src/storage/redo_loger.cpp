@@ -12,13 +12,13 @@
 namespace Taas {
 
     AtomicCounters RedoLoger::epoch_log_lsn(10);
-    std::vector<std::unique_ptr<concurrent_unordered_map<std::string, proto::Transaction>>> RedoLoger::committed_txn_cache;
+    std::vector<std::unique_ptr<concurrent_unordered_map<std::string, std::shared_ptr<proto::Transaction>>>> RedoLoger::committed_txn_cache;
     void RedoLoger::StaticInit(const Context& ctx) {
         auto max_length = ctx.kCacheMaxLength;
         epoch_log_lsn.Init(max_length);
         committed_txn_cache.resize(max_length);
         for(int i = 0; i < static_cast<int>(max_length); i ++) {
-            committed_txn_cache[i] = std::make_unique<concurrent_unordered_map<std::string, proto::Transaction>>();
+            committed_txn_cache[i] = std::make_unique<concurrent_unordered_map<std::string, std::shared_ptr<proto::Transaction>>>();
         }
         if(ctx.is_tikv_enable) {
             TiKV::StaticInit(ctx);
@@ -48,22 +48,22 @@ namespace Taas {
     }
 
 
-    bool RedoLoger::RedoLog(const Context& ctx, proto::Transaction &txn) {
-        uint64_t epoch_id = txn.commit_epoch();
+    bool RedoLoger::RedoLog(const Context& ctx, std::shared_ptr<proto::Transaction> txn_ptr) {
+        uint64_t epoch_id = txn_ptr->commit_epoch();
         auto lsn = epoch_log_lsn.IncCount(epoch_id, 1);
         auto key = std::to_string(epoch_id) + ":" + std::to_string(lsn);
-        committed_txn_cache[epoch_id % ctx.kCacheMaxLength]->insert(key, txn);
+        committed_txn_cache[epoch_id % ctx.kCacheMaxLength]->insert(key, txn_ptr);
         if(ctx.is_mot_enable) {
-            MOT::DBRedoLogQueueEnqueue(epoch_id, std::make_unique<proto::Transaction>(txn));
+            MOT::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
         }
         if(ctx.is_tikv_enable) {
-            TiKV::DBRedoLogQueueEnqueue(epoch_id, std::make_unique<proto::Transaction>(txn));
+            TiKV::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
         }
         if(ctx.is_leveldb_enable) {
-            LevelDB::DBRedoLogQueueEnqueue(epoch_id, std::make_unique<proto::Transaction>(txn));
+            LevelDB::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
         }
         if(ctx.is_hbase_enable) {
-            HBase::DBRedoLogQueueEnqueue(epoch_id, std::make_unique<proto::Transaction>(txn));
+            HBase::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
         }
         return true;
     }

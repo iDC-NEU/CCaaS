@@ -26,7 +26,7 @@ namespace Taas {
             TwoPCMessageReceiveHandler::backup_insert_set_send_ack_epoch_num,
             TwoPCMessageReceiveHandler::abort_set_send_ack_epoch_num; /// check and reply ack
 
-    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
+    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>>
             TwoPCMessageReceiveHandler::epoch_remote_sharding_txn,
             TwoPCMessageReceiveHandler::epoch_local_sharding_txn,
             TwoPCMessageReceiveHandler::epoch_local_txn,
@@ -68,12 +68,12 @@ namespace Taas {
         epoch_abort_set.resize(max_length);
 
         for(int i = 0; i < static_cast<int>(max_length); i ++) {
-            epoch_remote_sharding_txn[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-            epoch_local_sharding_txn[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-            epoch_local_txn[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-            epoch_backup_txn[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-            epoch_insert_set[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-            epoch_abort_set[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+            epoch_remote_sharding_txn[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
+            epoch_local_sharding_txn[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
+            epoch_local_txn[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
+            epoch_backup_txn[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
+            epoch_insert_set[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
+            epoch_abort_set[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
         }
         return true;
     }
@@ -170,9 +170,9 @@ namespace Taas {
     }
 
     bool TwoPCMessageReceiveHandler::HandleClientTxn() {
-        std::vector<std::unique_ptr<proto::Transaction>> sharding_row_vector;
+        std::vector<std::shared_ptr<proto::Transaction>> sharding_row_vector;
         for(uint64_t i = 0; i < sharding_num; i ++) {
-            sharding_row_vector.emplace_back(std::make_unique<proto::Transaction>());
+            sharding_row_vector.emplace_back(std::make_shared<proto::Transaction>());
             sharding_row_vector[i]->set_csn(txn_ptr->csn());
             sharding_row_vector[i]->set_commit_epoch(txn_ptr->commit_epoch());
             sharding_row_vector[i]->set_server_id(txn_ptr->server_id());

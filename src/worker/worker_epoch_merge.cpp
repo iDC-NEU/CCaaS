@@ -13,13 +13,13 @@ namespace Taas {
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         Merger merger;
         merger.Init(ctx, id);
-        auto txn_ptr = std::make_unique<proto::Transaction>();
+        auto txn_ptr = std::make_shared<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         switch(ctx.taas_mode) {
             case TaasMode::MultiMaster :
             case TaasMode::Sharding : {
                 while(!EpochManager::IsTimerStop()) {
-                    while(!EpochManager::IsTimerStop())
+//                    while(!EpochManager::IsTimerStop())
 //                        merger.EpochMerge_Usleep();
                     if(id == 0)
                         while(!EpochManager::IsTimerStop())
@@ -41,12 +41,12 @@ namespace Taas {
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         Merger merger;
         merger.Init(ctx, id);
-        auto txn_ptr = std::make_unique<proto::Transaction>();
+        auto txn_ptr = std::make_shared<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         switch (ctx.taas_mode) {
             case TaasMode::MultiMaster :
             case TaasMode::Sharding : {
-                while (!EpochManager::IsTimerStop())
+//                while (!EpochManager::IsTimerStop())
 //                    merger.EpochCommit_Usleep();
                     if (id == 0)
                         while (!EpochManager::IsTimerStop())

@@ -17,6 +17,7 @@ namespace Taas {
     extern void WorkerForServerListenThreadMain(const Context& ctx);
     extern void WorkerForServerListenThreadMain_Epoch(const Context& ctx);
     extern void WorkerForServerSendThreadMain(const Context& ctx);
+    extern void WorkerForServerSendPUBThreadMain(const Context& ctx);
     extern void WorkerForStorageSendThreadMain(const Context& ctx);
 
 }

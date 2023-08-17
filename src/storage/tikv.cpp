@@ -14,8 +14,8 @@ namespace Taas {
     tikv_client::TransactionClient* TiKV::tikv_client_ptr = nullptr;
 
     Context TiKV::ctx;
-    std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>  TiKV::task_queue, TiKV::redo_log_queue;
-    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>> TiKV::epoch_redo_log_queue;
+    std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>  TiKV::task_queue, TiKV::redo_log_queue;
+    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>> TiKV::epoch_redo_log_queue;
     std::atomic<uint64_t> TiKV::pushed_down_epoch(1);
     AtomicCounters_Cache TiKV::epoch_should_push_down_txn_num(10, 1), TiKV::epoch_pushed_down_txn_num(10, 1);
     std::atomic<uint64_t> TiKV::total_commit_txn_num(0), TiKV::success_commit_txn_num(0), TiKV::failed_commit_txn_num(0);
@@ -25,15 +25,15 @@ namespace Taas {
 
     void TiKV::StaticInit(const Context &ctx_) {
         ctx = ctx_;
-        task_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-        redo_log_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+        task_queue = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
+        redo_log_queue = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
         epoch_should_push_down_txn_num.Init(ctx.kCacheMaxLength, ctx.kTxnNodeNum);
         epoch_pushed_down_txn_num.Init(ctx.kCacheMaxLength, ctx.kTxnNodeNum);
         epoch_redo_log_complete.resize(ctx.kCacheMaxLength);
         epoch_redo_log_queue.resize(ctx.kCacheMaxLength);
         for(int i = 0; i < static_cast<int>(ctx.kCacheMaxLength); i ++) {
             epoch_redo_log_complete[i] = std::make_unique<std::atomic<bool>>(false);
-            epoch_redo_log_queue[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
+            epoch_redo_log_queue[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
         }
     }
 
@@ -41,14 +41,14 @@ namespace Taas {
         epoch_should_push_down_txn_num.Clear(epoch);
         epoch_pushed_down_txn_num.Clear(epoch);
         epoch_redo_log_complete[epoch % ctx.kCacheMaxLength]->store(false);
-        auto txn_ptr = std::make_unique<proto::Transaction>();
+        auto txn_ptr = std::make_shared<proto::Transaction>();
         while(epoch_redo_log_queue[epoch % ctx.kCacheMaxLength]->try_dequeue(txn_ptr));
     }
 
     bool TiKV::GeneratePushDownTask(const uint64_t &epoch) {
-        auto txn_ptr = std::make_unique<proto::Transaction>();
+        auto txn_ptr = std::make_shared<proto::Transaction>();
         txn_ptr->set_commit_epoch(epoch);
-        task_queue->enqueue(std::move(txn_ptr));
+        task_queue->enqueue(txn_ptr);
         task_queue->enqueue(nullptr);
         return true;
     }
@@ -56,7 +56,7 @@ namespace Taas {
 
     void TiKV::SendTransactionToDB_Usleep() {
         bool sleep_flag;
-        std::unique_ptr<proto::Transaction> txn_ptr;
+        std::shared_ptr<proto::Transaction> txn_ptr;
         uint64_t epoch, epoch_mod;
         while(!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetPushDownEpoch();
@@ -101,7 +101,7 @@ namespace Taas {
         std::unique_lock lck(mtx);
         uint64_t epoch, epoch_mod;
         bool sleep_flag;
-        std::unique_ptr<proto::Transaction> txn_ptr;
+        std::shared_ptr<proto::Transaction> txn_ptr;
         while(!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetPushDownEpoch();
             while (!EpochManager::IsCommitComplete(epoch)) {
@@ -138,12 +138,12 @@ namespace Taas {
         }
     }
 
-    void TiKV::DBRedoLogQueueEnqueue(const uint64_t &epoch, std::unique_ptr<proto::Transaction> &&txn_ptr) {
+    void TiKV::DBRedoLogQueueEnqueue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
-        epoch_redo_log_queue[epoch_mod]->enqueue(std::move(txn_ptr));
+        epoch_redo_log_queue[epoch_mod]->enqueue(txn_ptr);
         epoch_redo_log_queue[epoch_mod]->enqueue(nullptr);
     }
-    bool TiKV::DBRedoLogQueueTryDequeue(const uint64_t &epoch, std::unique_ptr<proto::Transaction> &txn_ptr) {
+    bool TiKV::DBRedoLogQueueTryDequeue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         return epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr);
     }

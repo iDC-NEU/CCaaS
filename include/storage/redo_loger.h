@@ -19,10 +19,10 @@ namespace Taas {
     class RedoLoger {
     public:
         static AtomicCounters epoch_log_lsn;///epoch, value        for epoch log (each epoch has single one counter)
-        static std::vector<std::unique_ptr<concurrent_unordered_map<std::string, proto::Transaction>>> committed_txn_cache;
+        static std::vector<std::unique_ptr<concurrent_unordered_map<std::string, std::shared_ptr<proto::Transaction>>>> committed_txn_cache;
         static void StaticInit(const Context& ctx);
         static void ClearRedoLog(const Context& ctx, uint64_t& epoch_mod);
-        static bool RedoLog(const Context& ctx, proto::Transaction& txn);
+        static bool RedoLog(const Context& ctx, std::shared_ptr<proto::Transaction> txn_ptr);
 
         static bool GeneratePushDownTask(const Context& ctx, const uint64_t& epoch);
 

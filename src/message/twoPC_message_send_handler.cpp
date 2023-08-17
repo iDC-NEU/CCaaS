@@ -42,33 +42,33 @@ namespace Taas {
  * @param txn 等待回复给client的事务
  * @param txn_state 告诉client此txn的状态(Success or Abort)
  */
-    bool TwoPCMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, proto::Transaction &txn, proto::TxnState txn_state) {
-        if(txn.server_id() != ctx.txn_node_ip_index) return true;
+    bool TwoPCMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, std::shared_ptr<proto::Transaction> txn_ptr, proto::TxnState txn_state) {
+        if(txn_ptr->server_id() != ctx.txn_node_ip_index) return true;
 
-        txn.set_txn_state(txn_state);
+        txn_ptr->set_txn_state(txn_state);
         auto msg = std::make_unique<proto::Message>();
         auto rep = msg->mutable_reply_txn_result_to_client();
         rep->set_txn_state(txn_state);
-        rep->set_client_txn_id(txn.client_txn_id());
+        rep->set_client_txn_id(txn_ptr->client_txn_id());
 
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());
-        auto tim = now_to_us() - txn.csn();
+        auto tim = now_to_us() - txn_ptr->csn();
         TotalLatency.fetch_add(tim);
         TotalTxnNum.fetch_add(1);
         if(txn_state == proto::TxnState::Commit) {
             TotalSuccessLatency.fetch_add(tim);
             TotalSuccessTxnNUm.fetch_add(1);
         }
-        MessageQueue::send_to_client_queue->enqueue(std::make_unique<send_params>(txn.client_txn_id(), txn.csn(), txn.client_ip(), txn.commit_epoch(), proto::TxnType::CommittedTxn, std::move(serialized_txn_str_ptr), nullptr));
+        MessageQueue::send_to_client_queue->enqueue(std::make_unique<send_params>(txn_ptr->client_txn_id(), txn_ptr->csn(), txn_ptr->client_ip(), txn_ptr->commit_epoch(), proto::TxnType::CommittedTxn, std::move(serialized_txn_str_ptr), nullptr));
         return MessageQueue::send_to_client_queue->enqueue(std::make_unique<send_params>(0, 0, "", 0, proto::TxnType::NullMark, nullptr, nullptr));
     }
 
-    bool TwoPCMessageSendHandler::SendTxnToServer(const Context& ctx, uint64_t &to_whom, proto::Transaction &txn, proto::TxnType txn_type) {
+    bool TwoPCMessageSendHandler::SendTxnToServer(const Context& ctx, uint64_t &to_whom, std::shared_ptr<proto::Transaction> txn_ptr, proto::TxnType txn_type) {
         auto pack_param = std::make_unique<pack_params>(to_whom, 0, "", 0, txn_type, nullptr);
         switch (txn_type) {
             case proto::TxnType::RemoteServerTxn : {
-                return SendRemoteServerTxn(ctx, to_whom, txn, txn_type);
+                return SendRemoteServerTxn(ctx, to_whom, txn_ptr, txn_type);
             }
             case proto::TxnType::BackUpTxn :
             case proto::TxnType::BackUpACK :
@@ -90,10 +90,10 @@ namespace Taas {
         return true;
     }
 
-    bool TwoPCMessageSendHandler::SendRemoteServerTxn(const Context& ctx, uint64_t& to_whom, proto::Transaction& txn, proto::TxnType txn_type) {
+    bool TwoPCMessageSendHandler::SendRemoteServerTxn(const Context& ctx, uint64_t& to_whom, std::shared_ptr<proto::Transaction> txn_ptr, proto::TxnType txn_type) {
         auto msg = std::make_unique<proto::Message>();
         auto* txn_temp = msg->mutable_txn();
-        *(txn_temp) = txn;
+        *(txn_temp) = *txn_ptr;
         txn_temp->set_txn_type(txn_type);
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());

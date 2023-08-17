@@ -38,7 +38,7 @@ namespace Taas {
         std::unique_ptr<zmq::message_t> message_ptr;
         std::unique_ptr<std::string> message_string_ptr;
         std::unique_ptr<proto::Message> msg_ptr;
-        std::unique_ptr<proto::Transaction> txn_ptr;
+        std::shared_ptr<proto::Transaction> txn_ptr;
         std::unique_ptr<pack_params> pack_param;
         std::string csn_temp, key_temp, key_str, table_name, csn_result;
         uint64_t thread_id = 0,
@@ -51,7 +51,7 @@ namespace Taas {
         bool res, sleep_flag;
 
         Context ctx;
-        proto::Transaction empty_txn;
+        std::shared_ptr<proto::Transaction> empty_txn_ptr;
         std::hash<std::string> _hash;
 
     public:
@@ -61,7 +61,7 @@ namespace Taas {
             backup_insert_set_send_ack_epoch_num,
             abort_set_send_ack_epoch_num; /// check and reply ack
 
-        static std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
+        static std::vector<std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>>
             epoch_remote_sharding_txn,
             epoch_local_sharding_txn,
             epoch_local_txn,

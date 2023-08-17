@@ -17,7 +17,7 @@ namespace Taas {
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
 //        uint64_t epoch;
         uint64_t epoch_mod;
-        auto txn_ptr = std::make_unique<proto::Transaction>();
+        auto txn_ptr = std::make_shared<proto::Transaction>();
         while (!EpochManager::IsTimerStop()) {
             if(id == 0)
                 MOT::SendTransactionToDB_Usleep();
@@ -31,7 +31,7 @@ namespace Taas {
         std::string name = "EpochTikv-" + std::to_string(id);
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         uint64_t epoch_mod;
-        auto txn_ptr = std::make_unique<proto::Transaction>();
+        auto txn_ptr = std::make_shared<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
             if(id == 0)
@@ -46,7 +46,7 @@ namespace Taas {
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         uint64_t epoch_mod;
-        auto txn_ptr = std::make_unique<proto::Transaction>();
+        auto txn_ptr = std::make_shared<proto::Transaction>();
         while (!EpochManager::IsTimerStop()) {
             if(id == 0)
                 LevelDB::SendTransactionToDB_Usleep();
@@ -60,7 +60,7 @@ namespace Taas {
         std::string name = "EpochHBase-" + std::to_string(id);
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         uint64_t epoch_mod;
-        auto txn_ptr = std::make_unique<proto::Transaction>();
+        auto txn_ptr = std::make_shared<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
             if(id == 0)
