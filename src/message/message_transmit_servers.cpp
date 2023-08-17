@@ -75,6 +75,7 @@ namespace Taas {
             if (params == nullptr || params->type == proto::TxnType::NullMark || params->str == nullptr) continue;
             msg = std::make_unique<zmq::message_t>(*(params->str));
             socket->send(*msg, sendFlags);
+            LOG(INFO) << "send a message "  << params->type;
         }
         socket->send((zmq::message_t &) "end", sendFlags);
     }
@@ -128,18 +129,19 @@ namespace Taas {
         zmq::recv_result_t  recvResult;
         int queue_length = 0;
         zmq::socket_t socket_listen(listen_context, ZMQ_SUB);
-        socket_listen.set(zmq::sockopt::sndhwm, queue_length);
-        socket_listen.set(zmq::sockopt::rcvhwm, queue_length);
         for (uint64_t i = 0; i < ctx.kServerIp.size(); i++) {
             if (i == ctx.txn_node_ip_index) continue;
             socket_listen.connect("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(22000+i));//to server
             printf("Listen Server connect ZMQ_SUB %s", ("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(22000+i) + "\n").c_str());
         }
+        socket_listen.set(zmq::sockopt::sndhwm, queue_length);
+        socket_listen.set(zmq::sockopt::rcvhwm, queue_length);
         printf("线程开始工作 ListenServerThread ZMQ_SUB\n");
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);//防止上次遗留消息造成message cache出现问题
+            LOG(INFO) << "receive a message";
             assert(recvResult >= 0);
             if (is_epoch_advance_started.load()) {
                 auto res = MessageQueue::listen_message_epoch_queue->enqueue(std::move(message_ptr));
@@ -153,6 +155,7 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);
+            LOG(INFO) << "receive a message";
             assert(recvResult >= 0);
             auto res = MessageQueue::listen_message_epoch_queue->enqueue(std::move(message_ptr));
             assert(res);
