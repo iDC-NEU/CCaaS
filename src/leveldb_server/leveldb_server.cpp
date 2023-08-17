@@ -49,7 +49,7 @@ namespace Taas {
         response->set_result(res);
         const auto& response_data = response->add_data();
         response_data->set_value(value);
-        LOG(INFO) << "get-key : " << key << ",get-value : " << value << ",response result : " << res ;
+//        LOG(INFO) << "get-key : " << key << ",get-value : " << value << ",response result : " << res ;
     }
 
     void LevelDBPutService::Put(::google::protobuf::RpcController *controller, const ::proto::KvDBRequest *request,
@@ -60,6 +60,6 @@ namespace Taas {
         const std::string& value = data[0].value();
         auto res = leveldb_connections[0]->syncPut(key, value);
         response->set_result(res);
-        LOG(INFO) << "put-key : " << key << ",put-value : " << value << ",response result : " << res ;
+//        LOG(INFO) << "put-key : " << key << ",put-value : " << value << ",response result : " << res ;
     }
 }

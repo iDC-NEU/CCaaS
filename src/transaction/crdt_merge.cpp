@@ -8,7 +8,7 @@
 
 namespace Taas {
     bool CRDTMerge::ValidateReadSet(const Context &ctx, proto::Transaction &txn) {
-        ///RC & RR
+        ///RC & RR & SI
         auto epoch_mod = txn.commit_epoch() % ctx.kCacheMaxLength;
         std::string key, version;
         uint64_t csn = 0;
