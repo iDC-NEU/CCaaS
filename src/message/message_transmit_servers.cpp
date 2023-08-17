@@ -73,8 +73,6 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             MessageQueue::send_to_server_pub_queue->wait_dequeue(params);
             if (params == nullptr || params->type == proto::TxnType::NullMark || params->str == nullptr) continue;
-            assert(params->id != ctx.txn_node_ip_index);
-            assert(params->id < ctx.kTxnNodeNum);
             msg = std::make_unique<zmq::message_t>(*(params->str));
             socket->send(*msg, sendFlags);
         }
