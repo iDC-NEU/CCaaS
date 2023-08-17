@@ -75,7 +75,7 @@ namespace Taas {
             if (params == nullptr || params->type == proto::TxnType::NullMark || params->str == nullptr) continue;
             msg = std::make_unique<zmq::message_t>(*(params->str));
             socket->send(*msg, sendFlags);
-            LOG(INFO) << "send a message "  << params->type;
+//            LOG(INFO) << "send a message "  << params->type;
         }
         socket->send((zmq::message_t &) "end", sendFlags);
     }
@@ -143,7 +143,7 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);//防止上次遗留消息造成message cache出现问题
-            LOG(INFO) << "receive a message";
+//            LOG(INFO) << "receive a message";
             assert(recvResult >= 0);
             if (is_epoch_advance_started.load()) {
                 auto res = MessageQueue::listen_message_epoch_queue->enqueue(std::move(message_ptr));
@@ -157,7 +157,7 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
             recvResult = socket_listen.recv((*message_ptr), recvFlags);
-            LOG(INFO) << "receive a message";
+//            LOG(INFO) << "receive a message";
             assert(recvResult >= 0);
             auto res = MessageQueue::listen_message_epoch_queue->enqueue(std::move(message_ptr));
             assert(res);
