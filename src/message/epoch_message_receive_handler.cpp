@@ -354,6 +354,7 @@ namespace Taas {
     }
 
     bool EpochMessageReceiveHandler::HandleClientTxn() {
+        auto time1 = now_to_us();
         if(ctx.taas_mode == TaasMode::Sharding) {
             std::vector<std::unique_ptr<proto::Transaction>> sharding_row_vector;
             for(uint64_t i = 0; i < sharding_num; i ++) {
@@ -398,7 +399,7 @@ namespace Taas {
             EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, ctx.txn_node_ip_index, *(txn_ptr), proto::TxnType::RemoteServerTxn);
             sharding_send_txn_num.IncCount(message_epoch, 0, 1);
         }
-
+        auto time2 = now_to_us();
         {///backup sending full txn
             backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
             EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, message_server_id, *(txn_ptr), proto::TxnType::BackUpTxn);
@@ -407,6 +408,8 @@ namespace Taas {
             epoch_backup_txn[message_epoch_mod]->enqueue(std::make_unique<proto::Transaction>(*txn_ptr));
             epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
         }
+        auto time3 = now_to_us();
+        LOG(INFO) << "Handle Client Txn Time Cost : " << time3 - time1 << ", " << time2 - time1;
         return true;
     }
 
