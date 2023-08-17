@@ -68,7 +68,7 @@ namespace Taas {
         socket->set(zmq::sockopt::sndhwm, queue_length);
         socket->set(zmq::sockopt::rcvhwm, queue_length);
         socket->bind("tcp://*:" + std::to_string(22000+ctx.txn_node_ip_index));
-        printf("线程开始工作 SendServerPUBThread\n");
+        printf("Send Server bind ZMQ_PUB %s", ("tcp://*:" + std::to_string(22000+ctx.txn_node_ip_index) + "\n").c_str());
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
             MessageQueue::send_to_server_pub_queue->wait_dequeue(params);
@@ -133,6 +133,7 @@ namespace Taas {
         for (uint64_t i = 0; i < ctx.kServerIp.size(); i++) {
             if (i == ctx.txn_node_ip_index) continue;
             socket_listen.connect("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(22000+i));//to server
+            printf("Listen Server connect ZMQ_SUB %s", ("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(22000+i) + "\n").c_str());
         }
         printf("线程开始工作 ListenServerThread ZMQ_SUB\n");
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
