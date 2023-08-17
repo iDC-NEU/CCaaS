@@ -206,7 +206,8 @@ namespace Taas {
             while(!RedoLoger::CheckPushDownComplete(ctx, i)) usleep(50);
             while(!EpochMessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) usleep(50);
             {
-                LOG(INFO) << PrintfToString("=-=-=-=-=-=-= 完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", commit_epoch.load(), i);
+                if(i % ctx.print_mode_size == 0)
+                    LOG(INFO) << PrintfToString("=-=-=-=-=-=-= 完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", commit_epoch.load(), i);
                 EpochManager::ClearMergeEpochState(i); //清空当前epoch的merge信息
                 EpochMessageReceiveHandler::StaticClear(ctx, i);//清空current epoch的receive cache num信息
                 Merger::ClearMergerEpochState(ctx, i);
@@ -282,8 +283,8 @@ namespace Taas {
             EpochManager::AddPhysicalEpoch();
             epoch_ ++;
             logical = EpochManager::GetLogicalEpoch();
-            LOG(INFO) << "============= Start Physical Epoch : " << epoch_ << ", logical : " << logical << "Time : " << now_to_us() - startTime << "=============\n";
             if(epoch_ % ctx.print_mode_size == 0) {
+                LOG(INFO) << "============= Start Physical Epoch : " << epoch_ << ", logical : " << logical << "Time : " << now_to_us() - startTime << "=============\n";
                 OUTPUTLOG(ctx, "============= Epoch INFO ============= ", logical);
             }
             EpochManager::EpochCacheSafeCheck();
