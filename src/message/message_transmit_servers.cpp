@@ -134,6 +134,8 @@ namespace Taas {
             socket_listen.connect("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(22000+i));//to server
             printf("Listen Server connect ZMQ_SUB %s", ("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(22000+i) + "\n").c_str());
         }
+
+        socket_listen.set(zmq::sockopt::subscribe,"");
         socket_listen.set(zmq::sockopt::sndhwm, queue_length);
         socket_listen.set(zmq::sockopt::rcvhwm, queue_length);
         printf("线程开始工作 ListenServerThread ZMQ_SUB\n");
