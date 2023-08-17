@@ -236,10 +236,10 @@ namespace Taas {
         switch (txn_ptr->txn_type()) {
             ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
             case proto::TxnType::ClientTxn : {/// sql node --> txn node
-                auto time1 = now_to_us();
+//                auto time1 = now_to_us();
                 message_epoch = EpochManager::GetPhysicalEpoch();
                 sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
-                auto time2 = now_to_us();
+//                auto time2 = now_to_us();
                 txn_ptr->set_commit_epoch(message_epoch);
                 txn_ptr->set_csn(now_to_us());
                 txn_ptr->set_server_id(ctx.txn_node_ip_index);
@@ -248,8 +248,8 @@ namespace Taas {
                 assert(txn_ptr != nullptr);
                 Merger::CommitQueueEnqueue(ctx, message_epoch, std::move(txn_ptr));
                 sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
-                auto time3 = now_to_us();
-                LOG(INFO) << "Handle Local Txn Time Cost : " << time3 - time1 << ", " << time2 - time1;
+//                auto time3 = now_to_us();
+//                LOG(INFO) << "Handle Local Txn Time Cost : " << time3 - time1 << ", " << time2 - time1;
                 break;
             }
             case proto::TxnType::RemoteServerTxn : {
