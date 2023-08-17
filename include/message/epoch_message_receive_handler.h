@@ -112,6 +112,8 @@ namespace Taas {
             redo_log_push_down_ack_num,
             redo_log_push_down_local_epoch;
 
+        static std::condition_variable txn_cv, epoch_cv;
+
         static bool CheckEpochShardingSendComplete(const Context &ctx, const uint64_t& epoch) {
             if(epoch_sharding_send_complete[epoch % ctx.kCacheMaxLength]->load()) {
                 return true;

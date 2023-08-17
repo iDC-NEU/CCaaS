@@ -19,7 +19,7 @@
 namespace Taas {
 
     using namespace std;
-    const uint64_t sleep_time = 200, logical_sleep_timme = 50, storage_sleep_time = 200, merge_sleep_time = 200;
+    const uint64_t sleep_time = 200, logical_sleep_timme = 50, storage_sleep_time = 200, merge_sleep_time = 200, message_sleep_time = 200;
     uint64_t cache_server_available = 1, total_commit_txn_num = 0;
     std::atomic<uint64_t> merge_epoch = 1, abort_set_epoch = 1,
             commit_epoch = 1, redo_log_epoch = 1, clear_epoch = 1;
