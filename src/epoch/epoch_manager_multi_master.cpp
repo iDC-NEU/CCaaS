@@ -140,8 +140,8 @@ namespace Taas {
                 auto epoch_commit_success_txn_num = Merger::epoch_record_committed_txn_num.GetCount(epoch);
                 total_commit_txn_num += epoch_commit_success_txn_num;///success
                 if(epoch % ctx.print_mode_size == 0)
-                    LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %lu, Local EpochSuccessCommitTxnNum: %lu,TotalSuccessTxnNum: %lu, EpochCommitTxnNum: %lu ",
-                                                epoch, epoch_commit_success_txn_num, total_commit_txn_num,
+                    LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Physical Epoch %lu, Logical Epoch: %lu, Local EpochSuccessCommitTxnNum: %lu,TotalSuccessTxnNum: %lu, EpochCommitTxnNum: %lu ",
+                                                EpochManager::GetPhysicalEpoch(), epoch, epoch_commit_success_txn_num, total_commit_txn_num,
                                                 EpochMessageSendHandler::TotalTxnNum.load() - last_total_commit_txn_num)
                     << ",Time Cost  Epoch: " << epoch
                     << ",Merge time cost : " << time5 - time1
@@ -175,8 +175,8 @@ namespace Taas {
                 auto epoch_commit_success_txn_num = Merger::epoch_record_committed_txn_num.GetCount(epoch);
                 total_commit_txn_num += epoch_commit_success_txn_num;///success
                 if(epoch % ctx.print_mode_size == 0)
-                    LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Epoch: %lu, Local EpochSuccessCommitTxnNum: %lu,TotalSuccessTxnNum: %lu, EpochCommitTxnNum: %lu ",
-                                            epoch, epoch_commit_success_txn_num, total_commit_txn_num,
+                    LOG(INFO) << PrintfToString("************ 完成一个Epoch的合并 Physical Epoch %lu, Logical Epoch: %lu, Local EpochSuccessCommitTxnNum: %lu,TotalSuccessTxnNum: %lu, EpochCommitTxnNum: %lu ",
+                                                EpochManager::GetPhysicalEpoch(), epoch, epoch_commit_success_txn_num, total_commit_txn_num,
                                             EpochMessageSendHandler::TotalTxnNum.load() - last_total_commit_txn_num)
                           << ",Time Cost  Epoch: " << epoch
                           << ",Merge time cost : " << time5 - time1
