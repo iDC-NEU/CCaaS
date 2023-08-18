@@ -130,8 +130,7 @@ namespace Taas {
         return false;
     }
 
-    void MOT::DBRedoLogQueueEnqueue(const uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr) {
-        epoch_should_push_down_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
+    void MOT::DBRedoLogQueueEnqueue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_redo_log_queue[epoch_mod]->enqueue(txn_ptr);
         epoch_redo_log_queue[epoch_mod]->enqueue(nullptr);
@@ -140,21 +139,6 @@ namespace Taas {
     bool MOT::DBRedoLogQueueTryDequeue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         return epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr);
-    }
-
-    void MOT::PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr) {
-        auto push_msg = std::make_unique<proto::Message>();
-        auto push_response = push_msg->mutable_storage_push_response();
-        push_response->set_result(proto::Success);
-        push_response->set_epoch_id(epoch);
-        push_response->set_txn_num(1);
-        auto ptr = push_response->add_txns();
-        *ptr = *txn_ptr;
-        /// *(ptr) = (*txn_ptr);
-        auto serialized_pull_resp_str = std::make_unique<std::string>();
-        Gzip(push_msg.get(), serialized_pull_resp_str.get());
-        MessageQueue::send_to_storage_queue->enqueue(std::make_unique<send_params>(0, 0,"", epoch, proto::TxnType::CommittedTxn, std::move(serialized_pull_resp_str), nullptr));
-        epoch_pushed_down_txn_num.IncCount(epoch, epoch, 1);
     }
 
 //    void MOT::SendToMOThreadMain_usleep() {

@@ -39,10 +39,9 @@ namespace Taas {
         static void SendTransactionToDB_Block();
 
         static bool CheckEpochPushDownComplete(const uint64_t &epoch);
-        static void DBRedoLogQueueEnqueue(const uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr);
+        static void DBRedoLogQueueEnqueue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
         static bool DBRedoLogQueueTryDequeue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
 
-        static void PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr);
     };
 
 }

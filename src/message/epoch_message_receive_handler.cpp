@@ -256,8 +256,6 @@ namespace Taas {
                 sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
                 CheckEpochShardingReceiveComplete(ctx,message_epoch);
-                EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch,
-                                                         message_server_id, empty_txn_ptr, proto::TxnType::EpochShardingACK);
                 break;
             }
             case proto::TxnType::BackUpTxn : {
@@ -269,8 +267,6 @@ namespace Taas {
             case proto::TxnType::BackUpEpochEndFlag : {
                 backup_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 backup_received_pack_num.IncCount(message_epoch,message_server_id, 1);
-                EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch,
-                                                         message_server_id, empty_txn_ptr, proto::TxnType::BackUpACK);
                 break;
             }
             case proto::TxnType::AbortSet : {
@@ -373,8 +369,8 @@ namespace Taas {
             sharding_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
             backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
             EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, ctx.txn_node_ip_index, txn_ptr, proto::TxnType::RemoteServerTxn);
-            backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
             sharding_send_txn_num.IncCount(message_epoch, 0, 1);
+            backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
             epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
             epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
         }

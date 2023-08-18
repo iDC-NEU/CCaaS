@@ -46,8 +46,6 @@ namespace Taas {
         static bool GeneratePushDownTask(const uint64_t &epoch);
 
         static brpc::Channel channel;
-
-        static void PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction> &txn_ptr);
     };
 }
 

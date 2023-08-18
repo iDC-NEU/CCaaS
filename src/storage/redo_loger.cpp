@@ -12,11 +12,9 @@
 namespace Taas {
 
     AtomicCounters RedoLoger::epoch_log_lsn(10);
-    std::unique_ptr<util::thread_pool_light> RedoLoger::workers;
     std::vector<std::unique_ptr<concurrent_unordered_map<std::string, std::shared_ptr<proto::Transaction>>>> RedoLoger::committed_txn_cache;
     void RedoLoger::StaticInit(const Context& ctx) {
         auto max_length = ctx.kCacheMaxLength;
-        workers = std::make_unique<util::thread_pool_light>(ctx.kTikvThreadNum, "epoch storage send");
         epoch_log_lsn.Init(max_length);
         committed_txn_cache.resize(max_length);
         for(int i = 0; i < static_cast<int>(max_length); i ++) {
@@ -56,32 +54,16 @@ namespace Taas {
         auto key = std::to_string(epoch_id) + ":" + std::to_string(lsn);
         committed_txn_cache[epoch_id % ctx.kCacheMaxLength]->insert(key, txn_ptr);
         if(ctx.is_mot_enable) {
-//            MOT::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
-            MOT::epoch_should_push_down_txn_num.IncCount(epoch_id, txn_ptr->server_id(), 1);
-            workers->push_task([&] {
-                MOT::PushDownTxn(epoch_id, txn_ptr);
-            });
+            MOT::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
         }
         if(ctx.is_tikv_enable) {
-//            TiKV::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
-            TiKV::epoch_should_push_down_txn_num.IncCount(epoch_id, txn_ptr->server_id(), 1);
-            workers->push_task([&] {
-                TiKV::PushDownTxn(epoch_id, txn_ptr);
-            });
+            TiKV::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
         }
         if(ctx.is_leveldb_enable) {
-//            LevelDB::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
-            LevelDB::epoch_should_push_down_txn_num.IncCount(epoch_id, txn_ptr->server_id(), 1);
-            workers->push_task([&] {
-                LevelDB::PushDownTxn(epoch_id, txn_ptr);
-            });
+            LevelDB::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
         }
         if(ctx.is_hbase_enable) {
-//            HBase::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
-            HBase::epoch_should_push_down_txn_num.IncCount(epoch_id, txn_ptr->server_id(), 1);
-            workers->push_task([&] {
-                HBase::PushDownTxn(epoch_id, txn_ptr);
-            });
+            HBase::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
         }
         return true;
     }

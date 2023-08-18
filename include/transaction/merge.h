@@ -72,15 +72,11 @@ namespace Taas {
 
         void Init(const Context& ctx_, uint64_t id);
 
+        static bool EpochMerge(const Context& ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> &&txn_ptr);
         void EpochMerge_Usleep();
         void EpochMerge_Block();
         void EpochCommit_Usleep();
         void EpochCommit_Block();
-
-        void Merge();
-        void Commit();
-        void EpochMerge();
-        void EpochMerge_Wait();
 
         static void MergeQueueEnqueue(const Context& ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
         static bool MergeQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
@@ -149,7 +145,6 @@ namespace Taas {
         static bool IsRedoLogComplete(const uint64_t & epoch, const uint64_t & server_id) {
             return epoch_record_commit_txn_num.GetCount(epoch, server_id) <= epoch_record_committed_txn_num.GetCount(epoch, server_id);
         }
-
 
 
     };
