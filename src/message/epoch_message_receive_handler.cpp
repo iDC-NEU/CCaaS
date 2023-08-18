@@ -185,7 +185,7 @@ namespace Taas {
             auto time3 = now_to_us();
             assert(res);
             if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
-                txn_ptr = std::make_shared<proto::Transaction>(msg_ptr->txn());
+                txn_ptr = std::make_shared<proto::Transaction>(*(msg_ptr->release_txn()));
                 auto time4 = now_to_us();
                 LOG(INFO) << "HandleReceivedMessage time cost 1:" << time2 - time1 << ",2:" << time3 - time2 << ",3:" << time4 - time3;
                 SetMessageRelatedCountersInfo();
