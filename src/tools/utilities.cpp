@@ -9,21 +9,26 @@ namespace Taas {
 
 
     bool Gzip(google::protobuf::MessageLite* ptr, std::string* serialized_str_ptr) {
-        google::protobuf::io::GzipOutputStream::Options options;
-        options.format = google::protobuf::io::GzipOutputStream::GZIP;
-        options.compression_level = 9;
+//        google::protobuf::io::GzipOutputStream::Options options;
+//        options.format = google::protobuf::io::GzipOutputStream::GZIP;
+//        options.compression_level = 9;
+//        google::protobuf::io::StringOutputStream outputStream(serialized_str_ptr);
+//        google::protobuf::io::GzipOutputStream gzipStream(&outputStream, options);
+//        auto res = ptr->SerializeToZeroCopyStream(&gzipStream);
+//        gzipStream.Close();
+
         google::protobuf::io::StringOutputStream outputStream(serialized_str_ptr);
-        google::protobuf::io::GzipOutputStream gzipStream(&outputStream, options);
-        auto res = ptr->SerializeToZeroCopyStream(&gzipStream);
-        gzipStream.Close();
+        auto res = ptr->SerializeToZeroCopyStream(&outputStream);
         return res;
     }
 
     bool UnGzip(google::protobuf::MessageLite* ptr, const std::string* str) {
 //    auto message_string_ptr = std::make_unique<std::string>(static_cast<const char*>(message_ptr->data()), message_ptr->size());
+//        google::protobuf::io::ArrayInputStream inputStream(str->data(), (int)str->size());
+//        google::protobuf::io::GzipInputStream gzipStream(&inputStream);
+//        return ptr->ParseFromZeroCopyStream(&gzipStream);
         google::protobuf::io::ArrayInputStream inputStream(str->data(), (int)str->size());
-        google::protobuf::io::GzipInputStream gzipStream(&inputStream);
-        return ptr->ParseFromZeroCopyStream(&gzipStream);
+        return ptr->ParseFromZeroCopyStream(&inputStream);
     }
 
     std::atomic<int> cpu_index(1);
