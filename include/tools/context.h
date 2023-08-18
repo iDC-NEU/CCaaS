@@ -46,8 +46,7 @@ namespace Taas {
 
         ///TaaS server config
         TaasMode taas_mode = TaasMode::MultiMaster;
-        std::vector<std::string> kServerIp;
-        uint64_t kTxnNodeNum = 1, kBackUpNum = 1;
+        std::vector<std::string> kServerIp;uint64_t kTxnNodeNum = 1, kBackUpNum = 1;
         uint64_t kIndexNum = 1, kEpochSize_us = 10000/** us */, txn_node_ip_index = 0, kDurationTime_us = 0,
                 kCacheMaxLength = 200000, kDelayEpochNum = 0, print_mode_size = 1000;
         uint64_t kMergeThreadNum = 10, kCommitThreadNum = 10, kEpochTxnThreadNum = 10, kEpochMessageThreadNum = 10;

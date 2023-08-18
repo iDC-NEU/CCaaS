@@ -54,32 +54,16 @@ namespace Taas {
             threads.push_back(std::make_unique<std::thread>(WorkerForPhysicalThreadMain, ctx)); cnt++;
             threads.push_back(std::make_unique<std::thread>(WorkerForLogicalThreadMain, ctx)); cnt++;
             threads.push_back(std::make_unique<std::thread>(WorkerForLogicalRedoLogPushDownCheckThreadMain, ctx)); cnt++;
-//            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalTxnMergeCheckThreadMain, ctx)); cnt++;
-//            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalAbortSetMergeCheckThreadMain, ctx)); cnt++;
-//            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalCommitCheckThreadMain, ctx)); cnt++;
-
-//            threads.push_back(std::make_unique<std::thread>(WorkerForEpochControlMessageThreadMain, ctx)); cnt++;
-
-//            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalReceiveAndReplyCheckThreadMain, ctx)); cnt++;
-//            threads.push_back(std::make_unique<std::thread>(WorkerForEpochAbortSendThreadMain, ctx)); cnt++;
-//            threads.push_back(std::make_unique<std::thread>(WorkerForEpochEndFlagSendThreadMain, ctx)); cnt++;
-//            threads.push_back(std::make_unique<std::thread>(WorkerForEpochBackUpEndFlagSendThreadMain, ctx)); cnt++;
 
             for(int i = 0; i < (int)ctx.kEpochTxnThreadNum; i ++) {///handle client txn
                 threads.push_back(std::make_unique<std::thread>(WorkerFroMessageThreadMain, ctx, i));  cnt++;///txn message
             }
             for(int i = 0; i < (int)ctx.kEpochMessageThreadNum; i ++) {/// handle remote server message
                 threads.push_back(std::make_unique<std::thread>(WorkerFroMessageEpochThreadMain, ctx, i));  cnt++;///epoch message
-//                if(i < 2)
-//                SetScheduling(*threads[cnt - 1], SCHED_RR, 10);
             }
             for(int i = 0; i < (int)ctx.kMergeThreadNum; i ++) {
-                threads.push_back(std::make_unique<std::thread>(WorkerFroMergeThreadMain, ctx, i));  cnt++;///merge
+                threads.push_back(std::make_unique<std::thread>(WorkerFroMergeThreadMain, ctx, i));  cnt++;///merge & commit
             }
-//            for(int i = 0; i < (int)ctx.kCommitThreadNum; i ++) {
-//                threads.push_back(std::make_unique<std::thread>(WorkerFroCommitThreadMain, ctx, i));
-//                cnt++;///commit
-//            }
 
             threads.push_back(std::make_unique<std::thread>(WorkerForClientListenThreadMain, ctx));  cnt++;///client
             threads.push_back(std::make_unique<std::thread>(WorkerForClientSendThreadMain, ctx)); cnt++;
@@ -89,7 +73,6 @@ namespace Taas {
                 threads.push_back(std::make_unique<std::thread>(WorkerForServerSendThreadMain, ctx)); cnt++;
                 threads.push_back(std::make_unique<std::thread>(WorkerForServerSendPUBThreadMain, ctx)); cnt++;
             }
-
             ///Storage
             threads.push_back(std::make_unique<std::thread>(WorkerForStorageSendThreadMain, ctx)); cnt++;
 //            kTikvThreadNum = 10, kLeveldbThreadNum = 10, kHbaseTxnThreadNum = 10, kMOTThreadNum = 10;

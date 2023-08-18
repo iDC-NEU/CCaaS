@@ -86,17 +86,18 @@ namespace Taas {
 
 
     void ShardingEpochManager::EpochLogicalTimerManagerThreadMain(const Context& ctx) {
-        util::thread_pool_light workers(ctx.kMergeThreadNum);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
         uint64_t epoch = 1;
         OUTPUTLOG(ctx, "===== Start Epoch的合并 ===== ", epoch);
-        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        util::thread_pool_light workers(ctx.kMergeThreadNum, "epoch message send");
+        while(!EpochManager::IsInitOK()) usleep(logical_sleep_timme);
         if(ctx.kTxnNodeNum > 1) {
             while(!EpochManager::IsTimerStop()){
                 auto time1 = now_to_us();
                 while(epoch >= EpochManager::GetPhysicalEpoch()) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** Start Epoch Merge Epoch : " << epoch << "****\n";
                 while(!EpochMessageReceiveHandler::IsShardingSendFinish(epoch)) usleep(logical_sleep_timme);
-                workers.push_emergency_task([&ctx, epoch] () {
+                workers.push_emergency_task([epoch, &ctx]() {
                     EpochMessageSendHandler::SendEpochEndMessage(ctx.txn_node_ip_index, epoch, ctx.kTxnNodeNum);
                 });
 //                LOG(INFO) << "**** finished IsShardingSendFinish : " << epoch << "****\n";
@@ -124,11 +125,11 @@ namespace Taas {
 
                 while(!Merger::CheckEpochMergeComplete(ctx, epoch)) usleep(logical_sleep_timme);
                 EpochManager::SetShardingMergeComplete(epoch, true);
-                workers.push_emergency_task([&ctx, epoch] () {
-                    EpochMessageSendHandler::SendAbortSet(ctx.txn_node_ip_index, epoch, ctx.kTxnNodeNum);
-                });
                 merge_epoch.fetch_add(1);
                 auto time5 = now_to_us();
+                workers.push_emergency_task([epoch, &ctx]() {
+                    EpochMessageSendHandler::SendAbortSet(ctx.txn_node_ip_index, epoch, ctx.kTxnNodeNum);
+                });
 //                LOG(INFO) << "**** Finished Epoch Merge Epoch : " << epoch << ",time cost : " << time5 - time1 << ",rest time cost : " << time5 - time4 << "****\n";
 
                 while(!EpochMessageReceiveHandler::IsAbortSetACKReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);

@@ -199,14 +199,11 @@ namespace Taas {
     }
 
     bool CheckRedoLogPushDownState(const Context& ctx) {
-        shared_ptr<proto::Transaction> empty_txn_ptr;
         auto i = redo_log_epoch.load();
         while(!EpochManager::IsTimerStop()) {
             while(i >= commit_epoch.load()) usleep(50);
             while(!EpochManager::IsCommitComplete(i)) usleep(50);
             while(!RedoLoger::CheckPushDownComplete(ctx, i)) usleep(50);
-            EpochMessageSendHandler::SendTxnToServer(ctx, i,
-                                                     i, empty_txn_ptr, proto::TxnType::EpochLogPushDownComplete);
             while(!EpochMessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) usleep(50);
             {
                 if(i % ctx.print_mode_size == 0)
