@@ -45,7 +45,7 @@ namespace Taas {
         class TwoPC twoPC;
         receiveHandler.Init(ctx, id);
         twoPC.Init(ctx, id);
-        if(id < 2) SetCPU();
+        if(id < 1) SetCPU();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while(!EpochManager::IsTimerStop()){
             switch(ctx.taas_mode) {

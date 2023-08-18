@@ -9,6 +9,7 @@
 #include "transaction/merge.h"
 
 #include "string"
+#include "tools/thread_pool.h"
 
 namespace Taas {
 
@@ -88,12 +89,17 @@ namespace Taas {
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         uint64_t epoch = 1;
         OUTPUTLOG(ctx, "===== Start Epoch的合并 ===== ", epoch);
+        util::thread_pool_light workers(ctx.kMergeThreadNum, "epoch message send");
+        while(!EpochManager::IsInitOK()) usleep(logical_sleep_timme);
         if(ctx.kTxnNodeNum > 1) {
             while(!EpochManager::IsTimerStop()){
                 auto time1 = now_to_us();
                 while(epoch >= EpochManager::GetPhysicalEpoch()) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** Start Epoch Merge Epoch : " << epoch << "****\n";
                 while(!EpochMessageReceiveHandler::IsShardingSendFinish(epoch)) usleep(logical_sleep_timme);
+                workers.push_emergency_task([&] () {
+                    EpochMessageSendHandler::SendEpochEndMessage(ctx.txn_node_ip_index, epoch, ctx.kTxnNodeNum);
+                });
 //                LOG(INFO) << "**** finished IsShardingSendFinish : " << epoch << "****\n";
                 while(!EpochMessageReceiveHandler::IsShardingACKReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** finished IsShardingACKReceiveComplete : " << epoch << "****\n";
@@ -121,6 +127,9 @@ namespace Taas {
                 EpochManager::SetShardingMergeComplete(epoch, true);
                 merge_epoch.fetch_add(1);
                 auto time5 = now_to_us();
+                workers.push_emergency_task([&] () {
+                    EpochMessageSendHandler::SendAbortSet(ctx.txn_node_ip_index, epoch, ctx.kTxnNodeNum);
+                });
 //                LOG(INFO) << "**** Finished Epoch Merge Epoch : " << epoch << ",time cost : " << time5 - time1 << ",rest time cost : " << time5 - time4 << "****\n";
 
                 while(!EpochMessageReceiveHandler::IsAbortSetACKReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
@@ -153,6 +162,9 @@ namespace Taas {
                               << "****\n";
                 epoch ++;
                 last_total_commit_txn_num = EpochMessageSendHandler::TotalTxnNum.load();
+                workers.push_task([&] () {
+                    CheckRedoLogPushDownState(ctx);
+                });
             }
         }
         else {
@@ -188,6 +200,9 @@ namespace Taas {
                           << "****\n";
                 epoch ++;
                 last_total_commit_txn_num = EpochMessageSendHandler::TotalTxnNum.load();
+                workers.push_task([&] () {
+                    CheckRedoLogPushDownState(ctx);
+                });
             }
         }
     }

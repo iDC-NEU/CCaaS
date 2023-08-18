@@ -147,6 +147,7 @@ namespace Taas {
     }
 
     void HBase::DBRedoLogQueueEnqueue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
+        epoch_should_push_down_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_redo_log_queue[epoch_mod]->enqueue(txn_ptr);
         epoch_redo_log_queue[epoch_mod]->enqueue(nullptr);
@@ -164,5 +165,26 @@ namespace Taas {
             return true;
         }
         return false;
+    }
+
+    void HBase::PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr) {
+        try {
+            CHbaseHandler hbase_txn;
+            hbase_txn.connect(ctx.kHbaseIP,9090);
+            total_commit_txn_num.fetch_add(1);
+            for (auto i = 0; i < txn_ptr->row_size(); i++) {
+                const auto &row = txn_ptr->row(i);
+                if (row.op_type() == proto::OpType::Insert || row.op_type() == proto::OpType::Update) {
+                    const std::string key = row.key();
+                    const std::string row_value = row.data();
+                    hbase_txn.putRow(table_name, key, family, qualifier, row_value);
+                }
+            }
+        }
+        catch (std::exception &e) {
+            LOG(INFO) << "*** Commit Txn To Hbase Failed: " << e.what();
+            failed_commit_txn_num.fetch_add(1);
+        }
+        epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);
     }
 }

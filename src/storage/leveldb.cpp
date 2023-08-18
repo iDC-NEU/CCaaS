@@ -175,6 +175,7 @@ namespace Taas {
 
     void LevelDB::DBRedoLogQueueEnqueue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        epoch_should_push_down_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
         epoch_redo_log_queue[epoch_mod]->enqueue(txn_ptr);
         epoch_redo_log_queue[epoch_mod]->enqueue(nullptr);
     }
@@ -193,4 +194,40 @@ namespace Taas {
         return false;
     }
 
+    void LevelDB::PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr) {
+        auto csn = txn_ptr->csn();
+        for(const auto& i : txn_ptr->row()) {
+            if (i.op_type() == proto::OpType::Read) {
+                continue;
+            }
+            proto::KvDBRequest request;
+            proto::KvDBResponse response;
+            brpc::Controller cntl;
+            cntl.set_timeout_ms(500);
+            auto data = request.add_data();
+            data->set_op_type(i.op_type());
+            data->set_key(i.key());
+            data->set_value(i.data());
+            data->set_csn(csn);
+            brpc::Channel chan;
+            brpc::ChannelOptions options;
+            chan.Init(ctx.kLevevDBIP.c_str(), &options);
+            proto::KvDBPutService_Stub put_stub(&chan);
+            proto::KvDBGetService_Stub get_stub(&chan);
+            put_stub.Put(&cntl, &request, &response, nullptr);
+            if (cntl.Failed()) {
+                // RPC失败.
+                LOG(WARNING) << cntl.ErrorText();
+            } else {
+                // RPC成功
+//                        LOG(INFO) << "LevelDBStorageSend success === 1"
+//                                  << "Received response from " << cntl.remote_side()
+//                                  << " to " << cntl.local_side()
+//                                  << ": " << response.result() << " (attached="
+//                                  << cntl.response_attachment() << ")"
+//                                  << " latency=" << cntl.latency_us() << "us";
+            }
+        }
+        epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);
+    }
 }

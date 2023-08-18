@@ -14,10 +14,12 @@
 
 #include "proto/message.pb.h"
 #include "tikv_client.h"
+#include "tools/thread_pool.h"
 
 namespace Taas {
     class RedoLoger {
     public:
+        static std::unique_ptr<util::thread_pool_light> workers;
         static AtomicCounters epoch_log_lsn;///epoch, value        for epoch log (each epoch has single one counter)
         static std::vector<std::unique_ptr<concurrent_unordered_map<std::string, std::shared_ptr<proto::Transaction>>>> committed_txn_cache;
         static void StaticInit(const Context& ctx);

@@ -31,17 +31,21 @@ namespace Taas {
         static void StaticClear();
         static std::vector<std::unique_ptr<std::atomic<uint64_t>>> sharding_send_epoch, backup_send_epoch, abort_set_send_epoch, insert_set_send_epoch;
         static uint64_t sharding_sent_epoch, backup_sent_epoch, abort_sent_epoch, insert_set_sent_epoch, abort_set_sent_epoch;
-        static bool SendEpochControlMessage(const Context &ctx, EpochMessageReceiveHandler &receiveHandler);
-        static bool SendEpochEndMessage(const Context& ctx);
-        static bool SendBackUpEpochEndMessage(const Context& ctx);
-        static bool SendAbortSet(const Context& ctx);
-        static bool SendInsertSet(const Context& ctx);
+//        static bool SendEpochEndMessage(const Context& ctx);
+//        static bool SendBackUpEpochEndMessage(const Context& ctx);
+//        static bool SendAbortSet(const Context& ctx);
+//        static bool SendInsertSet(const Context& ctx);
+
+        static bool SendAbortSet(const uint64_t &txn_node_ip_index, const uint64_t &epoch, const uint64_t &kCacheMaxLength);
+        static bool SendEpochEndMessage(const uint64_t &txn_node_ip_index, const uint64_t &epoch, const uint64_t &kTxnNodeNum);
 
 
 
     private:
         bool sleep_flag = false;
         std::unique_ptr<pack_params> pack_param;
+
+
     };
 }
 #endif //TAAS_EPOCH_MESSAGE_SEND_HANDLER_H
