@@ -76,9 +76,6 @@ namespace Taas {
             ///Storage
             threads.push_back(std::make_unique<std::thread>(WorkerForStorageSendThreadMain, ctx)); cnt++;
 //            kTikvThreadNum = 10, kLeveldbThreadNum = 10, kHbaseTxnThreadNum = 10, kMOTThreadNum = 10;
-            for(int i = 0; i < (int)ctx.kMOTThreadNum; i ++) {
-                threads.push_back(std::make_unique<std::thread>(WorkerFroStorageThreadMain, ctx, i));  cnt++;///mot push down
-            }
 //            if(ctx.is_mot_enable) {
 //                for(int i = 0; i < (int)ctx.kMOTThreadNum; i ++) {
 //                    threads.push_back(std::make_unique<std::thread>(WorkerFroMOTStorageThreadMain, ctx, i));  cnt++;///mot push down

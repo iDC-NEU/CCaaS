@@ -9,7 +9,7 @@
 
 namespace Taas {
 
-    extern void WorkerFroStorageThreadMain(const Context& ctx, uint64_t id);
+    extern void WorkerFroTiKVStorageThreadMain(const Context& ctx, uint64_t id);
     extern void WorkerFroMOTStorageThreadMain(const Context& ctx, uint64_t id);
     extern void WorkerFroLevelDBStorageThreadMain(const Context& ctx, uint64_t id);
     extern void WorkerFroHBaseStorageThreadMain(const Context& ctx, uint64_t id);
