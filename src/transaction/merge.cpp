@@ -181,33 +181,28 @@ namespace Taas {
         std::mutex mtx;
         std::unique_lock lck(mtx);
         while (!EpochManager::IsTimerStop()) {
+            sleep_flag = true;
             epoch = EpochManager::GetLogicalEpoch();
             epoch_mod = epoch % ctx.kCacheMaxLength;
-            while (!EpochManager::IsShardingMergeComplete(epoch)) {
+            if(!EpochManager::IsShardingMergeComplete(epoch)) {
                 while (epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                     if (txn_ptr != nullptr && txn_ptr->txn_type() != proto::TxnType::NullMark) {
                         Merge();
+                        sleep_flag = false;
                     }
                 }
-                usleep(merge_sleep_time);
-                epoch = EpochManager::GetLogicalEpoch();
-                epoch_mod = epoch % ctx.kCacheMaxLength;
+
             }
-            while (!EpochManager::IsAbortSetMergeComplete(epoch)) {
-                usleep(merge_sleep_time);
-                epoch = EpochManager::GetLogicalEpoch();
-                epoch_mod = epoch % ctx.kCacheMaxLength;
-            }
-            while (!EpochManager::IsCommitComplete(epoch)) {
+            if(!EpochManager::IsAbortSetMergeComplete(epoch) && EpochManager::IsCommitComplete(epoch)) {
                 while (epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                     if (txn_ptr != nullptr && txn_ptr->txn_type() != proto::TxnType::NullMark) {
                         Commit();
+                        sleep_flag = false;
                     }
                 }
-                usleep(merge_sleep_time);
-                epoch = EpochManager::GetLogicalEpoch();
-                epoch_mod = epoch % ctx.kCacheMaxLength;
             }
+            if(sleep_flag)
+                usleep(merge_sleep_time);
         }
     }
 
