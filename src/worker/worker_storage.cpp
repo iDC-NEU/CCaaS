@@ -8,10 +8,11 @@
 #include "storage/leveldb.h"
 #include "storage/hbase.h"
 #include "storage/mot.h"
+#include "storage/redo_loger.h"
 
 namespace Taas {
 
-    void WorkerFroMOTStorageThreadMain(const Context& ctx, uint64_t id) {
+    void WorkerFroStorageThreadMain(const Context& ctx, uint64_t id) {
         std::string name = "EpochMOT";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
@@ -19,10 +20,10 @@ namespace Taas {
         uint64_t epoch_mod;
         auto txn_ptr = std::make_shared<proto::Transaction>();
         while (!EpochManager::IsTimerStop()) {
-            if(id == 0)
-                MOT::SendTransactionToDB_Usleep();
-            else
-                MOT::SendTransactionToDB_Block();
+//            if(id == 0)
+                RedoLoger::SendTransactionToDB_Usleep(ctx);
+//            else
+//                SendTransactionToDB_Block();
         }
         ///EpochManager::CheckRedoLogPushDownState(); in this function
     }
