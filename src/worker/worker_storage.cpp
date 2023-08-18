@@ -12,20 +12,19 @@
 
 namespace Taas {
 
-    void WorkerFroStorageThreadMain(const Context& ctx, uint64_t id) {
+    void WorkerFroMOTStorageThreadMain(const Context& ctx, uint64_t id) {
         std::string name = "EpochMOT";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
 //        uint64_t epoch;
         uint64_t epoch_mod;
-        auto txn_ptr = std::make_shared<proto::Transaction>();
+        auto txn_ptr = std::make_unique<proto::Transaction>();
         while (!EpochManager::IsTimerStop()) {
-//            if(id == 0)
-                RedoLoger::SendTransactionToDB_Usleep(ctx);
-//            else
-//                SendTransactionToDB_Block();
+            if(id == 0)
+                MOT::SendTransactionToDB_Usleep();
+            else
+                MOT::SendTransactionToDB_Block();
         }
-        ///EpochManager::CheckRedoLogPushDownState(); in this function
     }
 
     void WorkerFroTiKVStorageThreadMain(const Context& ctx, uint64_t id) {

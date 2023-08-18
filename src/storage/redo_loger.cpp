@@ -61,29 +61,29 @@ namespace Taas {
         committed_txn_cache[epoch_id % ctx.kCacheMaxLength]->insert(key, txn_ptr);
         epoch_redo_log_queue[epoch_id]->enqueue(txn_ptr);
         if (ctx.is_mot_enable) {
-//            MOT::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
             MOT::epoch_should_push_down_txn_num.IncCount(epoch_id, txn_ptr->server_id(), 1);
+            MOT::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
 //            workers->push_task([=] {
 //                MOT::PushDownTxn(epoch_id, txn_ptr);
 //            });
         }
         if (ctx.is_tikv_enable) {
-//            TiKV::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
             TiKV::epoch_should_push_down_txn_num.IncCount(epoch_id, txn_ptr->server_id(), 1);
+            TiKV::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
 //            workers->push_task([=] {
 //                TiKV::PushDownTxn(epoch_id, txn_ptr);
 //            });
         }
         if (ctx.is_leveldb_enable) {
-//            LevelDB::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
             LevelDB::epoch_should_push_down_txn_num.IncCount(epoch_id, txn_ptr->server_id(), 1);
+            LevelDB::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
 //            workers->push_task([=] {
 //                LevelDB::PushDownTxn(epoch_id, txn_ptr);
 //            });
         }
         if (ctx.is_hbase_enable) {
-//            HBase::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
             HBase::epoch_should_push_down_txn_num.IncCount(epoch_id, txn_ptr->server_id(), 1);
+            HBase::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
 //            workers->push_task([=] {
 //                HBase::PushDownTxn(epoch_id, txn_ptr);
 //            });
