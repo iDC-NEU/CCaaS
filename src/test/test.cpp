@@ -4,6 +4,7 @@
 
 #include "test/test.h"
 #include "transaction/merge.h"
+#include "tools/utilities.h"
 #include <random>
 
 namespace Taas {
@@ -62,13 +63,14 @@ namespace Taas {
             }
             txn_ptr->set_client_ip("127.0.0.1");
             auto serialized_txn_str = std::string();
-            google::protobuf::io::GzipOutputStream::Options options;
-            options.format = google::protobuf::io::GzipOutputStream::GZIP;
-            options.compression_level = 9;
-            google::protobuf::io::StringOutputStream outputStream(&serialized_txn_str);
-            google::protobuf::io::GzipOutputStream gzipStream(&outputStream, options);
-            message_ptr->SerializeToZeroCopyStream(&gzipStream);
-            gzipStream.Close();
+            Gzip(message_ptr.get(), &serialized_txn_str);
+//            google::protobuf::io::GzipOutputStream::Options options;
+//            options.format = google::protobuf::io::GzipOutputStream::GZIP;
+//            options.compression_level = 9;
+//            google::protobuf::io::StringOutputStream outputStream(&serialized_txn_str);
+//            google::protobuf::io::GzipOutputStream gzipStream(&outputStream, options);
+//            message_ptr->SerializeToZeroCopyStream(&gzipStream);
+//            gzipStream.Close();
             void *data = static_cast<void*>(const_cast<char*>(serialized_txn_str.data()));
             MessageQueue::listen_message_txn_queue->enqueue(std::make_unique<zmq::message_t>(data, serialized_txn_str.size()));
 

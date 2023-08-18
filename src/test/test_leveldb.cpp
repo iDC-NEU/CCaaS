@@ -88,13 +88,7 @@ namespace Taas {
             }
             txn_ptr->set_client_ip("127.0.0.1");
             auto serialized_txn_str = std::string();
-            google::protobuf::io::GzipOutputStream::Options gzip_options;
-            gzip_options.format = google::protobuf::io::GzipOutputStream::GZIP;
-            gzip_options.compression_level = 9;
-            google::protobuf::io::StringOutputStream outputStream(&serialized_txn_str);
-            google::protobuf::io::GzipOutputStream gzipStream(&outputStream, gzip_options);
-            message_ptr->SerializeToZeroCopyStream(&gzipStream);
-            gzipStream.Close();
+            Gzip(message_ptr.get(), &serialized_txn_str);
             void *data = static_cast<void *>(const_cast<char *>(serialized_txn_str.data()));
             MessageQueue::listen_message_txn_queue->enqueue(
                     std::make_unique<zmq::message_t>(data, serialized_txn_str.size()));
