@@ -180,14 +180,12 @@ namespace Taas {
             message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
                                                                message_ptr->size());
             msg_ptr = std::make_unique<proto::Message>();
-            auto time2 = now_to_us();
             res = UnGzip(msg_ptr.get(), message_string_ptr.get());
-            auto time3 = now_to_us();
             assert(res);
             if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
                 txn_ptr = std::make_shared<proto::Transaction>(*(msg_ptr->release_txn()));
                 auto time4 = now_to_us();
-                LOG(INFO) << "HandleReceivedMessage time cost 1:" << time2 - time1 << ",2:" << time3 - time2 << ",3:" << time4 - time3;
+                LOG(INFO) << "HandleReceivedMessage time cost 1:" << time4 - time1;
                 SetMessageRelatedCountersInfo();
                     HandleReceivedTxn();
                 } else {
@@ -229,10 +227,8 @@ namespace Taas {
         switch (txn_ptr->txn_type()) {
             ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
             case proto::TxnType::ClientTxn : {/// sql node --> txn node
-                auto time1 = now_to_us();
                 message_epoch = EpochManager::GetPhysicalEpoch();
                 sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
-                auto time2 = now_to_us();
                 txn_ptr->set_commit_epoch(message_epoch);
                 txn_ptr->set_csn(now_to_us());
                 txn_ptr->set_server_id(ctx.txn_node_ip_index);
@@ -241,8 +237,6 @@ namespace Taas {
                 assert(txn_ptr != nullptr);
                 Merger::CommitQueueEnqueue(ctx, message_epoch, txn_ptr);
                 sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
-                auto time3 = now_to_us();
-                LOG(INFO) << "Handle Local Txn Time Cost : " << time3 - time1 << ", " << time2 - time1;
                 break;
             }
             case proto::TxnType::RemoteServerTxn : {
@@ -250,6 +244,11 @@ namespace Taas {
                 Merger::MergeQueueEnqueue(ctx, message_epoch, txn_ptr);
                 Merger::CommitQueueEnqueue(ctx, message_epoch, txn_ptr);
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
+                if(ctx.taas_mode == TaasMode::MultiMaster) {
+                    epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
+                    epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
+                    backup_received_txn_num.IncCount(message_epoch,message_server_id, 1);
+                }
                 sharding_handled_remote_txn_num.IncCount(message_epoch, thread_id, 1);
                 break;
             }
@@ -257,14 +256,6 @@ namespace Taas {
                 sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
                 CheckEpochShardingReceiveComplete(ctx,message_epoch);
-//                if(message_epoch < EpochManager::GetPhysicalEpoch() &&
-//                   IsShardingPackReceiveComplete(message_epoch, message_server_id) &&
-//                   IsShardingTxnReceiveComplete(message_epoch, message_server_id)) {
-//                    EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch,
-//                                                             message_server_id, empty_txn, proto::TxnType::EpochShardingACK);
-////                printf("= send sharding ack epoch, %lu server_id %lu\n", sharding_epoch, id);
-//                }
-//                printf("EpochEndFlag epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::BackUpTxn : {
@@ -276,18 +267,9 @@ namespace Taas {
             case proto::TxnType::BackUpEpochEndFlag : {
                 backup_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 backup_received_pack_num.IncCount(message_epoch,message_server_id, 1);
-//                if(message_epoch < EpochManager::GetPhysicalEpoch() &&
-//                   IsBackUpPackReceiveComplete(message_epoch, message_server_id) &&
-//                   IsBackUpTxnReceiveComplete(message_epoch, message_server_id)) {
-//                    EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch,
-//                                                             message_server_id, empty_txn, proto::TxnType::BackUpACK);
-////                printf(" == send backup ack epoch, %lu server_id %lu\n", backup_epoch, id);
-//                }
-//                printf("BackUpEpochEndFlag epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::AbortSet : {
-                auto time1 = now_to_us();
                 UpdateEpochAbortSet();
                 epoch_abort_set[message_epoch_mod]->enqueue(txn_ptr);
                 epoch_abort_set[message_epoch_mod]->enqueue(nullptr);
@@ -295,8 +277,6 @@ namespace Taas {
                 ///send abort set ack
                 EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch,
                             message_server_id, empty_txn_ptr, proto::TxnType::AbortSetACK);
-//                LOG(INFO) << "=== Receive and Merge Abort Set time cost " << now_to_us() - time1 << ",epoch :" << message_epoch  << "===\n";
-//                printf("AbortSet epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::InsertSet : {
@@ -368,7 +348,7 @@ namespace Taas {
                 if(sharding_row_vector[i]->row_size() > 0) {
                     ///sharding sending
                     if(i == ctx.txn_node_ip_index) {
-                        continue;
+                        Merger::MergeQueueEnqueue(ctx, message_epoch, sharding_row_vector[ctx.txn_node_ip_index]);
                     }
                     else {
                         sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
@@ -377,33 +357,25 @@ namespace Taas {
                     }
                 }
             }
-            if(sharding_row_vector[ctx.txn_node_ip_index]->row_size() > 0) {
-                ///read version check need to wait until last epoch has committed.
-                Merger::MergeQueueEnqueue(ctx, message_epoch, sharding_row_vector[ctx.txn_node_ip_index]);
-//            res = Merger::EpochMerge(ctx, message_epoch, std::move(sharding_row_vector[ctx.txn_node_ip_index]));
-//            if(!res) {
-//                MessageSendHandler::SendTxnCommitResultToClient(ctx, *(sharding_row_vector[ctx.txn_node_ip_index]), proto::TxnState::Abort);
-//            }
-            }
+            backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+            EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, message_server_id, txn_ptr, proto::TxnType::BackUpTxn);
+            backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+            epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
+            epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
         }
 
         else if(ctx.taas_mode == TaasMode::MultiMaster) {
             Merger::MergeQueueEnqueue(ctx, message_epoch, txn_ptr);
             sharding_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+            backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
             EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, ctx.txn_node_ip_index, txn_ptr, proto::TxnType::RemoteServerTxn);
             sharding_send_txn_num.IncCount(message_epoch, 0, 1);
-        }
-        auto time2 = now_to_us();
-        {///backup sending full txn
-            backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-            EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, message_server_id, txn_ptr, proto::TxnType::BackUpTxn);
             backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-
             epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
             epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
         }
         auto time3 = now_to_us();
-        LOG(INFO) << "Handle Client Txn Time Cost : " << time3 - time1 << ", " << time2 - time1;
+        LOG(INFO) << "Handle Client Txn Time Cost : " << time3 - time1;
 
 //        backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
 //        if(ctx.taas_mode == TaasMode::MultiMaster) {

@@ -102,24 +102,20 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, st
     }
 
     bool EpochMessageSendHandler::SendRemoteServerTxn(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, std::shared_ptr<proto::Transaction> txn_ptr, proto::TxnType txn_type) {
-//        auto time1 = now_to_us();
+        auto time1 = now_to_us();
         auto msg = std::make_unique<proto::Message>();
         auto* txn_temp = msg->mutable_txn();
-//        auto time2 = now_to_us();
+        auto time2 = now_to_us();
         *(txn_temp) = *txn_ptr;
         txn_temp->set_txn_type(txn_type);
-//        auto time3 = now_to_us();
+        auto time3 = now_to_us();
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());
-//        auto time4 = now_to_us();
-//        LOG(INFO) << "send renote txn time cost 1:" << time2 - time1 << ",2:" << time3 - time2 << ",3:" << time4 - time3;
+        auto time4 = now_to_us();
+//        LOG(INFO) << "send remote txn time cost 1:" << time4 - time1;
+        LOG(INFO) << "send renote txn time cost 1:" << time2 - time1 << ",2:" << time3 - time2 << ",3:" << time4 - time3 << ",4:" << time4 - time1;
         assert(!serialized_txn_str_ptr->empty());
         if(ctx.taas_mode == TaasMode::MultiMaster) {
-//            for (uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
-//                if (i == ctx.txn_node_ip_index) continue;/// send to everyone
-//                auto str_copy = std::make_unique<std::string>(*serialized_txn_str_ptr);
-//                MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(i, 0, "", epoch, txn_type, std::move(str_copy), nullptr));
-//            }
             MessageQueue::send_to_server_pub_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, txn_type, std::move(serialized_txn_str_ptr), nullptr));
             return MessageQueue::send_to_server_pub_queue->enqueue( std::make_unique<send_params>(0, 0, "",epoch, proto::TxnType::NullMark,
                                                                                               nullptr, nullptr));
