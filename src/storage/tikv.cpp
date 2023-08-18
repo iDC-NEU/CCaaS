@@ -159,7 +159,7 @@ namespace Taas {
         return false;
     }
 
-    void TiKV::PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr) {
+    void TiKV::PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction> txn_ptr) {
         if (tikv_client_ptr == nullptr) return ;
         auto tikv_txn = tikv_client_ptr->begin();
         for (auto i = 0; i < txn_ptr->row_size(); i++) {

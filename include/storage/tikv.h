@@ -46,7 +46,7 @@ namespace Taas {
         static bool DBRedoLogQueueTryDequeue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
 
 
-        static void PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr);
+        static void PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction> txn_ptr);
     };
 }
 
