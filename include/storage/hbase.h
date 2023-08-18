@@ -44,7 +44,7 @@ namespace Taas {
 
         static bool GeneratePushDownTask(const uint64_t &epoch);
 
-        static void PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction> txn_ptr);
+        static void PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr);
     };
 }
 

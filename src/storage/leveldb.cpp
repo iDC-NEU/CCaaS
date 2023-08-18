@@ -194,7 +194,7 @@ namespace Taas {
         return false;
     }
 
-    void LevelDB::PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction> txn_ptr) {
+    void LevelDB::PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr) {
         auto csn = txn_ptr->csn();
         for(const auto& i : txn_ptr->row()) {
             if (i.op_type() == proto::OpType::Read) {

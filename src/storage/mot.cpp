@@ -142,7 +142,7 @@ namespace Taas {
         return epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr);
     }
 
-    void MOT::PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction> txn_ptr) {
+    void MOT::PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr) {
         auto push_msg = std::make_unique<proto::Message>();
         auto push_response = push_msg->mutable_storage_push_response();
         push_response->set_result(proto::Success);

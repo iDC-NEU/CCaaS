@@ -167,7 +167,7 @@ namespace Taas {
         return false;
     }
 
-    void HBase::PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction> txn_ptr) {
+    void HBase::PushDownTxn(const uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr) {
         try {
             CHbaseHandler hbase_txn;
             hbase_txn.connect(ctx.kHbaseIP,9090);

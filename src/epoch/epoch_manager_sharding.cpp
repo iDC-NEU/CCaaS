@@ -97,7 +97,7 @@ namespace Taas {
                 while(epoch >= EpochManager::GetPhysicalEpoch()) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** Start Epoch Merge Epoch : " << epoch << "****\n";
                 while(!EpochMessageReceiveHandler::IsShardingSendFinish(epoch)) usleep(logical_sleep_timme);
-                workers.push_emergency_task([epoch, &ctx]() {
+                workers.push_emergency_task([&] () {
                     EpochMessageSendHandler::SendEpochEndMessage(ctx.txn_node_ip_index, epoch, ctx.kTxnNodeNum);
                 });
 //                LOG(INFO) << "**** finished IsShardingSendFinish : " << epoch << "****\n";
@@ -127,7 +127,7 @@ namespace Taas {
                 EpochManager::SetShardingMergeComplete(epoch, true);
                 merge_epoch.fetch_add(1);
                 auto time5 = now_to_us();
-                workers.push_emergency_task([epoch, &ctx]() {
+                workers.push_emergency_task([&] () {
                     EpochMessageSendHandler::SendAbortSet(ctx.txn_node_ip_index, epoch, ctx.kTxnNodeNum);
                 });
 //                LOG(INFO) << "**** Finished Epoch Merge Epoch : " << epoch << ",time cost : " << time5 - time1 << ",rest time cost : " << time5 - time4 << "****\n";
