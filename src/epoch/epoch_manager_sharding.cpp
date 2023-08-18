@@ -86,10 +86,10 @@ namespace Taas {
 
 
     void ShardingEpochManager::EpochLogicalTimerManagerThreadMain(const Context& ctx) {
-        while(!EpochManager::IsInitOK()) usleep(sleep_time);
         util::thread_pool_light workers(ctx.kMergeThreadNum);
         uint64_t epoch = 1;
         OUTPUTLOG(ctx, "===== Start Epoch的合并 ===== ", epoch);
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
         if(ctx.kTxnNodeNum > 1) {
             while(!EpochManager::IsTimerStop()){
                 auto time1 = now_to_us();
