@@ -185,7 +185,7 @@ namespace Taas {
             epoch_mod = epoch % ctx.kCacheMaxLength;
             while (!EpochManager::IsShardingMergeComplete(epoch)) {
                 while(epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr)) {
-                    if (txn_ptr != nullptr && txn_ptr->txn_type() != proto::TxnType::NullMark) {
+                    if (txn_ptr != nullptr || txn_ptr->txn_type() != proto::TxnType::NullMark) {
                         Merge();
                     }
                 }
@@ -200,7 +200,7 @@ namespace Taas {
             }
             while (!EpochManager::IsCommitComplete(epoch)) {
                 while(epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
-                    if (txn_ptr != nullptr && txn_ptr->txn_type() != proto::TxnType::NullMark) {
+                    if (txn_ptr != nullptr || txn_ptr->txn_type() != proto::TxnType::NullMark) {
                         Commit();
                     }
                 }
@@ -209,7 +209,42 @@ namespace Taas {
                 epoch_mod = epoch % ctx.kCacheMaxLength;
             }
         }
+    }
 
+    void Merger::EpochMerge_Wait() {
+        std::mutex mtx;
+        std::unique_lock lck(mtx);
+        epoch = EpochManager::GetLogicalEpoch();
+        while (!EpochManager::IsTimerStop()) {
+            epoch_mod = epoch % ctx.kCacheMaxLength;
+            while (!EpochManager::IsShardingMergeComplete(epoch)) {
+                if(epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+                    if (txn_ptr != nullptr || txn_ptr->txn_type() != proto::TxnType::NullMark) {
+                        Merge();
+                    }
+                }
+                else {
+//                    merge_cv.wait(lck);
+                    usleep(merge_sleep_time);
+                }
+            }
+            while (!EpochManager::IsAbortSetMergeComplete(epoch)) {
+                usleep(merge_sleep_time);
+            }
+            while (!EpochManager::IsCommitComplete(epoch)) {
+                if(epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+                    if (txn_ptr != nullptr || txn_ptr->txn_type() != proto::TxnType::NullMark) {
+                        Commit();
+                    }
+                }
+                else {
+//                    merge_cv.wait(lck);
+                    usleep(merge_sleep_time);
+                }
+            }
+            epoch ++;
+        }
+    }
 
     void Merger::EpochMerge_Usleep() {
         while (!EpochManager::IsTimerStop()) {
