@@ -193,7 +193,7 @@ namespace Taas {
                 }
 
             }
-            if(EpochManager::IsAbortSetMergeComplete(epoch) && !EpochManager::IsCommitComplete(epoch)) {
+            if(!EpochManager::IsAbortSetMergeComplete(epoch) && EpochManager::IsCommitComplete(epoch)) {
                 while (epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                     if (txn_ptr != nullptr && txn_ptr->txn_type() != proto::TxnType::NullMark) {
                         Commit();
