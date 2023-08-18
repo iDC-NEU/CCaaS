@@ -70,17 +70,11 @@ namespace Taas {
         static void StaticInit(const Context& ctx);
         static void ClearMergerEpochState(const Context& ctx, uint64_t &epoch);
 
-        void Init(const Context& ctx_, uint64_t id);
-
-        void EpochMerge_Usleep();
-        void EpochMerge_Block();
-        void EpochCommit_Usleep();
-        void EpochCommit_Block();
-
         void Merge();
         void Commit();
         void EpochMerge();
-        void EpochMerge_Wait();
+
+        void Init(const Context& ctx_, uint64_t id);
 
         static void MergeQueueEnqueue(const Context& ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
         static bool MergeQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);

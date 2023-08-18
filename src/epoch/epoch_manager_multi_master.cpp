@@ -6,9 +6,9 @@
 #include "message/epoch_message_receive_handler.h"
 #include "storage/redo_loger.h"
 #include "transaction/merge.h"
-#include "tools/thread_pool.h"
 
 #include "string"
+#include "tools/thread_pool.h"
 
 namespace Taas {
 
@@ -92,9 +92,8 @@ namespace Taas {
                 while(epoch >= EpochManager::GetPhysicalEpoch()) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** Start Epoch Merge Epoch : " << epoch << "****\n";
                 while(!EpochMessageReceiveHandler::IsShardingSendFinish(epoch)) usleep(logical_sleep_timme);
-                workers.push_emergency_task([&] () {
-                    auto epoch_temp = epoch;
-                    EpochMessageSendHandler::SendEpochEndMessage(ctx.txn_node_ip_index, epoch_temp, ctx.kTxnNodeNum);
+                workers.push_emergency_task([&ctx, epoch] () {
+                    EpochMessageSendHandler::SendEpochEndMessage(ctx.txn_node_ip_index, epoch, ctx.kTxnNodeNum);
                 });
 //                LOG(INFO) << "**** finished IsShardingSendFinish : " << epoch << "****\n";
                 while(!EpochMessageReceiveHandler::IsShardingACKReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
@@ -133,7 +132,6 @@ namespace Taas {
 //                LOG(INFO) << "**** finished IsAbortSetReceiveComplete : " << epoch << "****\n";
 //                while(!EpochMessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, epoch)) usleep(logical_sleep_timme);
                 EpochManager::SetAbortSetMergeComplete(epoch, true);
-                Merger::merge_cv.notify_all();
                 abort_set_epoch.fetch_add(1);
                 auto time6 = now_to_us();
 //                LOG(INFO) << "******* Finished Abort Set Merge Epoch : " << epoch << ",time cost : " << time6 - time5 << "********\n";
