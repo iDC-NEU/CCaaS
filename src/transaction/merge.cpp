@@ -184,7 +184,7 @@ namespace Taas {
             epoch = EpochManager::GetLogicalEpoch();
             epoch_mod = epoch % ctx.kCacheMaxLength;
             while (!EpochManager::IsShardingMergeComplete(epoch)) {
-                while (epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+                while(epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                     if (txn_ptr != nullptr && txn_ptr->txn_type() != proto::TxnType::NullMark) {
                         Merge();
                     }
@@ -199,7 +199,7 @@ namespace Taas {
                 epoch_mod = epoch % ctx.kCacheMaxLength;
             }
             while (!EpochManager::IsCommitComplete(epoch)) {
-                while (epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
+                while(epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                     if (txn_ptr != nullptr && txn_ptr->txn_type() != proto::TxnType::NullMark) {
                         Commit();
                     }
@@ -209,7 +209,7 @@ namespace Taas {
                 epoch_mod = epoch % ctx.kCacheMaxLength;
             }
         }
-    }
+
 
     void Merger::EpochMerge_Usleep() {
         while (!EpochManager::IsTimerStop()) {
