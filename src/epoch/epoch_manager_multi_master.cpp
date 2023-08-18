@@ -158,6 +158,9 @@ namespace Taas {
                     << "****\n";
                 epoch ++;
                 last_total_commit_txn_num = EpochMessageSendHandler::TotalTxnNum.load();
+                workers.push_task([&] () {
+                    CheckRedoLogPushDownState(ctx);
+                });
             }
         }
         else {
@@ -193,6 +196,9 @@ namespace Taas {
                           << "****\n";
                 epoch ++;
                 last_total_commit_txn_num = EpochMessageSendHandler::TotalTxnNum.load();
+                workers.push_task([&] () {
+                    CheckRedoLogPushDownState(ctx);
+                });
             }
         }
     }

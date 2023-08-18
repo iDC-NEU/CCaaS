@@ -36,13 +36,5 @@ namespace Taas {
         end:
         return ;
     }
-
-    void WorkerForLogicalRedoLogPushDownCheckThreadMain(const Context& ctx) {
-        SetCPU();
-        while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        while(!EpochManager::IsTimerStop()){
-            CheckRedoLogPushDownState(ctx);
-        }
-    }
 }
 
