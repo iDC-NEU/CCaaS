@@ -198,24 +198,46 @@ namespace Taas {
           << "**************************************************************************************************************************************************************************************\n";
     }
 
-    std::shared_ptr<proto::Transaction> empty_txn_ptr;
     bool CheckRedoLogPushDownState(const Context& ctx) {
-        auto i = redo_log_epoch.fetch_add(1);
-        while(!EpochManager::IsCommitComplete(i)) usleep(logical_sleep_timme);
-        while(!RedoLoger::CheckPushDownComplete(ctx, i)) usleep(logical_sleep_timme);
-        EpochMessageSendHandler::SendTxnToServer(ctx, i,i, empty_txn_ptr, proto::TxnType::EpochLogPushDownComplete);
-        while(!EpochMessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) usleep(logical_sleep_timme);
-        while(EpochManager::GetPushDownEpoch() < i) usleep(logical_sleep_timme);
-        {
-            if(i % ctx.print_mode_size == 0)
+        auto i = redo_log_epoch.load();
+        while(!EpochManager::IsTimerStop()) {
+            while(i >= commit_epoch.load()) usleep(50);
+            while(!EpochManager::IsCommitComplete(i)) usleep(50);
+            while(!RedoLoger::CheckPushDownComplete(ctx, i)) usleep(50);
+            while(!EpochMessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) usleep(50);
+            {
+                if(i % ctx.print_mode_size == 0)
                 LOG(INFO) << PrintfToString("=-=-=-=-=-=-= 完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", commit_epoch.load(), i);
-            EpochManager::ClearMergeEpochState(i); //清空当前epoch的merge信息
-            EpochMessageReceiveHandler::StaticClear(ctx, i);//清空current epoch的receive cache num信息
-            Merger::ClearMergerEpochState(ctx, i);
-            RedoLoger::ClearRedoLog(ctx, i);
+                EpochManager::ClearMergeEpochState(i); //清空当前epoch的merge信息
+                EpochMessageReceiveHandler::StaticClear(ctx, i);//清空current epoch的receive cache num信息
+                Merger::ClearMergerEpochState(ctx, i);
+                RedoLoger::ClearRedoLog(ctx, i);
+                redo_log_epoch.fetch_add(1);
+                clear_epoch.fetch_add(1);
+                EpochManager::AddPushDownEpoch();
+                i ++;
+            }
+        }
+        return true;
+    }
+
+    bool CheckRedoLogPushDownState(const Context& ctx, uint64_t epoch) {
+        std::shared_ptr<proto::Transaction> empty_txn_ptr;
+        while(!EpochManager::IsCommitComplete(epoch)) usleep(logical_sleep_timme);
+        while(!RedoLoger::CheckPushDownComplete(ctx, epoch)) usleep(logical_sleep_timme);
+        EpochMessageSendHandler::SendTxnToServer(ctx, epoch,epoch, empty_txn_ptr, proto::TxnType::EpochLogPushDownComplete);
+        while(!EpochMessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
+        {
+            if(epoch % ctx.print_mode_size == 0)
+                LOG(INFO) << PrintfToString("=-=-=-=-=-=-= 完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", commit_epoch.load(), epoch);
+            EpochManager::ClearMergeEpochState(epoch); //清空当前epoch的merge信息
+            EpochMessageReceiveHandler::StaticClear(ctx, epoch);//清空current epoch的receive cache num信息
+            Merger::ClearMergerEpochState(ctx, epoch);
+            RedoLoger::ClearRedoLog(ctx, epoch);
             clear_epoch.fetch_add(1);
             EpochManager::AddPushDownEpoch();
         }
+        while(EpochManager::GetPushDownEpoch() < epoch) usleep(logical_sleep_timme);
         return true;
     }
 
