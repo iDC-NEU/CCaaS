@@ -190,9 +190,13 @@ namespace Taas {
                     }
                 }
                 usleep(merge_sleep_time);
+                epoch = EpochManager::GetLogicalEpoch();
+                epoch_mod = epoch % ctx.kCacheMaxLength;
             }
             while (!EpochManager::IsAbortSetMergeComplete(epoch)) {
-                merge_cv.wait(lck);
+                usleep(merge_sleep_time);
+                epoch = EpochManager::GetLogicalEpoch();
+                epoch_mod = epoch % ctx.kCacheMaxLength;
             }
             while (!EpochManager::IsCommitComplete(epoch)) {
                 while(epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
@@ -201,6 +205,8 @@ namespace Taas {
                     }
                 }
                 usleep(merge_sleep_time);
+                epoch = EpochManager::GetLogicalEpoch();
+                epoch_mod = epoch % ctx.kCacheMaxLength;
             }
         }
     }
