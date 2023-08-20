@@ -105,7 +105,7 @@ namespace Taas {
             if (is_epoch_advance_started.load()) {
                 auto res = MessageQueue::listen_message_epoch_queue->enqueue(std::move(message_ptr));
                 assert(res);
-                res = MessageQueue::listen_message_epoch_queue->enqueue(std::make_unique<zmq::message_t>());
+                res = MessageQueue::listen_message_epoch_queue->enqueue(nullptr);
                 assert(res); //防止moodycamel取不出
                 break;
             }
@@ -117,7 +117,7 @@ namespace Taas {
             assert(recvResult >= 0);
             auto res = MessageQueue::listen_message_epoch_queue->enqueue(std::move(message_ptr));
             assert(res);
-            res = MessageQueue::listen_message_epoch_queue->enqueue(std::make_unique<zmq::message_t>());
+            res = MessageQueue::listen_message_epoch_queue->enqueue(nullptr);
             assert(res); //防止moodycamel取不出
         }
     }
@@ -148,7 +148,7 @@ namespace Taas {
             if (is_epoch_advance_started.load()) {
                 auto res = MessageQueue::listen_message_epoch_queue->enqueue(std::move(message_ptr));
                 assert(res);
-                res = MessageQueue::listen_message_epoch_queue->enqueue(std::make_unique<zmq::message_t>());
+                res = MessageQueue::listen_message_epoch_queue->enqueue(nullptr);
                 assert(res); //防止moodycamel取不出
                 break;
             }
@@ -161,7 +161,7 @@ namespace Taas {
             assert(recvResult >= 0);
             auto res = MessageQueue::listen_message_epoch_queue->enqueue(std::move(message_ptr));
             assert(res);
-            res = MessageQueue::listen_message_epoch_queue->enqueue(std::make_unique<zmq::message_t>());
+            res = MessageQueue::listen_message_epoch_queue->enqueue(nullptr);
             assert(res); //防止moodycamel取不出
         }
     }

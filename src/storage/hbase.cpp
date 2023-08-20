@@ -96,7 +96,7 @@ namespace Taas {
                 sleep_flag = false;
             }
             if(sleep_flag)
-                usleep(sleep_time);
+                usleep(storage_sleep_time);
         }
         hbase_txn.disconnect();
     }

@@ -14,6 +14,7 @@
 #include "zmq.hpp"
 
 #include "queue"
+#include "tools/thread_pool_light.h"
 
 namespace Taas {
     class EpochMessageReceiveHandler{
@@ -34,6 +35,9 @@ namespace Taas {
 
         static bool StaticInit(const Context& context);
         static bool StaticClear(const Context& context, uint64_t& epoch);
+        static bool HandleReceivedTxn(std::shared_ptr<proto::Transaction> txn_ptr);
+
+        static std::unique_ptr<util::thread_pool_light> workers;
     private:
         std::unique_ptr<zmq::message_t> message_ptr;
         std::unique_ptr<std::string> message_string_ptr;

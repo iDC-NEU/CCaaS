@@ -13,7 +13,7 @@
 
 namespace Taas {
 //    const uint64_t PACKNUM = 1L<<32;///
-
+    std::unique_ptr<util::thread_pool_light> EpochMessageReceiveHandler::workers;
     std::vector<uint64_t>
             EpochMessageReceiveHandler::sharding_send_ack_epoch_num,
             EpochMessageReceiveHandler::backup_send_ack_epoch_num,
@@ -82,6 +82,7 @@ namespace Taas {
     bool EpochMessageReceiveHandler::Init(const Context& ctx_, const uint64_t &id) {
         message_ptr = nullptr;
         txn_ptr = nullptr;
+        workers = std::make_unique<util::thread_pool_light>(ctx.kEpochTxnThreadNum, "Epoch message");
 //        pack_param = nullptr;
 //        server_dequeue_id = 0, epoch_mod = 0;
 //        epoch = 0, max_length = 0;
@@ -175,39 +176,31 @@ namespace Taas {
     void EpochMessageReceiveHandler::HandleReceivedMessage() {
         while(!EpochManager::IsTimerStop()) {
             MessageQueue::listen_message_txn_queue->wait_dequeue(message_ptr);
-            if (message_ptr->empty()) continue;
+            if (message_ptr == nullptr) continue;
             message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
                                                                message_ptr->size());
             msg_ptr = std::make_unique<proto::Message>();
             res = UnGzip(msg_ptr.get(), message_string_ptr.get());
             assert(res);
-            if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
-                txn_ptr = std::make_shared<proto::Transaction>(*(msg_ptr->release_txn()));
-                SetMessageRelatedCountersInfo();
-                HandleReceivedTxn();
-            } else {
-                MessageQueue::request_queue->enqueue(std::move(msg_ptr));
-                MessageQueue::request_queue->enqueue(nullptr);
-            }
+            txn_ptr = std::make_shared<proto::Transaction>(*(msg_ptr->release_txn()));
+            workers->push_task([&] {
+                HandleReceivedTxn(txn_ptr);
+            })
+            HandleReceivedTxn();
         }
     }
 
     void EpochMessageReceiveHandler::HandleReceivedControlMessage() {
         while(!EpochManager::IsTimerStop()) {
             MessageQueue::listen_message_epoch_queue->wait_dequeue(message_ptr);
-            if (message_ptr->empty()) continue;
+            if (message_ptr == nullptr) continue;
             message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
                                                                message_ptr->size());
             msg_ptr = std::make_unique<proto::Message>();
             res = UnGzip(msg_ptr.get(), message_string_ptr.get());
             assert(res);
-            if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
-                txn_ptr = std::make_shared<proto::Transaction>(*(msg_ptr->release_txn()));
-                HandleReceivedTxn();
-            } else {
-                MessageQueue::request_queue->enqueue(std::move(msg_ptr));
-                MessageQueue::request_queue->enqueue(nullptr);
-            }
+            txn_ptr = std::make_shared<proto::Transaction>(*(msg_ptr->release_txn()));
+            HandleReceivedTxn();
         }
     }
 
