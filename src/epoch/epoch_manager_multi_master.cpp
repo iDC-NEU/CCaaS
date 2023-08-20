@@ -8,6 +8,7 @@
 #include "transaction/merge.h"
 
 #include "string"
+#include "tools/thread_pool_light.h"
 
 namespace Taas {
 
@@ -83,6 +84,7 @@ namespace Taas {
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         uint64_t epoch = 1, cnt = 0;
         OUTPUTLOG(ctx, "===== Logical Start Epoch的合并 ===== ", epoch);
+        util::thread_pool_light workers(ctx.kMergeThreadNum);
         while(!EpochManager::IsInitOK()) usleep(logical_sleep_timme);
         if(ctx.kTxnNodeNum > 1) {
             while(!EpochManager::IsTimerStop()){
@@ -90,6 +92,9 @@ namespace Taas {
                 while(epoch >= EpochManager::GetPhysicalEpoch()) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** Start Epoch Merge Epoch : " << epoch << "****\n";
                 while(!EpochMessageReceiveHandler::IsShardingSendFinish(epoch)) usleep(logical_sleep_timme);
+                workers.push_emergency_task([epoch, &ctx] () {
+                    EpochMessageSendHandler::SendEpochEndMessage(ctx.txn_node_ip_index, epoch, ctx.kTxnNodeNum);
+                });
 //                LOG(INFO) << "**** finished IsShardingSendFinish : " << epoch << "****\n";
                 while(!EpochMessageReceiveHandler::IsShardingACKReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** finished IsShardingACKReceiveComplete : " << epoch << "****\n";

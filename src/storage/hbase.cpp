@@ -75,7 +75,7 @@ namespace Taas {
                 if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     continue;
                 }
-                commit_cv.notify_all();
+//                commit_cv.notify_all();
                 try{
                     total_commit_txn_num.fetch_add(1);
                     for (auto i = 0; i < txn_ptr->row_size(); i++) {
@@ -147,6 +147,7 @@ namespace Taas {
     }
 
     void HBase::DBRedoLogQueueEnqueue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
+        epoch_should_push_down_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_redo_log_queue[epoch_mod]->enqueue(txn_ptr);
         epoch_redo_log_queue[epoch_mod]->enqueue(nullptr);

@@ -19,10 +19,10 @@ namespace Taas {
         uint64_t epoch_mod;
         auto txn_ptr = std::make_shared<proto::Transaction>();
         while (!EpochManager::IsTimerStop()) {
-            if(id == 0)
+//            if(id == 0)
                 MOT::SendTransactionToDB_Usleep();
-            else
-                MOT::SendTransactionToDB_Block();
+//            else
+//                MOT::SendTransactionToDB_Block();
         }
         ///EpochManager::CheckRedoLogPushDownState(); in this function
     }
@@ -34,10 +34,10 @@ namespace Taas {
         auto txn_ptr = std::make_shared<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
-            if(id == 0)
+//            if(id == 0)
                 TiKV::SendTransactionToDB_Usleep();
-            else
-                TiKV::SendTransactionToDB_Block();
+//            else
+//                TiKV::SendTransactionToDB_Block();
         }
     }
 
@@ -48,10 +48,10 @@ namespace Taas {
         uint64_t epoch_mod;
         auto txn_ptr = std::make_shared<proto::Transaction>();
         while (!EpochManager::IsTimerStop()) {
-            if(id == 0)
+//            if(id == 0)
                 LevelDB::SendTransactionToDB_Usleep();
-            else
-                LevelDB::SendTransactionToDB_Block();
+//            else
+//                LevelDB::SendTransactionToDB_Block();
 
         }
     }
@@ -63,10 +63,10 @@ namespace Taas {
         auto txn_ptr = std::make_shared<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
-            if(id == 0)
+//            if(id == 0)
                 HBase::SendTransactionToDB_Usleep();
-            else
-                HBase::SendTransactionToDB_Block();
+//            else
+//                HBase::SendTransactionToDB_Block();
         }
     }
 }

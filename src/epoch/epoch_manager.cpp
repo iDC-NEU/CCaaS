@@ -200,11 +200,15 @@ namespace Taas {
 
     bool CheckRedoLogPushDownState(const Context& ctx) {
         auto i = redo_log_epoch.load();
+        shared_ptr<proto::Transaction> empty_txn_ptr;
         while(!EpochManager::IsTimerStop()) {
-            while(i >= commit_epoch.load()) usleep(50);
-            while(!EpochManager::IsCommitComplete(i)) usleep(50);
-            while(!RedoLoger::CheckPushDownComplete(ctx, i)) usleep(50);
-            while(!EpochMessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) usleep(50);
+            while(i >= commit_epoch.load()) usleep(logical_sleep_timme);
+            while(!EpochManager::IsCommitComplete(i)) usleep(logical_sleep_timme);
+            while(!RedoLoger::CheckPushDownComplete(ctx, i)) usleep(logical_sleep_timme);
+            EpochMessageSendHandler::SendTxnToServer(ctx, i,
+                                                     i, empty_txn_ptr, proto::TxnType::EpochLogPushDownComplete);
+            while(!EpochMessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) usleep(logical_sleep_timme);
+
             {
                 if(i % ctx.print_mode_size == 0)
                     LOG(INFO) << PrintfToString("=-=-=-=-=-=-= 完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", commit_epoch.load(), i);

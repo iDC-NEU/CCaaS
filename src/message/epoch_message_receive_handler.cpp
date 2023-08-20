@@ -176,7 +176,6 @@ namespace Taas {
         while(!EpochManager::IsTimerStop()) {
             MessageQueue::listen_message_txn_queue->wait_dequeue(message_ptr);
             if (message_ptr->empty()) continue;
-            auto time1 = now_to_us();
             message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
                                                                message_ptr->size());
             msg_ptr = std::make_unique<proto::Message>();
@@ -184,14 +183,12 @@ namespace Taas {
             assert(res);
             if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
                 txn_ptr = std::make_shared<proto::Transaction>(*(msg_ptr->release_txn()));
-                auto time4 = now_to_us();
-                LOG(INFO) << "HandleReceivedMessage time cost 1:" << time4 - time1;
                 SetMessageRelatedCountersInfo();
-                    HandleReceivedTxn();
-                } else {
-                    MessageQueue::request_queue->enqueue(std::move(msg_ptr));
-                    MessageQueue::request_queue->enqueue(nullptr);
-                }
+                HandleReceivedTxn();
+            } else {
+                MessageQueue::request_queue->enqueue(std::move(msg_ptr));
+                MessageQueue::request_queue->enqueue(nullptr);
+            }
         }
     }
 
@@ -256,6 +253,8 @@ namespace Taas {
                 sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
                 CheckEpochShardingReceiveComplete(ctx,message_epoch);
+                EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch,
+                                                         message_server_id, empty_txn_ptr, proto::TxnType::EpochShardingACK);
                 break;
             }
             case proto::TxnType::BackUpTxn : {
@@ -267,6 +266,8 @@ namespace Taas {
             case proto::TxnType::BackUpEpochEndFlag : {
                 backup_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 backup_received_pack_num.IncCount(message_epoch,message_server_id, 1);
+                EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch,
+                                                         message_server_id, empty_txn_ptr, proto::TxnType::BackUpACK);
                 break;
             }
             case proto::TxnType::AbortSet : {
@@ -327,7 +328,7 @@ namespace Taas {
     }
 
     bool EpochMessageReceiveHandler::HandleClientTxn() {
-        auto time1 = now_to_us();
+//        auto time1 = now_to_us();
         if(ctx.taas_mode == TaasMode::Sharding) {
             std::vector<std::shared_ptr<proto::Transaction>> sharding_row_vector;
             for(uint64_t i = 0; i < sharding_num; i ++) {
@@ -374,21 +375,6 @@ namespace Taas {
             epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
             epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
         }
-        auto time3 = now_to_us();
-        LOG(INFO) << "Handle Client Txn Time Cost : " << time3 - time1;
-
-//        backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-//        if(ctx.taas_mode == TaasMode::MultiMaster) {
-//            sharding_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-//            Merger::MergeQueueEnqueue(ctx, message_epoch, txn_ptr);
-//        }
-//        EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, ctx.txn_node_ip_index, txn_ptr, proto::TxnType::RemoteServerTxn);
-//        if(ctx.taas_mode == TaasMode::MultiMaster) {
-//            sharding_send_txn_num.IncCount(message_epoch, 0, 1);
-//        }
-//        backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-//        epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
-//        epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
 //        auto time3 = now_to_us();
 //        LOG(INFO) << "Handle Client Txn Time Cost : " << time3 - time1;
         return true;
