@@ -183,9 +183,6 @@ namespace Taas {
             res = UnGzip(msg_ptr.get(), message_string_ptr.get());
             assert(res);
             txn_ptr = std::make_shared<proto::Transaction>(*(msg_ptr->release_txn()));
-            workers->push_task([&] {
-                HandleReceivedTxn(txn_ptr);
-            })
             HandleReceivedTxn();
         }
     }
