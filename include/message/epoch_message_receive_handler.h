@@ -27,7 +27,6 @@ namespace Taas {
         bool HandleReceivedTxn();
         bool HandleClientTxn();
         bool UpdateEpochAbortSet();
-        bool CheckReceivedStatesAndReply();
 
         uint64_t GetHashValue(const std::string& key) const {
             return _hash(key) % sharding_num;
@@ -35,9 +34,7 @@ namespace Taas {
 
         static bool StaticInit(const Context& context);
         static bool StaticClear(const Context& context, uint64_t& epoch);
-        static bool HandleReceivedTxn(std::shared_ptr<proto::Transaction> txn_ptr);
 
-        static std::unique_ptr<util::thread_pool_light> workers;
     private:
         std::unique_ptr<zmq::message_t> message_ptr;
         std::unique_ptr<std::string> message_string_ptr;
@@ -66,9 +63,6 @@ namespace Taas {
             abort_set_send_ack_epoch_num; /// check and reply ack
 
         static std::vector<std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>>
-            epoch_remote_sharding_txn,
-            epoch_local_sharding_txn,
-            epoch_local_txn,
             epoch_backup_txn,
             epoch_insert_set,
             epoch_abort_set;

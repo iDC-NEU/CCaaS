@@ -41,8 +41,7 @@ namespace Taas {
         epoch_should_push_down_txn_num.Clear(epoch);
         epoch_pushed_down_txn_num.Clear(epoch);
         epoch_redo_log_complete[epoch % ctx.kCacheMaxLength]->store(false);
-        auto txn_ptr = std::make_shared<proto::Transaction>();
-        while(epoch_redo_log_queue[epoch % ctx.kCacheMaxLength]->try_dequeue(txn_ptr));
+        epoch_redo_log_queue[epoch % ctx.kCacheMaxLength] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
     }
 
     bool TiKV::GeneratePushDownTask(const uint64_t &epoch) {
@@ -88,6 +87,7 @@ namespace Taas {
                     failed_commit_txn_num.fetch_add(1);
                 }
                 epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);
+                txn_ptr.reset();
                 sleep_flag = false;
             }
             if(sleep_flag)
@@ -131,6 +131,7 @@ namespace Taas {
                     failed_commit_txn_num.fetch_add(1);
                 }
                 epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);
+                txn_ptr.reset();
                 sleep_flag = false;
             }
             if(sleep_flag)

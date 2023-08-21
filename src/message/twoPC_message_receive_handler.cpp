@@ -27,16 +27,13 @@ namespace Taas {
             TwoPCMessageReceiveHandler::abort_set_send_ack_epoch_num; /// check and reply ack
 
     std::vector<std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>>
-            TwoPCMessageReceiveHandler::epoch_remote_sharding_txn,
-            TwoPCMessageReceiveHandler::epoch_local_sharding_txn,
-            TwoPCMessageReceiveHandler::epoch_local_txn,
             TwoPCMessageReceiveHandler::epoch_backup_txn,
             TwoPCMessageReceiveHandler::epoch_insert_set,
             TwoPCMessageReceiveHandler::epoch_abort_set;
 
     bool TwoPCMessageReceiveHandler::Init(const Context& ctx_, uint64_t id) {
         message_ptr = nullptr;
-        txn_ptr = nullptr;
+        txn_ptr.reset();
         thread_id = id;
         ctx = ctx_;
 //        max_length = ctx_.kCacheMaxLength;
@@ -59,18 +56,11 @@ namespace Taas {
             backup_insert_set_send_ack_epoch_num[i] = 1;
             abort_set_send_ack_epoch_num[i] = 1;
         }
-
-        epoch_remote_sharding_txn.resize(max_length);
-        epoch_local_sharding_txn.resize(max_length);
-        epoch_local_txn.resize(max_length);
         epoch_backup_txn.resize(max_length);
         epoch_insert_set.resize(max_length);
         epoch_abort_set.resize(max_length);
 
         for(int i = 0; i < static_cast<int>(max_length); i ++) {
-            epoch_remote_sharding_txn[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
-            epoch_local_sharding_txn[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
-            epoch_local_txn[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
             epoch_backup_txn[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
             epoch_insert_set[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
             epoch_abort_set[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();

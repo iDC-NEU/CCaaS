@@ -28,7 +28,6 @@ namespace Taas {
 //            if (version != row.data()) {
 //                auto csn_temp = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
 //                Merger::epoch_abort_txn_set[epoch_mod]->insert(csn_temp, csn_temp);
-//                Merger::local_epoch_abort_txn_set[epoch_mod]->insert(csn_temp, csn_temp);
 ////                LOG(INFO) <<"Txn read version check failed";
 ////                LOG(INFO) <<"read version check failed version : " << version << ", row.data() : " << row.data();
 //                return false;
@@ -58,7 +57,6 @@ namespace Taas {
             }
             if (!Merger::epoch_merge_map[epoch_mod]->insert(row.key(), csn_temp, csn_result)) {
                 Merger::epoch_abort_txn_set[epoch_mod]->insert(csn_result, csn_result);
-                Merger::local_epoch_abort_txn_set[epoch_mod]->insert(csn_result, csn_result);
                 result = false;
             }
         }
@@ -73,18 +71,17 @@ namespace Taas {
             if(row.op_type() == proto::OpType::Read) {
                 continue;
             }
-            else if(row.op_type() == proto::OpType::Insert) {
-                Merger::epoch_insert_set[epoch_mod]->insert(row.key(), csn_temp);
-                Merger::insert_set.insert(row.key(), csn_temp);
-            }
-            else if(row.op_type() == proto::OpType::Delete) {
-                Merger::insert_set.remove(row.key(), csn_temp);
-            }
+//            else if(row.op_type() == proto::OpType::Insert) {
+//                Merger::insert_set.insert(row.key(), csn_temp);
+//            }
+//            else if(row.op_type() == proto::OpType::Delete) {
+//                Merger::insert_set.remove(row.key(), csn_temp);
+//            }
             else {
                 //nothing to do
             }
-            Merger::read_version_map_data.insert(row.key(), row.data());
-            Merger::read_version_map_csn.insert(row.key(), csn_temp);
+//            Merger::read_version_map_data.insert(row.key(), row.data());
+//            Merger::read_version_map_csn.insert(row.key(), csn_temp);
         }
         return true;
     }

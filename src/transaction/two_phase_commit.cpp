@@ -12,7 +12,7 @@ namespace Taas {
 //        thread_id = id;
 //        sharding_num = ctx_.kTxnNodeNum;
 //        message_ptr = nullptr;
-//        txn_ptr = nullptr;
+//        txn_ptr.reset();
         return false;
     }
 

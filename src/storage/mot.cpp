@@ -33,6 +33,13 @@ namespace Taas {
         return true;
     }
 
+    void MOT::StaticClear(const uint64_t &epoch) {
+        epoch_should_push_down_txn_num.Clear(epoch);
+        epoch_pushed_down_txn_num.Clear(epoch);
+        epoch_redo_log_complete[epoch % ctx.kCacheMaxLength]->store(false);
+        epoch_redo_log_queue[epoch % ctx.kCacheMaxLength] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
+    }
+
     bool MOT::GeneratePushDownTask(const uint64_t &epoch) {
         auto txn_ptr = std::make_shared<proto::Transaction>();
         txn_ptr->set_commit_epoch(epoch);
@@ -74,6 +81,7 @@ namespace Taas {
                 MessageQueue::send_to_storage_queue->enqueue(std::make_unique<send_params>(0, 0,
                        "", epoch, proto::TxnType::CommittedTxn, std::move(serialized_pull_resp_str), nullptr));
                 epoch_pushed_down_txn_num.IncCount(epoch, epoch, 1);
+                txn_ptr.reset();
                 sleep_flag = false;
             }
         }
@@ -112,6 +120,7 @@ namespace Taas {
                 Gzip(push_msg.get(), serialized_pull_resp_str.get());
                 MessageQueue::send_to_storage_queue->enqueue(std::make_unique<send_params>(0, 0,"", epoch, proto::TxnType::CommittedTxn, std::move(serialized_pull_resp_str), nullptr));
                 epoch_pushed_down_txn_num.IncCount(epoch, epoch, 1);
+                txn_ptr.reset();
                 sleep_flag = false;
             }
             if(sleep_flag)

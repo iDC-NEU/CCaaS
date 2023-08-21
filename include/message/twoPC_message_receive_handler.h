@@ -88,9 +88,6 @@ namespace Taas {
                 abort_set_send_ack_epoch_num; /// check and reply ack
 
         static std::vector<std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>>
-        epoch_remote_sharding_txn,
-        epoch_local_sharding_txn,
-        epoch_local_txn,
         epoch_backup_txn,
         epoch_insert_set,
         epoch_abort_set;

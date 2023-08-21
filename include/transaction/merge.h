@@ -43,18 +43,13 @@ namespace Taas {
                 epoch_merge_map,
                 local_epoch_abort_txn_set,
                 epoch_abort_txn_set;
-        static std::vector<std::unique_ptr<concurrent_unordered_map<std::string, std::string>>> epoch_insert_set;
 
         /// whole server state
-        static concurrent_unordered_map<std::string, std::string> read_version_map_data, read_version_map_csn, insert_set, abort_txn_set;
+        static concurrent_unordered_map<std::string, std::string> read_version_map_data, read_version_map_csn, insert_set;
 
         ///queues
-        static std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>> task_queue;
-        static std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>> merge_queue;///merge_queue 存放需要进行merge的子事务 不区分epoch
-        static std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>> commit_queue;
         static std::vector<std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>>
                 epoch_merge_queue,///merge_queue 存放需要进行merge的子事务 不区分epoch
-                epoch_local_txn_queue, ///epoch_local_txn_queue 本地接收到的完整的事务  txn receive from client (used to push log down to storage)
                 epoch_commit_queue;///epoch_commit_queue 当前epoch的涉及当前分片的要进行validate和commit的子事务 receive from servers and local sharding txn, wait to validate
 
         static std::vector<std::unique_ptr<std::atomic<bool>>>
@@ -64,7 +59,6 @@ namespace Taas {
         static std::atomic<uint64_t> total_merge_txn_num, total_merge_latency, total_commit_txn_num, total_commit_latency, success_commit_txn_num, success_commit_latency,
             total_read_version_check_failed_txn_num, total_failed_txn_num;
 
-        static std::mutex merge_mutex, commit_mutex;
         static std::condition_variable merge_cv, commit_cv;
 
         static void StaticInit(const Context& ctx);
@@ -75,11 +69,6 @@ namespace Taas {
         void Merge();
         void Commit();
         void EpochMerge();
-
-        void EpochMerge_Usleep();
-        void EpochMerge_Block();
-        void EpochCommit_Usleep();
-        void EpochCommit_Block();
 
         static void MergeQueueEnqueue(const Context& ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
         static bool MergeQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
