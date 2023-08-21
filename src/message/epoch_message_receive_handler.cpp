@@ -213,8 +213,8 @@ namespace Taas {
                 Merger::CommitQueueEnqueue(ctx, message_epoch, txn_ptr);
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
                 if(ctx.taas_mode == TaasMode::MultiMaster) {
-                    epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
-                    epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
+//                    epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
+//                    epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
                     backup_received_txn_num.IncCount(message_epoch,message_server_id, 1);
                 }
                 sharding_handled_remote_txn_num.IncCount(message_epoch, thread_id, 1);
@@ -229,8 +229,8 @@ namespace Taas {
                 break;
             }
             case proto::TxnType::BackUpTxn : {
-                epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
-                epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
+//                epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
+//                epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
                 backup_received_txn_num.IncCount(message_epoch,message_server_id, 1);
                 break;
             }
@@ -243,8 +243,8 @@ namespace Taas {
             }
             case proto::TxnType::AbortSet : {
                 UpdateEpochAbortSet();
-                epoch_abort_set[message_epoch_mod]->enqueue(txn_ptr);
-                epoch_abort_set[message_epoch_mod]->enqueue(nullptr);
+//                epoch_abort_set[message_epoch_mod]->enqueue(txn_ptr);
+//                epoch_abort_set[message_epoch_mod]->enqueue(nullptr);
                 abort_set_received_num.IncCount(message_epoch,message_server_id, 1);
                 ///send abort set ack
                 EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch,
@@ -252,8 +252,8 @@ namespace Taas {
                 break;
             }
             case proto::TxnType::InsertSet : {
-                epoch_insert_set[message_epoch_mod]->enqueue(txn_ptr);
-                epoch_insert_set[message_epoch_mod]->enqueue(nullptr);
+//                epoch_insert_set[message_epoch_mod]->enqueue(txn_ptr);
+//                epoch_insert_set[message_epoch_mod]->enqueue(nullptr);
                 insert_set_received_num.IncCount(message_epoch,message_server_id, 1);
                 ///send insert set ack
                 EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch,
@@ -395,9 +395,9 @@ namespace Taas {
         epoch_abort_set_merge_complete[cache_clear_epoch_num_mod]->store(false);
         epoch_insert_set_complete[cache_clear_epoch_num_mod]->store(false);
 
-        epoch_backup_txn[cache_clear_epoch_num_mod] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
-        epoch_insert_set[cache_clear_epoch_num_mod] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
-        epoch_abort_set[cache_clear_epoch_num_mod] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
+//        epoch_backup_txn[cache_clear_epoch_num_mod] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
+//        epoch_insert_set[cache_clear_epoch_num_mod] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
+//        epoch_abort_set[cache_clear_epoch_num_mod] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
 
         return true;
     }

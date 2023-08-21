@@ -112,8 +112,8 @@ namespace Taas {
         epoch_should_commit_txn_num.Clear(epoch_mod), epoch_committed_txn_num.Clear(epoch_mod);
         epoch_record_commit_txn_num.Clear(epoch_mod), epoch_record_committed_txn_num.Clear(epoch_mod);
 
-        epoch_merge_queue[epoch_mod] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
-        epoch_commit_queue[epoch_mod] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
+//        epoch_merge_queue[epoch_mod] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
+//        epoch_commit_queue[epoch_mod] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
     }
 
     void Merger::Init(const Context& ctx_, uint64_t id_) {
