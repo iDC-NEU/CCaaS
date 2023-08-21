@@ -144,6 +144,7 @@ namespace Taas {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_redo_log_queue[epoch_mod]->enqueue(txn_ptr);
         epoch_redo_log_queue[epoch_mod]->enqueue(nullptr);
+        txn_ptr.reset();
     }
 
     bool MOT::DBRedoLogQueueTryDequeue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr) {

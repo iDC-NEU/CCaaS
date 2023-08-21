@@ -33,6 +33,7 @@ namespace Taas {
 //                return false;
 //            }
 //        }
+        txn_ptr.reset();
         return true;
     }
 
@@ -40,8 +41,10 @@ namespace Taas {
         auto epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
         auto csn_temp = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
         if(Merger::epoch_abort_txn_set[epoch_mod]->contain(csn_temp, csn_temp)) {
+            txn_ptr.reset();
             return false;
         }
+        txn_ptr.reset();
         return true;
     }
 
@@ -60,6 +63,7 @@ namespace Taas {
                 result = false;
             }
         }
+        txn_ptr.reset();
         return result;
     }
 
@@ -83,6 +87,7 @@ namespace Taas {
 //            Merger::read_version_map_data.insert(row.key(), row.data());
 //            Merger::read_version_map_csn.insert(row.key(), csn_temp);
         }
+        txn_ptr.reset();
         return true;
     }
 }

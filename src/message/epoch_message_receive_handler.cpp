@@ -161,7 +161,7 @@ namespace Taas {
             msg_ptr = std::make_unique<proto::Message>();
             res = UnGzip(msg_ptr.get(), message_string_ptr.get());
             assert(res);
-            txn_ptr = std::make_shared<proto::Transaction>(*(msg_ptr->release_txn()));
+            txn_ptr = std::make_shared<proto::Transaction>(msg_ptr->txn());
             HandleReceivedTxn();
             txn_ptr.reset();
         }
@@ -176,7 +176,7 @@ namespace Taas {
             msg_ptr = std::make_unique<proto::Message>();
             res = UnGzip(msg_ptr.get(), message_string_ptr.get());
             assert(res);
-            txn_ptr = std::make_shared<proto::Transaction>(*(msg_ptr->release_txn()));
+            txn_ptr = std::make_shared<proto::Transaction>(msg_ptr->txn());
             HandleReceivedTxn();
             txn_ptr.reset();
         }
@@ -332,8 +332,9 @@ namespace Taas {
             backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
             EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, message_server_id, txn_ptr, proto::TxnType::BackUpTxn);
             backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-            epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
-            epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
+//            epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
+//            epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
+            sharding_row_vector.clear();
         }
 
         else if(ctx.taas_mode == TaasMode::MultiMaster) {
@@ -343,8 +344,8 @@ namespace Taas {
             EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, ctx.txn_node_ip_index, txn_ptr, proto::TxnType::RemoteServerTxn);
             sharding_send_txn_num.IncCount(message_epoch, 0, 1);
             backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-            epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
-            epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
+//            epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
+//            epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
         }
 //        auto time3 = now_to_us();
 //        LOG(INFO) << "Handle Client Txn Time Cost : " << time3 - time1;

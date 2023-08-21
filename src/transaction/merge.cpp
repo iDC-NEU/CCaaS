@@ -137,7 +137,6 @@ namespace Taas {
         total_merge_txn_num.fetch_add(1);
         total_merge_latency.fetch_add(now_to_us() - time1);
         epoch_merged_txn_num.IncCount(epoch, txn_server_id, 1);
-        txn_ptr.reset();
     }
 
     void Merger::Commit() {
@@ -161,7 +160,6 @@ namespace Taas {
         total_commit_txn_num.fetch_add(1);
         total_commit_latency.fetch_add(now_to_us() - time1);
         epoch_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-        txn_ptr.reset();
     }
 
     void Merger::EpochMerge() {
@@ -176,6 +174,7 @@ namespace Taas {
                 while (epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                     if (txn_ptr != nullptr && txn_ptr->txn_type() != proto::TxnType::NullMark) {
                         Merge();
+                        txn_ptr.reset();
                         sleep_flag = false;
                     }
                 }
@@ -185,6 +184,7 @@ namespace Taas {
                 while (!EpochManager::IsCommitComplete(epoch) && epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                     if (txn_ptr != nullptr && txn_ptr->txn_type() != proto::TxnType::NullMark) {
                         Commit();
+                        txn_ptr.reset();
                         sleep_flag = false;
                     }
                 }
