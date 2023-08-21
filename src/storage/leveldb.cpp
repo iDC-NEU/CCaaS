@@ -40,7 +40,7 @@ namespace Taas {
         epoch_should_push_down_txn_num.Clear(epoch);
         epoch_pushed_down_txn_num.Clear(epoch);
         epoch_redo_log_complete[epoch % ctx.kCacheMaxLength]->store(false);
-        epoch_redo_log_queue[epoch % ctx.kCacheMaxLength] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
+//        epoch_redo_log_queue[epoch % ctx.kCacheMaxLength] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
     }
 
     bool LevelDB::GeneratePushDownTask(const uint64_t &epoch) {

@@ -34,7 +34,8 @@ namespace Taas {
 
     void RedoLoger::ClearRedoLog(const Context& ctx, uint64_t& epoch) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
-        committed_txn_cache[epoch_mod] = std::make_unique<concurrent_unordered_map<std::string, std::shared_ptr<proto::Transaction>>>();
+        committed_txn_cache[epoch_mod]->clear();
+//        committed_txn_cache[epoch_mod] = std::make_unique<concurrent_unordered_map<std::string, std::shared_ptr<proto::Transaction>>>();
         epoch_log_lsn.SetCount(epoch_mod, 0);
         if(ctx.is_mot_enable) {
             MOT::StaticClear(epoch);
