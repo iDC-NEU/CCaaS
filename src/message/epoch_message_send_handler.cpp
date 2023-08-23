@@ -7,6 +7,8 @@
 #include "transaction/merge.h"
 
 namespace Taas {
+
+    Context EpochMessageSendHandler::ctx;
     std::atomic<uint64_t> EpochMessageSendHandler::TotalLatency(0), EpochMessageSendHandler::TotalTxnNum(0),
             EpochMessageSendHandler::TotalSuccessTxnNUm(0), EpochMessageSendHandler::TotalSuccessLatency(0);
     std::vector<std::unique_ptr<std::atomic<uint64_t>>> EpochMessageSendHandler::sharding_send_epoch,
@@ -18,7 +20,8 @@ namespace Taas {
             EpochMessageSendHandler::abort_sent_epoch = 1,
             EpochMessageSendHandler::insert_set_sent_epoch = 1, EpochMessageSendHandler::abort_set_sent_epoch = 1;
 
-    void EpochMessageSendHandler::StaticInit(const Context& ctx) {
+    void EpochMessageSendHandler::StaticInit(const Context& _ctx) {
+        ctx = _ctx;
         sharding_send_epoch.resize(ctx.kTxnNodeNum);
         backup_send_epoch.resize(ctx.kTxnNodeNum);
         abort_set_send_epoch.resize(ctx.kTxnNodeNum);
@@ -41,19 +44,13 @@ namespace Taas {
  * @param txn 等待回复给client的事务
  * @param txn_state 告诉client此txn的状态(Success or Abort)
  */
-bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, std::shared_ptr<proto::Transaction> txn_ptr, proto::TxnState txn_state) {
-//        return true; ///test
-        //不是本地事务不进行回复
+bool EpochMessageSendHandler::SendTxnCommitResultToClient(const std::shared_ptr<proto::Transaction>& txn_ptr, proto::TxnState txn_state) {
         if(txn_ptr->server_id() != ctx.txn_node_ip_index) return true;
-
-        // 设置txn的状态并创建proto对象
         txn_ptr->set_txn_state(txn_state);
         auto msg = std::make_unique<proto::Message>();
         auto rep = msg->mutable_reply_txn_result_to_client();
         rep->set_txn_state(txn_state);
         rep->set_client_txn_id(txn_ptr->client_txn_id());
-
-        // 将Transaction使用protobuf进行序列化，序列化的结果在serialized_txn_str_ptr中
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());
         auto tim = now_to_us() - txn_ptr->csn();
@@ -63,45 +60,45 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, st
             TotalSuccessLatency.fetch_add(tim);
             TotalSuccessTxnNUm.fetch_add(1);
         }
-//        printf("Taas Totallatency %lu TotalNum %lu avg %f\n", TotalLatency.load(), TotalTxnNum.load(), (((double)TotalLatency.load()) / ((double)TotalTxnNum.load())));
-        // 将序列化的Transaction放到send_to_client_queue中，等待发送给client
         MessageQueue::send_to_client_queue->enqueue(std::make_unique<send_params>(txn_ptr->client_txn_id(), txn_ptr->csn(), txn_ptr->client_ip(), txn_ptr->commit_epoch(), proto::TxnType::CommittedTxn, std::move(serialized_txn_str_ptr), nullptr));
         return MessageQueue::send_to_client_queue->enqueue(std::make_unique<send_params>(0, 0, "", 0, proto::TxnType::NullMark, nullptr, nullptr));
     }
 
-    bool EpochMessageSendHandler::SendTxnToServer(const Context& ctx, uint64_t &epoch, uint64_t &to_whom, std::shared_ptr<proto::Transaction> txn_ptr, proto::TxnType txn_type) {
-        auto pack_param = std::make_unique<pack_params>(to_whom, 0, "", epoch, txn_type, nullptr);
-        switch (txn_type) {
-            case proto::TxnType::RemoteServerTxn : {
-                return SendRemoteServerTxn(ctx, epoch, to_whom, txn_ptr, txn_type);
+    bool EpochMessageSendHandler::SendTxnToServer(uint64_t &epoch, uint64_t &to_whom, const std::shared_ptr<proto::Transaction>& txn_ptr, proto::TxnType txn_type) {
+        if(ctx.kTxnNodeNum > 1) {
+            auto pack_param = std::make_unique<pack_params>(to_whom, 0, "", epoch, txn_type, nullptr);
+            switch (txn_type) {
+                case proto::TxnType::RemoteServerTxn : {
+                    return SendRemoteServerTxn(epoch, to_whom, txn_ptr, txn_type);
+                }
+                case proto::TxnType::BackUpTxn : {
+                    return EpochMessageSendHandler::SendBackUpTxn(epoch, txn_ptr, txn_type);
+                }
+                case proto::TxnType::BackUpACK :
+                case proto::TxnType::AbortSetACK :
+                case proto::TxnType::InsertSetACK :
+                case proto::TxnType::EpochShardingACK : {
+                    return SendACK(epoch, to_whom, txn_type);
+                }
+                case proto::TxnType::EpochLogPushDownComplete : {
+                    return SendMessageToAll(epoch, txn_type);
+                }
+                case proto::NullMark:
+                case proto::TxnType_INT_MIN_SENTINEL_DO_NOT_USE_:
+                case proto::TxnType_INT_MAX_SENTINEL_DO_NOT_USE_:
+                case proto::ClientTxn:
+                case proto::EpochEndFlag:
+                case proto::CommittedTxn:
+                case proto::BackUpEpochEndFlag:
+                case proto::AbortSet:
+                case proto::InsertSet:
+                    break;
             }
-            case proto::TxnType::BackUpTxn : {
-                return EpochMessageSendHandler::SendBackUpTxn(ctx, epoch, txn_ptr, txn_type);
-            }
-            case proto::TxnType::BackUpACK :
-            case proto::TxnType::AbortSetACK :
-            case proto::TxnType::InsertSetACK :
-            case proto::TxnType::EpochShardingACK : {
-                return SendACK(ctx, epoch, to_whom, txn_type);
-            }
-            case  proto::TxnType::EpochLogPushDownComplete : {
-                return SendMessageToAll(ctx, epoch, txn_type);
-            }
-            case proto::NullMark:
-            case proto::TxnType_INT_MIN_SENTINEL_DO_NOT_USE_:
-            case proto::TxnType_INT_MAX_SENTINEL_DO_NOT_USE_:
-            case proto::ClientTxn:
-            case proto::EpochEndFlag:
-            case proto::CommittedTxn:
-            case proto::BackUpEpochEndFlag:
-            case proto::AbortSet:
-            case proto::InsertSet:
-                break;
         }
         return true;
     }
 
-    bool EpochMessageSendHandler::SendRemoteServerTxn(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, std::shared_ptr<proto::Transaction> txn_ptr, proto::TxnType txn_type) {
+    bool EpochMessageSendHandler::SendRemoteServerTxn(uint64_t& epoch, uint64_t& to_whom, const std::shared_ptr<proto::Transaction>& txn_ptr, proto::TxnType txn_type) {
         auto msg = std::make_unique<proto::Message>();
         auto* txn_temp = msg->mutable_txn();
         *(txn_temp) = *txn_ptr;
@@ -109,19 +106,20 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, st
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());
         assert(!serialized_txn_str_ptr->empty());
-        if(ctx.taas_mode == TaasMode::MultiMaster) {
-            MessageQueue::send_to_server_pub_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, txn_type, std::move(serialized_txn_str_ptr), nullptr));
-            return MessageQueue::send_to_server_pub_queue->enqueue( std::make_unique<send_params>(0, 0, "",epoch, proto::TxnType::NullMark,
-                                                                                              nullptr, nullptr));
-        }
-        else {
-            MessageQueue::send_to_server_queue->enqueue( std::make_unique<send_params>(to_whom, 0, "",epoch, txn_type, std::move(serialized_txn_str_ptr), nullptr));
-            return MessageQueue::send_to_server_queue->enqueue( std::make_unique<send_params>(0, 0, "",epoch, proto::TxnType::NullMark,
-                                                                                              nullptr, nullptr));
+        if (ctx.taas_mode == TaasMode::MultiMaster) {
+            MessageQueue::send_to_server_pub_queue->enqueue(
+                    std::make_unique<send_params>(0, 0, "", epoch, txn_type, std::move(serialized_txn_str_ptr),nullptr));
+            return MessageQueue::send_to_server_pub_queue->enqueue(
+                    std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark,nullptr, nullptr));
+        } else {
+            MessageQueue::send_to_server_queue->enqueue(
+                    std::make_unique<send_params>(to_whom, 0, "", epoch, txn_type,std::move(serialized_txn_str_ptr), nullptr));
+            return MessageQueue::send_to_server_queue->enqueue(
+                    std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark,nullptr, nullptr));
         }
     }
 
-    bool EpochMessageSendHandler::SendBackUpTxn(const Context &ctx, uint64_t& epoch, std::shared_ptr<proto::Transaction> txn_ptr, proto::TxnType txn_type) {
+    bool EpochMessageSendHandler::SendBackUpTxn(uint64_t& epoch, const std::shared_ptr<proto::Transaction>& txn_ptr, proto::TxnType txn_type) {
         auto msg = std::make_unique<proto::Message>();
         auto* txn_temp = msg->mutable_txn();
         *(txn_temp) = *txn_ptr;
@@ -129,11 +127,11 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, st
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());
         assert(!serialized_txn_str_ptr->empty());
-        MessageQueue::send_to_server_pub_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, txn_type, std::move(serialized_txn_str_ptr), nullptr));
+        MessageQueue::send_to_server_pub_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, txn_type, std::move(serialized_txn_str_ptr),nullptr));
         return MessageQueue::send_to_server_pub_queue->enqueue(std::make_unique<send_params>(0, 0, "",epoch, proto::TxnType::NullMark,nullptr, nullptr));
     }
 
-    bool EpochMessageSendHandler::SendACK(const Context &ctx, uint64_t &epoch, uint64_t &to_whom, proto::TxnType txn_type) {
+    bool EpochMessageSendHandler::SendACK(uint64_t &epoch, uint64_t &to_whom, proto::TxnType txn_type) {
         if(to_whom == ctx.txn_node_ip_index) return true;
         auto msg = std::make_unique<proto::Message>();
         auto* txn_end = msg->mutable_txn();
@@ -144,11 +142,11 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, st
         std::vector<std::string> keys, values;
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());
-        MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_whom, 0, "", epoch, txn_type, std::move(serialized_txn_str_ptr), nullptr));
+        MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(to_whom, 0, "", epoch, txn_type, std::move(serialized_txn_str_ptr),nullptr));
         return MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
     }
 
-    bool EpochMessageSendHandler::SendMessageToAll(const Context &ctx, uint64_t& epoch, proto::TxnType txn_type) {
+    bool EpochMessageSendHandler::SendMessageToAll(uint64_t& epoch, proto::TxnType txn_type) {
         auto msg = std::make_unique<proto::Message>();
         auto* txn_end = msg->mutable_txn();
         txn_end->set_server_id(ctx.txn_node_ip_index);
@@ -157,7 +155,9 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, st
         txn_end->set_sharding_id(0);
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());
-        MessageQueue::send_to_server_pub_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, txn_type, std::move(serialized_txn_str_ptr), nullptr));
+        MessageQueue::send_to_server_pub_queue->enqueue(
+                std::make_unique<send_params>(0, 0, "", epoch, txn_type, std::move(serialized_txn_str_ptr),
+                                              nullptr));
         return MessageQueue::send_to_server_pub_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
     }
 
@@ -187,8 +187,7 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, st
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());
         MessageQueue::send_to_server_pub_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::BackUpEpochEndFlag, std::move(serialized_txn_str_ptr), nullptr));
-        MessageQueue::send_to_server_pub_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
-        return true;
+        return MessageQueue::send_to_server_pub_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
     }
 
     bool EpochMessageSendHandler::SendAbortSet(const uint64_t &txn_node_ip_index, const uint64_t epoch, const uint64_t &kCacheMaxLength) {
@@ -208,81 +207,7 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, st
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());
         MessageQueue::send_to_server_pub_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::AbortSet, std::move(serialized_txn_str_ptr), nullptr));
-        MessageQueue::send_to_server_pub_queue->enqueue( std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
-        return true;
-    }
-
-
-    bool EpochMessageSendHandler::SendEpochEndMessage(const Context &ctx) {
-        auto sleep_flag = false;
-        for(uint64_t server_id = 0; server_id < ctx.kTxnNodeNum; server_id ++) { /// send to everyone  sharding_num == TxnNodeNum
-            ///检查当前server(sharding_id)的第send_epoch的endFlag是否能够发送
-            if (server_id == ctx.txn_node_ip_index) continue;
-            auto epoch = sharding_send_epoch[server_id]->load();
-            if(EpochMessageReceiveHandler::IsShardingSendFinish(epoch, server_id)) {
-                auto msg = std::make_unique<proto::Message>();
-                auto *txn_end = msg->mutable_txn();
-                txn_end->set_server_id(ctx.txn_node_ip_index);
-                txn_end->set_txn_type(proto::TxnType::EpochEndFlag);
-                txn_end->set_commit_epoch(epoch);
-                txn_end->set_sharding_id(server_id);
-                txn_end->set_csn(EpochMessageReceiveHandler::sharding_should_send_txn_num.GetCount(epoch)); /// 不同server由不同的数量
-                auto serialized_txn_str_ptr = std::make_unique<std::string>();
-                Gzip(msg.get(), serialized_txn_str_ptr.get());
-                MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(server_id, 0, "", epoch,proto::TxnType::EpochEndFlag,std::move(serialized_txn_str_ptr),nullptr));
-                MessageQueue::send_to_server_queue->enqueue(std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark,nullptr, nullptr));
-                sharding_send_epoch[server_id]->fetch_add(1);
-                sleep_flag = true;
-            }
-        }
-        return sleep_flag;
-    }
-
-    bool EpochMessageSendHandler::SendBackUpEpochEndMessage(const Context &ctx) {
-        auto sleep_flag = false;
-        if(EpochMessageReceiveHandler::IsBackUpSendFinish(backup_sent_epoch)) {
-            auto msg = std::make_unique<proto::Message>();
-            auto* txn_end = msg->mutable_txn();
-            txn_end->set_server_id(ctx.txn_node_ip_index);
-            txn_end->set_txn_type(proto::TxnType::BackUpEpochEndFlag);
-            txn_end->set_commit_epoch(backup_sent_epoch);
-            txn_end->set_sharding_id(0);
-            txn_end->set_csn(static_cast<uint64_t>(EpochMessageReceiveHandler::backup_should_send_txn_num.GetCount(backup_sent_epoch)));
-            auto serialized_txn_str_ptr = std::make_unique<std::string>();
-            Gzip(msg.get(), serialized_txn_str_ptr.get());
-            MessageQueue::send_to_server_pub_queue->enqueue(std::make_unique<send_params>(0, 0, "", backup_sent_epoch, proto::TxnType::BackUpEpochEndFlag, std::move(serialized_txn_str_ptr), nullptr));
-            MessageQueue::send_to_server_pub_queue->enqueue(std::make_unique<send_params>(0, 0, "", backup_sent_epoch, proto::TxnType::NullMark, nullptr, nullptr));
-            backup_sent_epoch ++;
-            sleep_flag = true;
-        }
-        return sleep_flag;
-    }
-
-    bool EpochMessageSendHandler::SendAbortSet(const Context &ctx) {
-        auto sleep_flag = false;
-        if (EpochManager::IsShardingMergeComplete(abort_sent_epoch)) {
-            auto time1 = now_to_us();
-            auto msg = std::make_unique<proto::Message>();
-            auto *txn_end = msg->mutable_txn();
-            txn_end->set_server_id(ctx.txn_node_ip_index);
-            txn_end->set_txn_type(proto::TxnType::AbortSet);
-            txn_end->set_commit_epoch(abort_sent_epoch);
-            txn_end->set_sharding_id(0);
-            std::vector<std::string> keys, values;
-            Merger::local_epoch_abort_txn_set[abort_sent_epoch % ctx.kCacheMaxLength]->getValue(keys, values);
-            for (uint64_t i = 0; i < keys.size(); i++) {
-                auto row = txn_end->add_row();
-                row->set_key(keys[i]);
-                row->set_data(values[i]);
-            }
-            auto serialized_txn_str_ptr = std::make_unique<std::string>();
-            Gzip(msg.get(), serialized_txn_str_ptr.get());
-            MessageQueue::send_to_server_pub_queue->enqueue(std::make_unique<send_params>(0, 0, "", abort_sent_epoch, proto::TxnType::AbortSet, std::move(serialized_txn_str_ptr), nullptr));
-            MessageQueue::send_to_server_pub_queue->enqueue( std::make_unique<send_params>(0, 0, "", abort_sent_epoch, proto::TxnType::NullMark, nullptr, nullptr));
-            abort_sent_epoch ++;
-            sleep_flag = true;
-        }
-        return sleep_flag;
+        return MessageQueue::send_to_server_pub_queue->enqueue( std::make_unique<send_params>(0, 0, "", epoch, proto::TxnType::NullMark, nullptr, nullptr));
     }
 
 }

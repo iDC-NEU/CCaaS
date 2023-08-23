@@ -224,8 +224,7 @@ namespace Taas {
                 sharding_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 sharding_received_pack_num.IncCount(message_epoch,message_server_id, 1);
                 CheckEpochShardingReceiveComplete(ctx,message_epoch);
-                EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch,
-                                                         message_server_id, empty_txn_ptr, proto::TxnType::EpochShardingACK);
+                EpochMessageSendHandler::SendTxnToServer(message_epoch,message_server_id, empty_txn_ptr, proto::TxnType::EpochShardingACK);
                 break;
             }
             case proto::TxnType::BackUpTxn : {
@@ -237,8 +236,7 @@ namespace Taas {
             case proto::TxnType::BackUpEpochEndFlag : {
                 backup_should_receive_txn_num.IncCount(message_epoch,message_server_id,txn_ptr->csn());
                 backup_received_pack_num.IncCount(message_epoch,message_server_id, 1);
-                EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch,
-                                                         message_server_id, empty_txn_ptr, proto::TxnType::BackUpACK);
+                EpochMessageSendHandler::SendTxnToServer(message_epoch,message_server_id, empty_txn_ptr, proto::TxnType::BackUpACK);
                 break;
             }
             case proto::TxnType::AbortSet : {
@@ -247,8 +245,7 @@ namespace Taas {
 //                epoch_abort_set[message_epoch_mod]->enqueue(nullptr);
                 abort_set_received_num.IncCount(message_epoch,message_server_id, 1);
                 ///send abort set ack
-                EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch,
-                            message_server_id, empty_txn_ptr, proto::TxnType::AbortSetACK);
+                EpochMessageSendHandler::SendTxnToServer(message_epoch,message_server_id, empty_txn_ptr, proto::TxnType::AbortSetACK);
                 break;
             }
             case proto::TxnType::InsertSet : {
@@ -256,8 +253,7 @@ namespace Taas {
 //                epoch_insert_set[message_epoch_mod]->enqueue(nullptr);
                 insert_set_received_num.IncCount(message_epoch,message_server_id, 1);
                 ///send insert set ack
-                EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch,
-                            message_server_id, empty_txn_ptr, proto::TxnType::InsertSetACK);
+                EpochMessageSendHandler::SendTxnToServer(message_epoch, message_server_id, empty_txn_ptr, proto::TxnType::InsertSetACK);
                 break;
             }
             case proto::TxnType::EpochShardingACK : {
@@ -324,13 +320,13 @@ namespace Taas {
                     }
                     else {
                         sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
-                        EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, i, sharding_row_vector[i], proto::TxnType::RemoteServerTxn);
+                        EpochMessageSendHandler::SendTxnToServer(message_epoch, i, sharding_row_vector[i], proto::TxnType::RemoteServerTxn);
                         sharding_send_txn_num.IncCount(message_epoch, i, 1);
                     }
                 }
             }
             backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-            EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, message_server_id, txn_ptr, proto::TxnType::BackUpTxn);
+            EpochMessageSendHandler::SendTxnToServer(message_epoch, message_server_id, txn_ptr, proto::TxnType::BackUpTxn);
             backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
 //            epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
 //            epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
@@ -341,7 +337,7 @@ namespace Taas {
             Merger::MergeQueueEnqueue(ctx, message_epoch, txn_ptr);
             sharding_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
             backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-            EpochMessageSendHandler::SendTxnToServer(ctx, message_epoch, ctx.txn_node_ip_index, txn_ptr, proto::TxnType::RemoteServerTxn);
+            EpochMessageSendHandler::SendTxnToServer(message_epoch, ctx.txn_node_ip_index, txn_ptr, proto::TxnType::RemoteServerTxn);
             sharding_send_txn_num.IncCount(message_epoch, 0, 1);
             backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
 //            epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);

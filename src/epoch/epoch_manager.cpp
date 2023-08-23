@@ -206,8 +206,7 @@ namespace Taas {
             while(i >= commit_epoch.load()) usleep(logical_sleep_timme);
             while(!EpochManager::IsCommitComplete(i)) usleep(logical_sleep_timme);
             while(!RedoLoger::CheckPushDownComplete(ctx, i)) usleep(logical_sleep_timme);
-            EpochMessageSendHandler::SendTxnToServer(ctx, i,
-                                                     i, empty_txn_ptr, proto::TxnType::EpochLogPushDownComplete);
+            EpochMessageSendHandler::SendTxnToServer(i,i, empty_txn_ptr, proto::TxnType::EpochLogPushDownComplete);
             while(!EpochMessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(ctx, i)) usleep(logical_sleep_timme);
 
             {

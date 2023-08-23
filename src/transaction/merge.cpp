@@ -145,7 +145,7 @@ namespace Taas {
         if (!CRDTMerge::ValidateWriteSet(ctx, txn_ptr)) {
             auto key = std::to_string(txn_ptr->client_txn_id());
             total_failed_txn_num.fetch_add(1);
-            EpochMessageSendHandler::SendTxnCommitResultToClient(ctx, txn_ptr, proto::TxnState::Abort);
+            EpochMessageSendHandler::SendTxnCommitResultToClient(txn_ptr, proto::TxnState::Abort);
         } else {
             epoch_record_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
             CRDTMerge::Commit(ctx, txn_ptr);
@@ -155,7 +155,7 @@ namespace Taas {
             epoch_record_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
             success_commit_txn_num.fetch_add(1);
             success_commit_latency.fetch_add(now_to_us() - time1);
-            EpochMessageSendHandler::SendTxnCommitResultToClient(ctx, txn_ptr, proto::TxnState::Commit);
+            EpochMessageSendHandler::SendTxnCommitResultToClient(txn_ptr, proto::TxnState::Commit);
         }
         total_commit_txn_num.fetch_add(1);
         total_commit_latency.fetch_add(now_to_us() - time1);
