@@ -12,6 +12,9 @@
 #include "storage/tikv.h"
 #include "test/test.h"
 
+#include "workload/multi_model_workload.h"
+#include "workload/worker.h"
+
 #include <glog/logging.h>
 
 #include <iostream>
@@ -126,8 +129,12 @@ namespace Taas {
             LevelDBServer(ctx);
         }
         else if(ctx.server_type == ServerMode::HBase) { ///hbase server
-
+            //do nothing
         }
+        else if(ctx.server_type == ServerMode::MultiModelTest) { ///hbase server
+            workload::main();
+        }
+
 
         if(ctx.kDurationTime_us != 0) {
             while(!test_start.load()) usleep(sleep_time);

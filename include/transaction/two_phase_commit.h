@@ -19,7 +19,7 @@ namespace Taas {
         static concurrent_unordered_map<std::string, std::unique_ptr<uint64_t>> row_lock_map;   /// key, tid
         static concurrent_unordered_map<std::string, std::unique_ptr<TwoPCTxnStateStruct>> txn_state_map;   /// tid, txn struct
 
-        static bool Init(const Taas::Context &ctx_, uint64_t id);
+        static bool Init(uint64_t id);
         static bool HandleReceivedMessage();
         static bool HandleReceivedTxn();
         static bool SetMessageRelatedCountersInfo();

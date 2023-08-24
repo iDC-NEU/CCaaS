@@ -10,10 +10,11 @@
 #include "storage/mot.h"
 
 namespace Taas {
-
+    Context RedoLoger::ctx;
     AtomicCounters RedoLoger::epoch_log_lsn(10);
     std::vector<std::unique_ptr<concurrent_unordered_map<std::string, std::shared_ptr<proto::Transaction>>>> RedoLoger::committed_txn_cache;
-    void RedoLoger::StaticInit(const Context& ctx) {
+    void RedoLoger::StaticInit(const Context& ctx_) {
+        ctx = ctx_;
         auto max_length = ctx.kCacheMaxLength;
         epoch_log_lsn.Init(max_length);
         committed_txn_cache.resize(max_length);
@@ -32,7 +33,7 @@ namespace Taas {
         MOT::StaticInit(ctx);
     }
 
-    void RedoLoger::ClearRedoLog(const Context& ctx, uint64_t& epoch) {
+    void RedoLoger::ClearRedoLog(uint64_t& epoch) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         committed_txn_cache[epoch_mod]->clear();
 //        committed_txn_cache[epoch_mod] = std::make_unique<concurrent_unordered_map<std::string, std::shared_ptr<proto::Transaction>>>();
@@ -52,7 +53,7 @@ namespace Taas {
     }
 
 
-    bool RedoLoger::RedoLog(const Context& ctx, std::shared_ptr<proto::Transaction> txn_ptr) {
+    bool RedoLoger::RedoLog(std::shared_ptr<proto::Transaction> txn_ptr) {
         uint64_t epoch_id = txn_ptr->commit_epoch();
         auto lsn = epoch_log_lsn.IncCount(epoch_id, 1);
         auto key = std::to_string(epoch_id) + ":" + std::to_string(lsn);
@@ -73,7 +74,7 @@ namespace Taas {
         return true;
     }
 
-    bool RedoLoger::GeneratePushDownTask(const Context &ctx, const uint64_t &epoch) {
+    bool RedoLoger::GeneratePushDownTask(const uint64_t &epoch) {
         if(ctx.is_mot_enable) {
             MOT::GeneratePushDownTask(epoch);
         }
@@ -89,7 +90,7 @@ namespace Taas {
         return true;
     }
 
-    bool RedoLoger::CheckPushDownComplete(const Context &ctx, const uint64_t &epoch) {
+    bool RedoLoger::CheckPushDownComplete(const uint64_t &epoch) {
         return (ctx.is_mot_enable == 0 || MOT::CheckEpochPushDownComplete(epoch))
             && (ctx.is_tikv_enable == 0 || TiKV::CheckEpochPushDownComplete(epoch))
             && (ctx.is_leveldb_enable == 0 || LevelDB::CheckEpochPushDownComplete(epoch))

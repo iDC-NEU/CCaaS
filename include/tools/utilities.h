@@ -19,6 +19,7 @@
 #include <csignal>
 #include <sched.h>
 #include <thread>
+#include <random>
 
 namespace Taas {
 #define UNUSED_VALUE(v) (void)(v);
@@ -34,6 +35,10 @@ namespace Taas {
     void SetScheduling(std::thread &th, int policy, int priority);
 
     uint64_t now_to_us();
+
+    std::string RandomString(int length);
+
+    uint64_t RandomNumber(uint64_t minn,uint64_t maxx);
 }
 
 

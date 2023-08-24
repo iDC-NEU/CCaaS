@@ -33,7 +33,7 @@ namespace Taas {
             epoch_redo_log_queue[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
         }
         brpc::ChannelOptions options;
-        channel.Init(ctx.kLevevDBIP.c_str(), &options);
+        channel.Init(ctx.kLevelDBIP.c_str(), &options);
     }
 
     void LevelDB::StaticClear(const uint64_t &epoch) {
@@ -54,7 +54,7 @@ namespace Taas {
     void LevelDB::SendTransactionToDB_Usleep() {
         brpc::Channel chan;
         brpc::ChannelOptions options;
-        chan.Init(ctx.kLevevDBIP.c_str(), &options);
+        chan.Init(ctx.kLevelDBIP.c_str(), &options);
         std::shared_ptr<proto::Transaction> txn_ptr;
         proto::KvDBPutService_Stub put_stub(&chan);
         proto::KvDBGetService_Stub get_stub(&chan);
@@ -116,7 +116,7 @@ namespace Taas {
     void LevelDB::SendTransactionToDB_Block() {
         brpc::Channel chan;
         brpc::ChannelOptions options;
-        chan.Init(ctx.kLevevDBIP.c_str(), &options);
+        chan.Init(ctx.kLevelDBIP.c_str(), &options);
         std::shared_ptr<proto::Transaction> txn_ptr;
         proto::KvDBPutService_Stub put_stub(&chan);
         proto::KvDBGetService_Stub get_stub(&chan);

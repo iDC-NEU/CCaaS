@@ -12,7 +12,7 @@ namespace Taas {
     class MultiMasterEpochManager {
     public:
         static bool CheckEpochMergeState(const Context& ctx);
-        static bool CheckEpochAbortMergeState(const Context& ctx);
+        static bool CheckEpochAbortMergeState();
         static bool CheckEpochCommitState(const Context& ctx);
 
         static void EpochLogicalTimerManagerThreadMain(const Context &ctx);

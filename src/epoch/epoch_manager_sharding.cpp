@@ -22,11 +22,11 @@ namespace Taas {
         auto i = merge_epoch.load();
         while(i < EpochManager::GetPhysicalEpoch() &&
               (ctx.kTxnNodeNum == 1 ||
-               (EpochMessageReceiveHandler::CheckEpochShardingSendComplete(ctx, i) &&
-                       EpochMessageReceiveHandler::CheckEpochShardingReceiveComplete(ctx, i) &&
-                       EpochMessageReceiveHandler::CheckEpochBackUpComplete(ctx, i))
+               (EpochMessageReceiveHandler::CheckEpochShardingSendComplete(i) &&
+                       EpochMessageReceiveHandler::CheckEpochShardingReceiveComplete(i) &&
+                       EpochMessageReceiveHandler::CheckEpochBackUpComplete(i))
               ) &&
-              Merger::CheckEpochMergeComplete(ctx, i)
+              Merger::CheckEpochMergeComplete(i)
                 ) {
             EpochManager::SetShardingMergeComplete(i, true);
             merge_epoch.fetch_add(1);
@@ -42,7 +42,7 @@ namespace Taas {
         if(i >= merge_epoch.load() && commit_epoch.load() >= abort_set_epoch.load()) return false;
         if(EpochManager::IsAbortSetMergeComplete(i)) return true;
         if( i < merge_epoch.load()  && EpochManager::IsShardingMergeComplete(i) &&
-            (ctx.kTxnNodeNum == 1 || EpochMessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, i))) {
+            (ctx.kTxnNodeNum == 1 || EpochMessageReceiveHandler::CheckEpochAbortSetMergeComplete(i))) {
 
             EpochManager::SetAbortSetMergeComplete(i, true);
             abort_set_epoch.fetch_add(1);
@@ -59,7 +59,7 @@ namespace Taas {
         auto i = commit_epoch.load();
         if( i < abort_set_epoch.load() && EpochManager::IsShardingMergeComplete(i) &&
             EpochManager::IsAbortSetMergeComplete(i) &&
-            Merger::CheckEpochCommitComplete(ctx, i)
+            Merger::CheckEpochCommitComplete(i)
                 ) {
             EpochManager::SetCommitComplete(i, true);
             auto epoch_commit_success_txn_num = Merger::epoch_record_committed_txn_num.GetCount(i);
@@ -76,7 +76,6 @@ namespace Taas {
                                             (((double)EpochMessageSendHandler::TotalLatency.load()) / ((double)EpochMessageSendHandler::TotalTxnNum.load())));
             }
             last_total_commit_txn_num = EpochMessageSendHandler::TotalTxnNum.load();
-            i ++;
             commit_epoch.fetch_add(1);
             EpochManager::AddLogicalEpoch();
             return true;
@@ -88,7 +87,7 @@ namespace Taas {
     void ShardingEpochManager::EpochLogicalTimerManagerThreadMain(const Context& ctx) {
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         uint64_t epoch = 1;
-        OUTPUTLOG(ctx, "===== Start Epoch的合并 ===== ", epoch);
+        OUTPUTLOG("===== Start Epoch的合并 ===== ", epoch);
         util::thread_pool_light workers(ctx.kMergeThreadNum);
         if(ctx.kTxnNodeNum > 1) {
             while(!EpochManager::IsTimerStop()){
@@ -100,29 +99,29 @@ namespace Taas {
                     EpochMessageSendHandler::SendEpochEndMessage(ctx.txn_node_ip_index, epoch, ctx.kTxnNodeNum);
                 });
 //                LOG(INFO) << "**** finished IsShardingSendFinish : " << epoch << "****\n";
-                while(!EpochMessageReceiveHandler::IsShardingACKReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
+                while(!EpochMessageReceiveHandler::IsShardingACKReceiveComplete(epoch)) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** finished IsShardingACKReceiveComplete : " << epoch << "****\n";
-                while(!EpochMessageReceiveHandler::CheckEpochShardingSendComplete(ctx, epoch)) usleep(logical_sleep_timme);
-                auto time2 = now_to_us();
+                while(!EpochMessageReceiveHandler::CheckEpochShardingSendComplete(epoch)) usleep(logical_sleep_timme);
+//                auto time2 = now_to_us();
 //                LOG(INFO) << "**** Finished CheckEpochShardingSendComplete Epoch : " << epoch << ",time cost : " << time2 - time1 << "****\n";
 
-                while(!EpochMessageReceiveHandler::IsShardingPackReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
+                while(!EpochMessageReceiveHandler::IsShardingPackReceiveComplete(epoch)) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** finished IsShardingPackReceiveComplete : " << epoch << "****\n";
-                while(!EpochMessageReceiveHandler::IsShardingTxnReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
+                while(!EpochMessageReceiveHandler::IsShardingTxnReceiveComplete(epoch)) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** finished IsShardingTxnReceiveComplete : " << epoch << "****\n";
-                while(!EpochMessageReceiveHandler::CheckEpochShardingReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
-                auto time3 = now_to_us();
+                while(!EpochMessageReceiveHandler::CheckEpochShardingReceiveComplete(epoch)) usleep(logical_sleep_timme);
+//                auto time3 = now_to_us();
 //                LOG(INFO) << "**** Finished CheckEpochShardingReceiveComplete Epoch : " << epoch << ",time cost : " << time3 - time2 << "****\n";
 
-                while(!EpochMessageReceiveHandler::IsBackUpACKReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
+                while(!EpochMessageReceiveHandler::IsBackUpACKReceiveComplete(epoch)) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** finished IsBackUpACKReceiveComplete : " << epoch << "****\n";
                 while(!EpochMessageReceiveHandler::IsBackUpSendFinish(epoch)) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** finished IsBackUpSendFinish : " << epoch << "****\n";
-                while(!EpochMessageReceiveHandler::CheckEpochBackUpComplete(ctx, epoch)) usleep(logical_sleep_timme);
-                auto time4 = now_to_us();
+                while(!EpochMessageReceiveHandler::CheckEpochBackUpComplete(epoch)) usleep(logical_sleep_timme);
+//                auto time4 = now_to_us();
 //                LOG(INFO) << "**** Finished CheckEpochBackUpComplete Epoch : " << epoch << ",time cost : " << time4 - time3 << "****\n";
 
-                while(!Merger::CheckEpochMergeComplete(ctx, epoch)) usleep(logical_sleep_timme);
+                while(!Merger::CheckEpochMergeComplete(epoch)) usleep(logical_sleep_timme);
                 EpochManager::SetShardingMergeComplete(epoch, true);
                 workers.push_emergency_task([epoch, &ctx] () {
                     EpochMessageSendHandler::SendAbortSet(ctx.txn_node_ip_index, epoch, ctx.kTxnNodeNum);
@@ -131,18 +130,18 @@ namespace Taas {
                 auto time5 = now_to_us();
 //                LOG(INFO) << "**** Finished Epoch Merge Epoch : " << epoch << ",time cost : " << time5 - time1 << ",rest time cost : " << time5 - time4 << "****\n";
 
-                while(!EpochMessageReceiveHandler::IsAbortSetACKReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
+                while(!EpochMessageReceiveHandler::IsAbortSetACKReceiveComplete(epoch)) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** finished IsAbortSetACKReceiveComplete : " << epoch << "****\n";
-                while(!EpochMessageReceiveHandler::IsAbortSetReceiveComplete(ctx, epoch)) usleep(logical_sleep_timme);
+                while(!EpochMessageReceiveHandler::IsAbortSetReceiveComplete(epoch)) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** finished IsAbortSetReceiveComplete : " << epoch << "****\n";
-                while(!EpochMessageReceiveHandler::CheckEpochAbortSetMergeComplete(ctx, epoch)) usleep(logical_sleep_timme);
+                while(!EpochMessageReceiveHandler::CheckEpochAbortSetMergeComplete(epoch)) usleep(logical_sleep_timme);
                 EpochManager::SetAbortSetMergeComplete(epoch, true);
                 abort_set_epoch.fetch_add(1);
                 auto time6 = now_to_us();
 //                LOG(INFO) << "******* Finished Abort Set Merge Epoch : " << epoch << ",time cost : " << time6 - time5 << "********\n";
 
 
-                while(!Merger::CheckEpochCommitComplete(ctx, epoch)) usleep(logical_sleep_timme);
+                while(!Merger::CheckEpochCommitComplete(epoch)) usleep(logical_sleep_timme);
                 EpochManager::SetCommitComplete(epoch, true);
                 commit_epoch.fetch_add(1);
                 EpochManager::AddLogicalEpoch();
@@ -168,7 +167,7 @@ namespace Taas {
                 auto time1 = now_to_us();
                 while(epoch >= EpochManager::GetPhysicalEpoch()) usleep(logical_sleep_timme);
 //                LOG(INFO) << "**** Start Epoch Merge Epoch : " << epoch << "****\n";
-                while(!Merger::CheckEpochMergeComplete(ctx, epoch)) usleep(logical_sleep_timme);
+                while(!Merger::CheckEpochMergeComplete(epoch)) usleep(logical_sleep_timme);
                 EpochManager::SetShardingMergeComplete(epoch, true);
                 merge_epoch.fetch_add(1);
                 auto time5 = now_to_us();
@@ -177,7 +176,7 @@ namespace Taas {
                 abort_set_epoch.fetch_add(1);
                 auto time6 = now_to_us();
 //                LOG(INFO) << "******* Finished Abort Set Merge Epoch : " << epoch << ",time cost : " << time6 - time5 << "********\n";
-                while(!Merger::CheckEpochCommitComplete(ctx, epoch)) usleep(logical_sleep_timme);
+                while(!Merger::CheckEpochCommitComplete(epoch)) usleep(logical_sleep_timme);
                 EpochManager::SetCommitComplete(epoch, true);
                 commit_epoch.fetch_add(1);
                 EpochManager::AddLogicalEpoch();

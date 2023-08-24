@@ -14,7 +14,7 @@ namespace Taas {
         brpc::Channel channel;
         brpc::ChannelOptions options;
         options.protocol = brpc::PROTOCOL_BAIDU_STD;
-        if (channel.Init(ctx.kLevevDBIP.c_str(), &options) != 0) {
+        if (channel.Init(ctx.kLevelDBIP.c_str(), &options) != 0) {
             LOG(ERROR) << "Fail to initialize channel";
             return;
         }

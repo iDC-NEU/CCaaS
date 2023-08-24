@@ -23,7 +23,8 @@ namespace Taas {
     enum ServerMode {
         Taas = 1,
         LevelDB = 2,
-        HBase = 3
+        HBase = 3,
+        MultiModelTest = 4
     };
     enum TaasMode {
         MultiMaster = 1,
@@ -60,7 +61,7 @@ namespace Taas {
 
         /// storage info
         bool is_tikv_enable = true, is_leveldb_enable = true, is_hbase_enable = true, is_mot_enable = true;
-        std::string kMasterIp, kPrivateIp, kTiKVIP, kLevevDBIP, kHbaseIP;
+        std::string kMasterIp, kPrivateIp, kTiKVIP, kLevelDBIP, kHbaseIP;
         uint64_t kTikvThreadNum = 10, kLeveldbThreadNum = 10, kHbaseTxnThreadNum = 10, kMOTThreadNum = 10;
 
 
@@ -69,7 +70,25 @@ namespace Taas {
 
         std::string Print();
     };
-}
 
+    class MultiModelContext {
+    public:
+
+        explicit MultiModelContext() {
+            GetMultiModelInfo("../MultiModel_config.xml");
+        }
+        explicit MultiModelContext(const std::string& MultiModel_config_file_path) {
+            GetMultiModelInfo(MultiModel_config_file_path);
+        }
+
+        std::string  kMultiModelClient, kTaasIP,
+                kNebulaIP, kNebulaSpace, kNebulaUser, kNebulaPwd,
+                kMOTIP, kMOTDsnName, kMOTDsnUid, kMOTDsnPwd;
+        uint64_t kTxnNum = 10000, kWriteNum = 100, kReadNum = 0,kPerOpNum = 10,kClientNum = 10;
+        bool isGenerateTxn = true , useMot = true,useNebula = true;
+
+        void GetMultiModelInfo(const std::string &config_file_path = "../MultiModel_config.xml");
+    };
+}
 
 #endif //TAAS_CONTEXT_H

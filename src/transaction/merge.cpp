@@ -9,7 +9,7 @@
 #include "storage/redo_loger.h"
 
 namespace Taas {
-
+    Context Merger::ctx;
     AtomicCounters_Cache
             Merger::epoch_should_merge_txn_num(10, 2),
             Merger::epoch_merged_txn_num(10, 2),
@@ -45,7 +45,8 @@ namespace Taas {
     std::condition_variable Merger::merge_cv, Merger::commit_cv;
 
 
-    void Merger::StaticInit(const Context &ctx) {
+    void Merger::StaticInit(const Context &ctx_) {
+        ctx = ctx_;
         auto max_length = ctx.kCacheMaxLength;
         auto pack_num = ctx.kIndexNum;
         ///epoch merge state
@@ -77,31 +78,30 @@ namespace Taas {
             epoch_merge_queue[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
             epoch_commit_queue[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
         }
-        RedoLoger::StaticInit(ctx);
     }
 
-    void Merger::MergeQueueEnqueue(const Context &ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
+    void Merger::MergeQueueEnqueue(uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_should_merge_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
         epoch_merge_queue[epoch_mod]->enqueue(txn_ptr);
         epoch_merge_queue[epoch_mod]->enqueue(nullptr);
     }
-    bool Merger::MergeQueueTryDequeue(const Context &ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
+    bool Merger::MergeQueueTryDequeue(uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr) {
         ///not use for now
         return false;
     }
-    void Merger::CommitQueueEnqueue(const Context& ctx, uint64_t& epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
+    void Merger::CommitQueueEnqueue(uint64_t& epoch, const std::shared_ptr<proto::Transaction>& txn_ptr) {
         epoch_should_commit_txn_num.IncCount(epoch, ctx.txn_node_ip_index, 1);
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_commit_queue[epoch_mod]->enqueue(txn_ptr);
         epoch_commit_queue[epoch_mod]->enqueue(nullptr);
     }
-    bool Merger::CommitQueueTryDequeue(const Context& ctx, uint64_t& epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
+    bool Merger::CommitQueueTryDequeue(uint64_t& epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         return epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr);
     }
 
-    void Merger::ClearMergerEpochState(const Context& ctx, uint64_t& epoch) {
+    void Merger::ClearMergerEpochState(uint64_t& epoch) {
         auto epoch_mod = epoch % ctx.kCacheMaxLength;
         epoch_merge_complete[epoch_mod]->store(false);
         epoch_commit_complete[epoch_mod]->store(false);
@@ -116,21 +116,20 @@ namespace Taas {
 //        epoch_commit_queue[epoch_mod] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
     }
 
-    void Merger::Init(const Context& ctx_, uint64_t id_) {
+    void Merger::Init(uint64_t id_) {
         txn_ptr.reset();
         thread_id = id_;
-        ctx = ctx_;
-        message_handler.Init(ctx, thread_id);
+        message_handler.Init(thread_id);
     }
 
     void Merger::Merge() {
         auto time1 = now_to_us();
         epoch = txn_ptr->commit_epoch();
-        if (!CRDTMerge::ValidateReadSet(ctx, txn_ptr)) {
+        if (!CRDTMerge::ValidateReadSet(txn_ptr)) {
             total_read_version_check_failed_txn_num.fetch_add(1);
             goto end;
         }
-        if (!CRDTMerge::MultiMasterCRDTMerge(ctx, txn_ptr)) {
+        if (!CRDTMerge::MultiMasterCRDTMerge(txn_ptr)) {
             goto end;
         }
         end:
@@ -142,15 +141,15 @@ namespace Taas {
     void Merger::Commit() {
         auto time1 = now_to_us();
         ///validation phase
-        if (!CRDTMerge::ValidateWriteSet(ctx, txn_ptr)) {
+        if (!CRDTMerge::ValidateWriteSet(txn_ptr)) {
             auto key = std::to_string(txn_ptr->client_txn_id());
             total_failed_txn_num.fetch_add(1);
             EpochMessageSendHandler::SendTxnCommitResultToClient(txn_ptr, proto::TxnState::Abort);
         } else {
             epoch_record_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-            CRDTMerge::Commit(ctx, txn_ptr);
+            CRDTMerge::Commit(txn_ptr);
             if(txn_ptr->server_id() == ctx.txn_node_ip_index) { /// only local txn do redo log
-                RedoLoger::RedoLog(ctx, txn_ptr);
+                RedoLoger::RedoLog(txn_ptr);
             }
             epoch_record_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
             success_commit_txn_num.fetch_add(1);

@@ -109,7 +109,7 @@ namespace Taas {
         is_leveldb_enable = std::stoull(leveldb->GetText());
         tinyxml2::XMLElement *leveldb_ip_port= root->FirstChildElement("leveldb_ip");
         auto leveldb_ip = leveldb_ip_port->GetText();
-        kLevevDBIP = std::string(leveldb_ip);
+        kLevelDBIP = std::string(leveldb_ip);
         tinyxml2::XMLElement* leveldb_thread_num = root->FirstChildElement("leveldb_thread_num");
         kLeveldbThreadNum = std::stoull(leveldb_thread_num->GetText());
 
@@ -121,5 +121,67 @@ namespace Taas {
         tinyxml2::XMLElement* hbase_thread_num = root->FirstChildElement("hbase_thread_num");
         kHbaseTxnThreadNum = std::stoull(hbase_thread_num->GetText());
 
+    }
+
+    void MultiModelContext::GetMultiModelInfo(const std::string &config_file_path) {
+        tinyxml2::XMLDocument doc;
+        doc.LoadFile("../MultiModelConfig.xml");
+        tinyxml2::XMLElement *root=doc.RootElement();
+
+        tinyxml2::XMLElement *multimodel_client = root->FirstChildElement("multimodel_client");
+        auto multimodel_clients = multimodel_client->GetText();
+        kMultiModelClient = std::string(multimodel_clients);
+
+        tinyxml2::XMLElement *taas_ip_port = root->FirstChildElement("taas_ip");
+        auto taas_ip = taas_ip_port->GetText();
+        kTaasIP = std::string(taas_ip);
+
+        tinyxml2::XMLElement *nebula_ip_port = root->FirstChildElement("nebula_ip");
+        auto nebula_ip = nebula_ip_port->GetText();
+        kNebulaIP = std::string(nebula_ip);
+
+        tinyxml2::XMLElement *nebula_user = root->FirstChildElement("nebula_user");
+        auto nebula_users = nebula_user->GetText();
+        kNebulaUser = std::string(nebula_users);
+
+        tinyxml2::XMLElement *nebula_pwd = root->FirstChildElement("nebula_pwd");
+        auto nebula_pwds = nebula_pwd->GetText();
+        kNebulaPwd = std::string(nebula_pwds);
+
+        tinyxml2::XMLElement *nebula_space = root->FirstChildElement("nebula_space");
+        auto nebula_spaces = nebula_space->GetText();
+        kNebulaSpace = std::string(nebula_spaces);
+
+        tinyxml2::XMLElement *mot_ip_port = root->FirstChildElement("mot_ip");
+        auto mot_ip = mot_ip_port->GetText();
+        kMOTIP = std::string(mot_ip);
+
+        tinyxml2::XMLElement *mot_dsnnames = root->FirstChildElement("mot_dsnname");
+        auto mot_dsnname = mot_dsnnames->GetText();
+        kMOTDsnName = std::string(mot_dsnname);
+        tinyxml2::XMLElement *mot_dsnuids = root->FirstChildElement("mot_dsnuid");
+        auto mot_dsnuid = mot_dsnuids->GetText();
+        kMOTDsnUid = std::string(mot_dsnuid);
+        tinyxml2::XMLElement *mot_dsnpwd = root->FirstChildElement("mot_dsnpwd");
+        auto mot_dsnpwds = mot_dsnpwd->GetText();
+        kMOTDsnPwd = std::string(mot_dsnpwds);
+
+        tinyxml2::XMLElement* server_num = root->FirstChildElement("txn_num");
+        kTxnNum =  std::stoull(server_num->GetText());
+        tinyxml2::XMLElement* write = root->FirstChildElement("write");
+        kWriteNum =  std::stoull(write->GetText());
+        tinyxml2::XMLElement* read = root->FirstChildElement("read");
+        kReadNum =  std::stoull(read->GetText());
+        tinyxml2::XMLElement* per_opnum = root->FirstChildElement("per_opnum");
+        kPerOpNum =  std::stoull(per_opnum->GetText());
+        tinyxml2::XMLElement* client_threads = root->FirstChildElement("client_threads");
+        kClientNum =  std::stoull(client_threads->GetText());
+
+        tinyxml2::XMLElement* is_generate_txn = root->FirstChildElement("is_generate_txn");
+        isGenerateTxn = std::stoull(is_generate_txn->GetText());
+        tinyxml2::XMLElement* use_mot = root->FirstChildElement("use_mot");
+        useMot = std::stoull(use_mot->GetText());
+        tinyxml2::XMLElement* use_nebula = root->FirstChildElement("use_nebula");
+        useNebula = std::stoull(use_nebula->GetText());
     }
 }

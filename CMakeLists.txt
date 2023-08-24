@@ -60,6 +60,7 @@ CPMAddPackage(
         VERSION 1.1.5
 #        GIT_TAG 0f8cecf52c91bb8f265d6ff2fc32cd8144c987a6
 )
+
 CPMAddPackage(
         NAME yaml-cpp
         GITHUB_REPOSITORY jbeder/yaml-cpp
@@ -136,7 +137,24 @@ find_package(brpc_install
 find_package(thrift_install
         CONFIG
         REQUIRED
-        PATHS ${PROJECT_SOURCE_DIR}/vendor        )
+        PATHS ${PROJECT_SOURCE_DIR}/vendor
+ )
+
+### Gtest odbc
+find_package(odbc_install
+        CONFIG
+        REQUIRED
+        PATHS ${PROJECT_SOURCE_DIR}/vendor
+)
+
+### Gtest nebula
+find_package(nebula_install
+        CONFIG
+        REQUIRED
+        PATHS ${PROJECT_SOURCE_DIR}/vendor
+)
+
+
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/vendor/tools.cmake)
 
@@ -179,6 +197,8 @@ add_library(
         ${PROJECT_NAME}
         ${headers}
         ${sources}
+        src/workload/txn_graph_generate.cpp
+        include/workload/worker.h
 )
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 
@@ -206,6 +226,8 @@ SET(COMMON_DEPENDENCIES
         # Use thrift2 to connect HBase
         thriftd
         gtl
+        nebula_graph_client
+        odbc
         )
 
 # Link dependencies

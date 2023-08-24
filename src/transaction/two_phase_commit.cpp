@@ -7,7 +7,7 @@
 #include "tools/utilities.h"
 
 namespace Taas {
-    bool TwoPC::Init(const Taas::Context &ctx_, uint64_t id) {
+    bool TwoPC::Init(uint64_t id) {
 //        ctx = ctx_;
 //        thread_id = id;
 //        sharding_num = ctx_.kTxnNodeNum;

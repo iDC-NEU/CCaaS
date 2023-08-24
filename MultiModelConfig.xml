@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<root>
+    <multimodel_client>47.92.65.171</multimodel_client>
+    <taas_ip>39.98.36.243</taas_ip>
+
+    <use_nebula>0</use_nebula>
+    <nebula_ip>127.0.0.1:9669</nebula_ip>
+    <nebula_user>root</nebula_user>
+    <nebula_pwd>nebula</nebula_pwd>
+    <nebula_space>nebula</nebula_space>
+
+    <use_mot>0</use_mot>
+    <mot_ip>127.0.0.1</mot_ip>
+    <mot_dsnname>MPPODBC</mot_dsnname>
+    <mot_dsnuid>jack</mot_dsnuid>
+    <mot_dsnpwd>Test@123</mot_dsnpwd>
+    
+    <is_generate_txn>0</is_generate_txn>
+    <txn_num>100</txn_num>
+    <write>90</write>
+    <read>10</read>
+    <per_opnum>10</per_opnum>
+    
+    <client_threads>20</client_threads>
+</root>

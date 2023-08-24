@@ -29,12 +29,12 @@ namespace Taas {
         std::string csn_temp, key_temp, key_str, table_name, csn_result;
         uint64_t thread_id = 0, epoch = 0, epoch_mod = 0, txn_server_id = 0;
         bool res, sleep_flag;
-        Context ctx;
         CRDTMerge merger;
         EpochMessageSendHandler message_transmitter;
         EpochMessageReceiveHandler message_handler;
 
         ///epoch
+        static Context ctx;
         static AtomicCounters_Cache
                 epoch_should_merge_txn_num, epoch_merged_txn_num,
                 epoch_should_commit_txn_num, epoch_committed_txn_num,
@@ -61,52 +61,52 @@ namespace Taas {
 
         static std::condition_variable merge_cv, commit_cv;
 
-        static void StaticInit(const Context& ctx);
-        static void ClearMergerEpochState(const Context& ctx, uint64_t &epoch);
+        static void StaticInit(const Context& ctx_);
+        static void ClearMergerEpochState(uint64_t &epoch);
 
-        void Init(const Context& ctx_, uint64_t id);
+        void Init(uint64_t id_);
 
         void Merge();
         void Commit();
         void EpochMerge();
 
-        static void MergeQueueEnqueue(const Context& ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
-        static bool MergeQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
-        static void CommitQueueEnqueue(const Context& ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
-        static bool CommitQueueTryDequeue(const Context& ctx, uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
+        static void MergeQueueEnqueue(uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr);
+        static bool MergeQueueTryDequeue(uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr);
+        static void CommitQueueEnqueue(uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr);
+        static bool CommitQueueTryDequeue(uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
 
 
 
 
-        static bool CheckEpochMergeComplete(const Context &ctx, const uint64_t& epoch) {
+        static bool CheckEpochMergeComplete(const uint64_t& epoch) {
             if(epoch_merge_complete[epoch % ctx.kCacheMaxLength]->load()) {
                 return true;
             }
-            if (epoch < EpochManager::GetPhysicalEpoch() && IsMergeComplete(ctx, epoch)) {
+            if (epoch < EpochManager::GetPhysicalEpoch() && IsMergeComplete(epoch)) {
                 epoch_merge_complete[epoch % ctx.kCacheMaxLength]->store(true);
                 return true;
             }
             return false;
         }
-        static bool IsEpochMergeComplete(const Context &ctx, const uint64_t& epoch) {
+        static bool IsEpochMergeComplete(const uint64_t& epoch) {
             return epoch_merge_complete[epoch % ctx.kCacheMaxLength]->load();
         }
 
-        static bool CheckEpochCommitComplete(const Context &ctx, const uint64_t& epoch) {
+        static bool CheckEpochCommitComplete(const uint64_t& epoch) {
             if (epoch_commit_complete[epoch % ctx.kCacheMaxLength]->load()) return true;
-            if (epoch < EpochManager::GetPhysicalEpoch() && IsCommitComplete(ctx, epoch)) {
+            if (epoch < EpochManager::GetPhysicalEpoch() && IsCommitComplete(epoch)) {
                 epoch_commit_complete[epoch % ctx.kCacheMaxLength]->store(true);
                 return true;
             }
             return false;
         }
-        static bool IsEpochCommitComplete(const Context &ctx, const uint64_t& epoch) {
+        static bool IsEpochCommitComplete(const uint64_t& epoch) {
             return epoch_commit_complete[epoch % ctx.kCacheMaxLength]->load();
         }
 
 
 
-        static bool IsMergeComplete(const Context& ctx, const uint64_t& epoch) {
+        static bool IsMergeComplete(const uint64_t& epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
                 if (epoch_should_merge_txn_num.GetCount(epoch, i) > epoch_merged_txn_num.GetCount(epoch, i))
                     return false;
@@ -116,7 +116,7 @@ namespace Taas {
         static bool IsMergeComplete(const uint64_t &epoch, const uint64_t &server_id) {
             return epoch_should_merge_txn_num.GetCount(epoch, server_id) <= epoch_merged_txn_num.GetCount(epoch, server_id);
         }
-        static bool IsCommitComplete(const Context& ctx, const uint64_t & epoch) {
+        static bool IsCommitComplete(const uint64_t & epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
                 if (epoch_should_commit_txn_num.GetCount(epoch, i) > epoch_committed_txn_num.GetCount(epoch, i))
                     return false;
@@ -127,7 +127,7 @@ namespace Taas {
             return epoch_should_commit_txn_num.GetCount(epoch, server_id) <= epoch_committed_txn_num.GetCount(epoch, server_id);
         }
 
-        static bool IsRedoLogComplete(const Context& ctx, const uint64_t & epoch) {
+        static bool IsRedoLogComplete(const uint64_t & epoch) {
             for(uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
                 if (epoch_record_commit_txn_num.GetCount(epoch, i) > epoch_record_committed_txn_num.GetCount(epoch, i))
                     return false;
@@ -137,8 +137,6 @@ namespace Taas {
         static bool IsRedoLogComplete(const uint64_t & epoch, const uint64_t & server_id) {
             return epoch_record_commit_txn_num.GetCount(epoch, server_id) <= epoch_record_committed_txn_num.GetCount(epoch, server_id);
         }
-
-
 
     };
 }
