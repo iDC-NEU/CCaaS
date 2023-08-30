@@ -7,7 +7,7 @@
 
 namespace Taas {
 
-    void Context::GetTaaSServerInfo(const std::string& config_file_path){
+    void TaasContext::GetTaaSServerInfo(const std::string& config_file_path){
         tinyxml2::XMLDocument doc;
         doc.LoadFile(config_file_path.c_str());
         auto* root=doc.RootElement();
@@ -70,7 +70,7 @@ namespace Taas {
 
     }
 
-    std::string Context::Print() {
+    std::string TaasContext::Print() {
         std::string res = "";
         res += "Config Info:\n \tServerIp:\n";
         int cnt = 0;
@@ -87,7 +87,7 @@ namespace Taas {
         return res;
     }
 
-    void Context::GetStorageInfo(const std::string& config_file_path){
+    void StorageContext::GetStorageInfo(const std::string& config_file_path){
         tinyxml2::XMLDocument doc;
         doc.LoadFile(config_file_path.c_str());
         auto* root=doc.RootElement();
@@ -136,6 +136,9 @@ namespace Taas {
         auto taas_ip = taas_ip_port->GetText();
         kTaasIP = std::string(taas_ip);
 
+        tinyxml2::XMLElement* use_nebula = root->FirstChildElement("use_nebula");
+        isUseNebula = std::stoull(use_nebula->GetText());
+
         tinyxml2::XMLElement *nebula_ip_port = root->FirstChildElement("nebula_ip");
         auto nebula_ip = nebula_ip_port->GetText();
         kNebulaIP = std::string(nebula_ip);
@@ -152,6 +155,10 @@ namespace Taas {
         auto nebula_spaces = nebula_space->GetText();
         kNebulaSpace = std::string(nebula_spaces);
 
+
+        tinyxml2::XMLElement* use_mot = root->FirstChildElement("use_mot");
+        isUseMot = std::stoull(use_mot->GetText());
+
         tinyxml2::XMLElement *mot_ip_port = root->FirstChildElement("mot_ip");
         auto mot_ip = mot_ip_port->GetText();
         kMOTIP = std::string(mot_ip);
@@ -159,29 +166,41 @@ namespace Taas {
         tinyxml2::XMLElement *mot_dsnnames = root->FirstChildElement("mot_dsnname");
         auto mot_dsnname = mot_dsnnames->GetText();
         kMOTDsnName = std::string(mot_dsnname);
+
         tinyxml2::XMLElement *mot_dsnuids = root->FirstChildElement("mot_dsnuid");
         auto mot_dsnuid = mot_dsnuids->GetText();
         kMOTDsnUid = std::string(mot_dsnuid);
+
         tinyxml2::XMLElement *mot_dsnpwd = root->FirstChildElement("mot_dsnpwd");
         auto mot_dsnpwds = mot_dsnpwd->GetText();
         kMOTDsnPwd = std::string(mot_dsnpwds);
 
+
+        tinyxml2::XMLElement* is_generate_txn = root->FirstChildElement("is_load_data");
+        isLoadData = std::stoull(is_generate_txn->GetText());
+
+        tinyxml2::XMLElement* record_count = root->FirstChildElement("record_count");
+        kRecordCount = std::stoull(record_count->GetText());
+
         tinyxml2::XMLElement* server_num = root->FirstChildElement("txn_num");
         kTxnNum =  std::stoull(server_num->GetText());
+
         tinyxml2::XMLElement* write = root->FirstChildElement("write");
         kWriteNum =  std::stoull(write->GetText());
+
         tinyxml2::XMLElement* read = root->FirstChildElement("read");
         kReadNum =  std::stoull(read->GetText());
-        tinyxml2::XMLElement* per_opnum = root->FirstChildElement("per_opnum");
-        kPerOpNum =  std::stoull(per_opnum->GetText());
+
+        tinyxml2::XMLElement* opnum = root->FirstChildElement("op_num");
+        kOpNum =  std::stoull(opnum->GetText());
+
+        tinyxml2::XMLElement *distribution = root->FirstChildElement("distribution");
+        auto distribution_s = distribution->GetText();
+        kDistribution = std::string(distribution_s);
+
         tinyxml2::XMLElement* client_threads = root->FirstChildElement("client_threads");
         kClientNum =  std::stoull(client_threads->GetText());
 
-        tinyxml2::XMLElement* is_generate_txn = root->FirstChildElement("is_generate_txn");
-        isGenerateTxn = std::stoull(is_generate_txn->GetText());
-        tinyxml2::XMLElement* use_mot = root->FirstChildElement("use_mot");
-        useMot = std::stoull(use_mot->GetText());
-        tinyxml2::XMLElement* use_nebula = root->FirstChildElement("use_nebula");
-        useNebula = std::stoull(use_nebula->GetText());
+
     }
 }

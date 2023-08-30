@@ -22,11 +22,11 @@ namespace Taas {
 
     void EpochMessageSendHandler::StaticInit(const Context& _ctx) {
         ctx = _ctx;
-        sharding_send_epoch.resize(ctx.kTxnNodeNum);
-        backup_send_epoch.resize(ctx.kTxnNodeNum);
-        abort_set_send_epoch.resize(ctx.kTxnNodeNum);
-        insert_set_send_epoch.resize(ctx.kTxnNodeNum);
-        for(uint64_t i = 0; i < ctx.kTxnNodeNum; i ++) {
+        sharding_send_epoch.resize(ctx.taasContext.kTxnNodeNum);
+        backup_send_epoch.resize(ctx.taasContext.kTxnNodeNum);
+        abort_set_send_epoch.resize(ctx.taasContext.kTxnNodeNum);
+        insert_set_send_epoch.resize(ctx.taasContext.kTxnNodeNum);
+        for(uint64_t i = 0; i < ctx.taasContext.kTxnNodeNum; i ++) {
             backup_send_epoch [i] = std::make_unique<std::atomic<uint64_t>>(1);
             abort_set_send_epoch [i] = std::make_unique<std::atomic<uint64_t>>(1);
             sharding_send_epoch[i] = std::make_unique<std::atomic<uint64_t>>(1);
@@ -45,7 +45,7 @@ namespace Taas {
  * @param txn_state 告诉client此txn的状态(Success or Abort)
  */
 bool EpochMessageSendHandler::SendTxnCommitResultToClient(const std::shared_ptr<proto::Transaction>& txn_ptr, proto::TxnState txn_state) {
-        if(txn_ptr->server_id() != ctx.txn_node_ip_index) return true;
+        if(txn_ptr->server_id() != ctx.taasContext.txn_node_ip_index) return true;
         txn_ptr->set_txn_state(txn_state);
         auto msg = std::make_unique<proto::Message>();
         auto rep = msg->mutable_reply_txn_result_to_client();
@@ -65,7 +65,7 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const std::shared_ptr<
     }
 
     bool EpochMessageSendHandler::SendTxnToServer(uint64_t &epoch, uint64_t &to_whom, const std::shared_ptr<proto::Transaction>& txn_ptr, proto::TxnType txn_type) {
-        if(ctx.kTxnNodeNum > 1) {
+        if(ctx.taasContext.kTxnNodeNum > 1) {
             auto pack_param = std::make_unique<pack_params>(to_whom, 0, "", epoch, txn_type, nullptr);
             switch (txn_type) {
                 case proto::TxnType::RemoteServerTxn : {
@@ -106,7 +106,7 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const std::shared_ptr<
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());
         assert(!serialized_txn_str_ptr->empty());
-        if (ctx.taas_mode == TaasMode::MultiMaster) {
+        if (ctx.taasContext.taas_mode == TaasMode::MultiMaster) {
             MessageQueue::send_to_server_pub_queue->enqueue(
                     std::make_unique<send_params>(0, 0, "", epoch, txn_type, std::move(serialized_txn_str_ptr),nullptr));
             return MessageQueue::send_to_server_pub_queue->enqueue(
@@ -132,10 +132,10 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const std::shared_ptr<
     }
 
     bool EpochMessageSendHandler::SendACK(uint64_t &epoch, uint64_t &to_whom, proto::TxnType txn_type) {
-        if(to_whom == ctx.txn_node_ip_index) return true;
+        if(to_whom == ctx.taasContext.txn_node_ip_index) return true;
         auto msg = std::make_unique<proto::Message>();
         auto* txn_end = msg->mutable_txn();
-        txn_end->set_server_id(ctx.txn_node_ip_index);
+        txn_end->set_server_id(ctx.taasContext.txn_node_ip_index);
         txn_end->set_txn_type(txn_type);
         txn_end->set_commit_epoch(epoch);
         txn_end->set_sharding_id(0);
@@ -149,7 +149,7 @@ bool EpochMessageSendHandler::SendTxnCommitResultToClient(const std::shared_ptr<
     bool EpochMessageSendHandler::SendMessageToAll(uint64_t& epoch, proto::TxnType txn_type) {
         auto msg = std::make_unique<proto::Message>();
         auto* txn_end = msg->mutable_txn();
-        txn_end->set_server_id(ctx.txn_node_ip_index);
+        txn_end->set_server_id(ctx.taasContext.txn_node_ip_index);
         txn_end->set_txn_type(txn_type);
         txn_end->set_commit_epoch(epoch);
         txn_end->set_sharding_id(0);

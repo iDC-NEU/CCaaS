@@ -14,12 +14,14 @@
     <mot_dsnname>MPPODBC</mot_dsnname>
     <mot_dsnuid>jack</mot_dsnuid>
     <mot_dsnpwd>Test@123</mot_dsnpwd>
-    
-    <is_generate_txn>0</is_generate_txn>
-    <txn_num>100</txn_num>
+
+    <is_load_data>1</is_load_data>
+    <record_count>1000000</record_count>
+    <txn_num>1000000</txn_num>
     <write>90</write>
     <read>10</read>
-    <per_opnum>10</per_opnum>
-    
+    <opnum>10</opnum>
+    <distribution>zipfian</distribution>
     <client_threads>20</client_threads>
+
 </root>

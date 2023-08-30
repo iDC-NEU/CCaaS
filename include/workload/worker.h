@@ -9,7 +9,6 @@
 
 #include "tools/utilities.h"
 #include "tools/context.h"
-#include "workload/txn_generate.h"
 
 #include "zmq.hpp"
 #include "tikv_client.h"

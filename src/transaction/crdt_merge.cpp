@@ -11,7 +11,7 @@ namespace Taas {
     bool CRDTMerge::ValidateReadSet(std::shared_ptr<proto::Transaction> txn_ptr) {
         ///RC & RR & SI
         //RC do not check read data
-//        auto epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
+//        auto epoch_mod = txn_ptr->commit_epoch() % ctx.taasContext.kCacheMaxLength;
 //        std::string key, version;
 //        uint64_t csn = 0;
 //        for(auto i = 0; i < txn_ptr->row_size(); i ++) {
@@ -39,7 +39,7 @@ namespace Taas {
     }
 
     bool CRDTMerge::ValidateWriteSet(std::shared_ptr<proto::Transaction> txn_ptr) {
-        auto epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
+        auto epoch_mod = txn_ptr->commit_epoch() % ctx.taasContext.kCacheMaxLength;
         auto csn_temp = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
         if(Merger::epoch_abort_txn_set[epoch_mod]->contain(csn_temp, csn_temp)) {
             txn_ptr.reset();
@@ -50,7 +50,7 @@ namespace Taas {
     }
 
     bool CRDTMerge::MultiMasterCRDTMerge(std::shared_ptr<proto::Transaction> txn_ptr) {
-        auto epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
+        auto epoch_mod = txn_ptr->commit_epoch() % ctx.taasContext.kCacheMaxLength;
         auto csn_temp = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
         std::string csn_result;
         bool result = true;
@@ -69,7 +69,7 @@ namespace Taas {
     }
 
     bool CRDTMerge::Commit(std::shared_ptr<proto::Transaction> txn_ptr) {
-        auto epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
+        auto epoch_mod = txn_ptr->commit_epoch() % ctx.taasContext.kCacheMaxLength;
         auto csn_temp = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
         for(auto i = 0; i < txn_ptr->row_size(); i ++) {
             const auto& row = txn_ptr->row(i);

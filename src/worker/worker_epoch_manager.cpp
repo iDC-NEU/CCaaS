@@ -20,7 +20,7 @@ namespace Taas {
         std::string name = "EpochLogical";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         SetCPU();
-        switch(ctx.taas_mode) {
+        switch(ctx.taasContext.taas_mode) {
             case TaasMode::MultiMaster : {
                 MultiMasterEpochManager::EpochLogicalTimerManagerThreadMain(ctx);
                 break;

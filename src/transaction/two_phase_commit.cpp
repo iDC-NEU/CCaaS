@@ -41,7 +41,7 @@ namespace Taas {
     bool TwoPC::HandleReceivedTxn() {
 //        if(txn_ptr->txn_type() == proto::TxnType::ClientTxn) {
 //            txn_ptr->set_csn(now_to_us());
-//            txn_ptr->set_server_id(ctx.txn_node_ip_index);
+//            txn_ptr->set_server_id(ctx.taasContext.txn_node_ip_index);
 //        }
         SetMessageRelatedCountersInfo();
 

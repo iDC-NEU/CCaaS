@@ -32,15 +32,13 @@ namespace Taas {
         TwoPC = 3
     };
 
-    class Context {
+    class TaasContext {
     public:
-        explicit Context() {
+        explicit TaasContext() {
             GetTaaSServerInfo("../TaaS_config.xml");
-            GetStorageInfo("../Storage_config.xml");
         }
-        explicit Context(const std::string& TaaS_config_file_path, const std::string& Storage_config_file_path) {
+        explicit TaasContext(const std::string& TaaS_config_file_path, const std::string& Storage_config_file_path) {
             GetTaaSServerInfo(TaaS_config_file_path);
-            GetStorageInfo(Storage_config_file_path);
         }
         /// 1: TaaS server, 2: leveldb server, 3:hbase server
         ServerMode server_type = ServerMode::Taas;
@@ -66,9 +64,27 @@ namespace Taas {
 
 
         void GetTaaSServerInfo(const std::string &config_file_path = "../TaaS_config.xml");
-        void GetStorageInfo(const std::string &config_file_path = "../Storage_config.xml");
 
         std::string Print();
+    };
+
+    class StorageContext {
+    public:
+        explicit StorageContext() {
+            GetStorageInfo("../Storage_config.xml");
+        }
+        explicit StorageContext(const std::string& Storage_config_file_path) {
+            GetStorageInfo(Storage_config_file_path);
+        }
+
+        /// storage info
+        bool is_tikv_enable = true, is_leveldb_enable = true, is_hbase_enable = true, is_mot_enable = true;
+        std::string kMasterIp, kPrivateIp, kTiKVIP, kLevelDBIP, kHbaseIP;
+        uint64_t kTikvThreadNum = 10, kLeveldbThreadNum = 10, kHbaseTxnThreadNum = 10, kMOTThreadNum = 10;
+
+
+        void GetStorageInfo(const std::string &config_file_path = "../Storage_config.xml");
+
     };
 
     class MultiModelContext {
@@ -84,10 +100,19 @@ namespace Taas {
         std::string  kMultiModelClient, kTaasIP,
                 kNebulaIP, kNebulaSpace, kNebulaUser, kNebulaPwd,
                 kMOTIP, kMOTDsnName, kMOTDsnUid, kMOTDsnPwd;
-        uint64_t kTxnNum = 10000, kWriteNum = 100, kReadNum = 0,kPerOpNum = 10,kClientNum = 10;
-        bool isGenerateTxn = true , useMot = true,useNebula = true;
+        bool isLoadData = true , isUseMot = true, isUseNebula = true;
+
+        uint64_t kRecordCount = 1000000, kTxnNum = 10000, kWriteNum = 100, kReadNum = 0,kOpNum = 10,kClientNum = 10;
+        std::string kDistribution = "zipfian";
 
         void GetMultiModelInfo(const std::string &config_file_path = "../MultiModel_config.xml");
+    };
+
+    class Context {
+    public:
+        TaasContext taasContext;
+        StorageContext storageContext;
+        MultiModelContext multiModelContext;
     };
 }
 

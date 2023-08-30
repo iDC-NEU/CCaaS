@@ -75,14 +75,14 @@ namespace Taas {
         message_ptr = nullptr;
         txn_ptr.reset();
         thread_id = id;
-        sharding_num = ctx.kTxnNodeNum;
+        sharding_num = ctx.taasContext.kTxnNodeNum;
         return true;
     }
 
     bool EpochMessageReceiveHandler::StaticInit(const Context& context) {
         ctx = context;
-        auto max_length = context.kCacheMaxLength;
-        auto sharding_num = context.kTxnNodeNum;
+        auto max_length = context.taasContext.kCacheMaxLength;
+        auto sharding_num = context.taasContext.kTxnNodeNum;
 
         sharding_send_ack_epoch_num.resize(sharding_num + 1);
         backup_send_ack_epoch_num.resize(sharding_num + 1);
@@ -184,7 +184,7 @@ namespace Taas {
 
     bool EpochMessageReceiveHandler::SetMessageRelatedCountersInfo() {
         message_epoch = txn_ptr->commit_epoch();
-        message_epoch_mod = message_epoch % ctx.kCacheMaxLength;
+        message_epoch_mod = message_epoch % ctx.taasContext.kCacheMaxLength;
         message_server_id = txn_ptr->server_id();
         txn_ptr->sharding_id();
         return true;
@@ -199,7 +199,7 @@ namespace Taas {
                 sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
                 txn_ptr->set_commit_epoch(message_epoch);
                 txn_ptr->set_csn(now_to_us());
-                txn_ptr->set_server_id(ctx.txn_node_ip_index);
+                txn_ptr->set_server_id(ctx.taasContext.txn_node_ip_index);
                 SetMessageRelatedCountersInfo();
                 HandleClientTxn();
                 assert(txn_ptr != nullptr);
@@ -212,7 +212,7 @@ namespace Taas {
                 Merger::MergeQueueEnqueue(message_epoch, txn_ptr);
                 Merger::CommitQueueEnqueue(message_epoch, txn_ptr);
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
-                if(ctx.taas_mode == TaasMode::MultiMaster) {
+                if(ctx.taasContext.taas_mode == TaasMode::MultiMaster) {
 //                    epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
 //                    epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
                     backup_received_txn_num.IncCount(message_epoch,message_server_id, 1);
@@ -296,7 +296,7 @@ namespace Taas {
 
     bool EpochMessageReceiveHandler::HandleClientTxn() {
 //        auto time1 = now_to_us();
-        if(ctx.taas_mode == TaasMode::Sharding) {
+        if(ctx.taasContext.taas_mode == TaasMode::Sharding) {
             std::vector<std::shared_ptr<proto::Transaction>> sharding_row_vector;
             for(uint64_t i = 0; i < sharding_num; i ++) {
                 sharding_row_vector.emplace_back(std::make_shared<proto::Transaction>());
@@ -315,8 +315,8 @@ namespace Taas {
             for(uint64_t i = 0; i < sharding_num; i ++) {
                 if(sharding_row_vector[i]->row_size() > 0) {
                     ///sharding sending
-                    if(i == ctx.txn_node_ip_index) {
-                        Merger::MergeQueueEnqueue(message_epoch, sharding_row_vector[ctx.txn_node_ip_index]);
+                    if(i == ctx.taasContext.txn_node_ip_index) {
+                        Merger::MergeQueueEnqueue(message_epoch, sharding_row_vector[ctx.taasContext.txn_node_ip_index]);
                     }
                     else {
                         sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
@@ -325,21 +325,21 @@ namespace Taas {
                     }
                 }
             }
-            backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+            backup_should_send_txn_num.IncCount(message_epoch, ctx.taasContext.txn_node_ip_index, 1);
             EpochMessageSendHandler::SendTxnToServer(message_epoch, message_server_id, txn_ptr, proto::TxnType::BackUpTxn);
-            backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+            backup_send_txn_num.IncCount(message_epoch, ctx.taasContext.txn_node_ip_index, 1);
 //            epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
 //            epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
             sharding_row_vector.clear();
         }
 
-        else if(ctx.taas_mode == TaasMode::MultiMaster) {
+        else if(ctx.taasContext.taas_mode == TaasMode::MultiMaster) {
             Merger::MergeQueueEnqueue(message_epoch, txn_ptr);
-            sharding_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-            backup_should_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
-            EpochMessageSendHandler::SendTxnToServer(message_epoch, ctx.txn_node_ip_index, txn_ptr, proto::TxnType::RemoteServerTxn);
+            sharding_should_send_txn_num.IncCount(message_epoch, ctx.taasContext.txn_node_ip_index, 1);
+            backup_should_send_txn_num.IncCount(message_epoch, ctx.taasContext.txn_node_ip_index, 1);
+            EpochMessageSendHandler::SendTxnToServer(message_epoch, ctx.taasContext.txn_node_ip_index, txn_ptr, proto::TxnType::RemoteServerTxn);
             sharding_send_txn_num.IncCount(message_epoch, 0, 1);
-            backup_send_txn_num.IncCount(message_epoch, ctx.txn_node_ip_index, 1);
+            backup_send_txn_num.IncCount(message_epoch, ctx.taasContext.txn_node_ip_index, 1);
 //            epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
 //            epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
         }
@@ -350,7 +350,7 @@ namespace Taas {
 
     bool EpochMessageReceiveHandler::UpdateEpochAbortSet() {
         message_epoch = txn_ptr->commit_epoch();
-        message_epoch_mod = txn_ptr->commit_epoch() % ctx.kCacheMaxLength;
+        message_epoch_mod = txn_ptr->commit_epoch() % ctx.taasContext.kCacheMaxLength;
         for(int i = 0; i < txn_ptr->row_size(); i ++) {
             Merger::epoch_abort_txn_set[message_epoch_mod]->insert(txn_ptr->row(i).key(), txn_ptr->row(i).data());
         }
@@ -358,7 +358,7 @@ namespace Taas {
     }
 
     bool EpochMessageReceiveHandler::StaticClear(uint64_t& epoch) {
-        auto cache_clear_epoch_num_mod = epoch % ctx.kCacheMaxLength;
+        auto cache_clear_epoch_num_mod = epoch % ctx.taasContext.kCacheMaxLength;
         sharding_should_receive_pack_num.Clear(cache_clear_epoch_num_mod, 1),///relate to server state
         sharding_received_pack_num.Clear(cache_clear_epoch_num_mod, 0),
         sharding_should_receive_txn_num.Clear(cache_clear_epoch_num_mod, 0),

@@ -20,7 +20,7 @@ namespace Taas {
         receiveHandler.Init(id);
         twoPC.Init(id);
         while(!EpochManager::IsTimerStop()){
-            switch(ctx.taas_mode) {
+            switch(ctx.taasContext.taas_mode) {
                 case TaasMode::MultiMaster :
                 case TaasMode::Sharding : {
                     while(!EpochManager::IsTimerStop()) {
@@ -47,7 +47,7 @@ namespace Taas {
         receiveHandler.Init(id);
         twoPC.Init(id);
         while(!EpochManager::IsTimerStop()){
-            switch(ctx.taas_mode) {
+            switch(ctx.taasContext.taas_mode) {
                 case TaasMode::MultiMaster :
                 case TaasMode::Sharding : {
                     while(!EpochManager::IsTimerStop()) {

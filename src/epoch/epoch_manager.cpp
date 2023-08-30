@@ -53,7 +53,7 @@ namespace Taas {
         EpochMessageReceiveHandler::StaticInit(ctx);
         RedoLoger::StaticInit(ctx);
 
-        EpochManager::max_length = ctx.kCacheMaxLength;
+        EpochManager::max_length = ctx.taasContext.kCacheMaxLength;
         //==========Logical Epoch Merge State=============
         EpochManager::merge_complete.resize(EpochManager::max_length);
         EpochManager::abort_set_merge_complete.resize(EpochManager::max_length);
@@ -63,11 +63,11 @@ namespace Taas {
         //cluster state
         EpochManager::online_server_num.resize(EpochManager::max_length + 1);
 //        EpochManager::should_receive_pack_num.resize(EpochManager::max_length + 1);
-        EpochManager::server_state.Init(EpochManager::max_length,ctx.kTxnNodeNum + 2, 1);
+        EpochManager::server_state.Init(EpochManager::max_length,ctx.taasContext.kTxnNodeNum + 2, 1);
         //cache server
         EpochManager::cache_server_received_epoch.resize(EpochManager::max_length + 1);
         uint64_t val = 1;
-        if(ctx.is_cache_server_available) {
+        if(ctx.taasContext.is_cache_server_available) {
             val = 0;
         }
 
@@ -79,7 +79,7 @@ namespace Taas {
             EpochManager::is_current_epoch_abort[i] = std::make_unique<std::atomic<bool>>(false);
             //cluster state
             EpochManager::online_server_num[i] = std::make_unique<std::atomic<uint64_t>>();
-            EpochManager::online_server_num[i]->store(ctx.kTxnNodeNum);
+            EpochManager::online_server_num[i]->store(ctx.taasContext.kTxnNodeNum);
             //cache server
             EpochManager::cache_server_received_epoch[i] =std::make_unique<std::atomic<uint64_t>>(val);
 
@@ -102,12 +102,12 @@ namespace Taas {
         gettimeofday(&current_time, nullptr);
         // 得到目前的微秒级时间戳
         current_time_ll = current_time.tv_sec * 1000000 + current_time.tv_usec;
-        sleep_time_temp = current_time_ll - (start_time_ll + (long)(EpochManager::GetPhysicalEpoch() - start_physical_epoch) * ctx.kEpochSize_us);
-        if(sleep_time_temp >= ctx.kEpochSize_us){
+        sleep_time_temp = current_time_ll - (start_time_ll + (long)(EpochManager::GetPhysicalEpoch() - start_physical_epoch) * ctx.taasContext.kEpochSize_us);
+        if(sleep_time_temp >= ctx.taasContext.kEpochSize_us){
             return 0;
         }
         else{
-            return ctx.kEpochSize_us - sleep_time_temp;
+            return ctx.taasContext.kEpochSize_us - sleep_time_temp;
         }
     }
 
@@ -211,7 +211,7 @@ namespace Taas {
             while(!EpochMessageReceiveHandler::IsRedoLogPushDownACKReceiveComplete(i)) usleep(logical_sleep_timme);
 
             {
-                if(i % ctx.print_mode_size == 0)
+                if(i % ctx.taasContext.print_mode_size == 0)
                     LOG(INFO) << PrintfToString("=-=-=-=-=-=-= 完成一个Epoch的 Log Push Down Epoch: %8lu ClearEpoch: %8lu =-=-=-=-=-=-=\n", commit_epoch.load(), i);
 
                 EpochManager::ClearMergeEpochState(i); //清空当前epoch的merge信息
@@ -229,7 +229,7 @@ namespace Taas {
 
     void EpochLogicalTimerManagerThreadMain(const Context& ctx) {
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        if(ctx.is_cache_server_available) {
+        if(ctx.taasContext.is_cache_server_available) {
             cache_server_available = 0;
         }
         uint64_t epoch = 1;
@@ -269,7 +269,7 @@ namespace Taas {
     //    request_puller.recv(&message);
         gettimeofday(&start_time, nullptr);
         start_time_ll = start_time.tv_sec * 1000000 + start_time.tv_usec;
-        if(ctx.is_sync_start && ctx.taas_mode != TaasMode::TwoPC) {
+        if(ctx.taasContext.is_sync_start && ctx.taasContext.taas_mode != TaasMode::TwoPC) {
             auto sleep_time_temp = static_cast<uint64_t>((((start_time.tv_sec / 60) + 1) * 60) * 1000000);
             usleep(sleep_time_temp - start_time_ll);
             gettimeofday(&start_time, nullptr);
@@ -289,7 +289,7 @@ namespace Taas {
             EpochManager::AddPhysicalEpoch();
             epoch_ ++;
             logical = EpochManager::GetLogicalEpoch();
-            if(epoch_ % ctx.print_mode_size == 0) {
+            if(epoch_ % ctx.taasContext.print_mode_size == 0) {
                 LOG(INFO) << "============= Start Physical Epoch : " << epoch_ << ", logical : " << logical << "Time : " << now_to_us() - startTime << "=============\n";
                 OUTPUTLOG("============= Epoch INFO ============= ", logical);
             }
@@ -302,8 +302,8 @@ namespace Taas {
 
 
     void EpochManager::SetServerOnLine(uint64_t& epoch_, const std::string& ip) {
-        for(int i = 0; i < (int)ctx.kServerIp.size(); i++) {
-            if(ip == ctx.kServerIp[i]) {
+        for(int i = 0; i < (int)ctx.taasContext.kServerIp.size(); i++) {
+            if(ip == ctx.taasContext.kServerIp[i]) {
                 server_state.SetCount(epoch_, i, 1);
                     EpochMessageReceiveHandler::sharding_should_receive_pack_num.Clear(epoch_, 1);///relate to server state
                     EpochMessageReceiveHandler::backup_should_receive_pack_num.Clear(epoch_, 1);///relate to server state
@@ -314,8 +314,8 @@ namespace Taas {
     }
 
     void EpochManager::SetServerOffLine(uint64_t& epoch_, const std::string& ip) {
-        for(int i = 0; i < (int)ctx.kServerIp.size(); i++) {
-            if(ip == ctx.kServerIp[i]) {
+        for(int i = 0; i < (int)ctx.taasContext.kServerIp.size(); i++) {
+            if(ip == ctx.taasContext.kServerIp[i]) {
                 server_state.SetCount(epoch_, i, 0);
                     EpochMessageReceiveHandler::sharding_should_receive_pack_num.Clear(epoch_, 0);///relate to server state
                     EpochMessageReceiveHandler::backup_should_receive_pack_num.Clear(epoch_, 0);///relate to server state

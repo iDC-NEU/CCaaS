@@ -37,14 +37,14 @@ namespace Taas {
         thread_id = id;
         ctx = ctx_;
 //        max_length = ctx_.kCacheMaxLength;
-        sharding_num = ctx_.kTxnNodeNum;
+        sharding_num = ctx_.taasContext.kTxnNodeNum;
 
         return true;
     }
 
     bool TwoPCMessageReceiveHandler::StaticInit(const Context& context) {
-        auto max_length = context.kCacheMaxLength;
-        auto sharding_num = context.kTxnNodeNum;
+        auto max_length = context.taasContext.kCacheMaxLength;
+        auto sharding_num = context.taasContext.kTxnNodeNum;
 
         sharding_send_ack_epoch_num.resize(sharding_num + 1);
         backup_send_ack_epoch_num.resize(sharding_num + 1);
@@ -98,7 +98,7 @@ namespace Taas {
         if(txn_ptr->txn_type() == proto::TxnType::ClientTxn) {
             txn_ptr->set_commit_epoch(EpochManager::GetPhysicalEpoch());
             txn_ptr->set_csn(now_to_us());
-            txn_ptr->set_server_id(ctx.txn_node_ip_index);
+            txn_ptr->set_server_id(ctx.taasContext.txn_node_ip_index);
         }
         SetMessageRelatedCountersInfo();
         switch (txn_ptr->txn_type()) {
@@ -183,7 +183,7 @@ namespace Taas {
             if(sharding_row_vector[i]->row_size() > 0) {
                 txn_sharding_num |= 1<<i;
                 ///sharding sending
-                if(i == ctx.txn_node_ip_index) {
+                if(i == ctx.taasContext.txn_node_ip_index) {
                     continue;
                 }
                 else {
@@ -192,7 +192,7 @@ namespace Taas {
             }
         }
         auto txn_state = std::make_unique<TwoPCTxnStateStruct>();
-        if(sharding_row_vector[ctx.txn_node_ip_index]->row_size() > 0) {
+        if(sharding_row_vector[ctx.taasContext.txn_node_ip_index]->row_size() > 0) {
             ///read version check need to wait until last epoch has committed.
 
         }

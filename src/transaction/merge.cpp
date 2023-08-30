@@ -47,8 +47,8 @@ namespace Taas {
 
     void Merger::StaticInit(const Context &ctx_) {
         ctx = ctx_;
-        auto max_length = ctx.kCacheMaxLength;
-        auto pack_num = ctx.kIndexNum;
+        auto max_length = ctx.taasContext.kCacheMaxLength;
+        auto pack_num = ctx.taasContext.kIndexNum;
         ///epoch merge state
         epoch_merge_map.resize(max_length);
         local_epoch_abort_txn_set.resize(max_length);
@@ -81,7 +81,7 @@ namespace Taas {
     }
 
     void Merger::MergeQueueEnqueue(uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr) {
-        auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        auto epoch_mod = epoch % ctx.taasContext.kCacheMaxLength;
         epoch_should_merge_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
         epoch_merge_queue[epoch_mod]->enqueue(txn_ptr);
         epoch_merge_queue[epoch_mod]->enqueue(nullptr);
@@ -91,18 +91,18 @@ namespace Taas {
         return false;
     }
     void Merger::CommitQueueEnqueue(uint64_t& epoch, const std::shared_ptr<proto::Transaction>& txn_ptr) {
-        epoch_should_commit_txn_num.IncCount(epoch, ctx.txn_node_ip_index, 1);
-        auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        epoch_should_commit_txn_num.IncCount(epoch, ctx.taasContext.txn_node_ip_index, 1);
+        auto epoch_mod = epoch % ctx.taasContext.kCacheMaxLength;
         epoch_commit_queue[epoch_mod]->enqueue(txn_ptr);
         epoch_commit_queue[epoch_mod]->enqueue(nullptr);
     }
     bool Merger::CommitQueueTryDequeue(uint64_t& epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
-        auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        auto epoch_mod = epoch % ctx.taasContext.kCacheMaxLength;
         return epoch_commit_queue[epoch_mod]->try_dequeue(txn_ptr);
     }
 
     void Merger::ClearMergerEpochState(uint64_t& epoch) {
-        auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        auto epoch_mod = epoch % ctx.taasContext.kCacheMaxLength;
         epoch_merge_complete[epoch_mod]->store(false);
         epoch_commit_complete[epoch_mod]->store(false);
         epoch_merge_map[epoch_mod]->clear();
@@ -148,7 +148,7 @@ namespace Taas {
         } else {
             epoch_record_commit_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
             CRDTMerge::Commit(txn_ptr);
-            if(txn_ptr->server_id() == ctx.txn_node_ip_index) { /// only local txn do redo log
+            if(txn_ptr->server_id() == ctx.taasContext.txn_node_ip_index) { /// only local txn do redo log
                 RedoLoger::RedoLog(txn_ptr);
             }
             epoch_record_committed_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
@@ -168,7 +168,7 @@ namespace Taas {
         while (!EpochManager::IsTimerStop()) {
             sleep_flag = true;
             epoch = EpochManager::GetLogicalEpoch();
-            epoch_mod = epoch % ctx.kCacheMaxLength;
+            epoch_mod = epoch % ctx.taasContext.kCacheMaxLength;
             if(!EpochManager::IsShardingMergeComplete(epoch)) {
                 while (epoch_merge_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                     if (txn_ptr != nullptr && txn_ptr->txn_type() != proto::TxnType::NullMark) {

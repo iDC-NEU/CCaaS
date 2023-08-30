@@ -32,24 +32,24 @@ namespace Taas {
         std::unordered_map<std::uint64_t, std::unique_ptr<zmq::socket_t>> socket_map;
         std::unique_ptr<send_params> params;
         std::unique_ptr<zmq::message_t> msg;
-        assert(ctx.kServerIp.size() >= ctx.kTxnNodeNum);
-//        if(ctx.kServerIp.size() < ctx.kTxnNodeNum) assert(false);
-        for (uint64_t i = 0; i < ctx.kServerIp.size(); i++) {
-            if (i ==  ctx.txn_node_ip_index) continue;
+        assert(ctx.taasContext.kServerIp.size() >= ctx.taasContext.kTxnNodeNum);
+//        if(ctx.taasContext.kServerIp.size() < ctx.taasContext.kTxnNodeNum) assert(false);
+        for (uint64_t i = 0; i < ctx.taasContext.kServerIp.size(); i++) {
+            if (i ==  ctx.taasContext.txn_node_ip_index) continue;
             auto socket = std::make_unique<zmq::socket_t>(context, ZMQ_PUSH);
             socket->set(zmq::sockopt::sndhwm, queue_length);
             socket->set(zmq::sockopt::rcvhwm, queue_length);
-            socket->connect("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(20000+i));
+            socket->connect("tcp://" + ctx.taasContext.kServerIp[i] + ":" + std::to_string(20000+i));
             socket_map[i] = std::move(socket);
-            printf("Send Server connect ZMQ_PUSH %s", ("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(20000+i) + "\n").c_str());
+            printf("Send Server connect ZMQ_PUSH %s", ("tcp://" + ctx.taasContext.kServerIp[i] + ":" + std::to_string(20000+i) + "\n").c_str());
         }
         printf("线程开始工作 SendServerThread\n");
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
             MessageQueue::send_to_server_queue->wait_dequeue(params);
             if (params == nullptr || params->type == proto::TxnType::NullMark || params->str == nullptr) continue;
-            assert(params->id != ctx.txn_node_ip_index);
-            assert(params->id < ctx.kTxnNodeNum);
+            assert(params->id != ctx.taasContext.txn_node_ip_index);
+            assert(params->id < ctx.taasContext.kTxnNodeNum);
             msg = std::make_unique<zmq::message_t>(*(params->str));
             socket_map[params->id]->send(*msg, sendFlags);
         }
@@ -63,12 +63,12 @@ namespace Taas {
         int queue_length = 0;
         std::unique_ptr<send_params> params;
         std::unique_ptr<zmq::message_t> msg;
-        assert(ctx.kServerIp.size() >= ctx.kTxnNodeNum);
+        assert(ctx.taasContext.kServerIp.size() >= ctx.taasContext.kTxnNodeNum);
         auto socket = std::make_unique<zmq::socket_t>(context, ZMQ_PUB);
         socket->set(zmq::sockopt::sndhwm, queue_length);
         socket->set(zmq::sockopt::rcvhwm, queue_length);
-        socket->bind("tcp://*:" + std::to_string(22000+ctx.txn_node_ip_index));
-        printf("Send Server bind ZMQ_PUB %s", ("tcp://*:" + std::to_string(22000+ctx.txn_node_ip_index) + "\n").c_str());
+        socket->bind("tcp://*:" + std::to_string(22000+ctx.taasContext.txn_node_ip_index));
+        printf("Send Server bind ZMQ_PUB %s", ("tcp://*:" + std::to_string(22000+ctx.taasContext.txn_node_ip_index) + "\n").c_str());
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
             MessageQueue::send_to_server_pub_queue->wait_dequeue(params);
@@ -93,10 +93,10 @@ namespace Taas {
         zmq::recv_result_t  recvResult;
         int queue_length = 0;
         zmq::socket_t socket_listen(listen_context, ZMQ_PULL);
-        socket_listen.bind("tcp://*:" + std::to_string(20000+ctx.txn_node_ip_index));//to server
+        socket_listen.bind("tcp://*:" + std::to_string(20000+ctx.taasContext.txn_node_ip_index));//to server
         socket_listen.set(zmq::sockopt::sndhwm, queue_length);
         socket_listen.set(zmq::sockopt::rcvhwm, queue_length);
-        printf("线程开始工作 ListenServerThread ZMQ_PULL tcp://*:%s\n", std::to_string(20000+ctx.txn_node_ip_index).c_str());
+        printf("线程开始工作 ListenServerThread ZMQ_PULL tcp://*:%s\n", std::to_string(20000+ctx.taasContext.txn_node_ip_index).c_str());
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
             std::unique_ptr<zmq::message_t> message_ptr = std::make_unique<zmq::message_t>();
@@ -129,10 +129,10 @@ namespace Taas {
         zmq::recv_result_t  recvResult;
         int queue_length = 0;
         zmq::socket_t socket_listen(listen_context, ZMQ_SUB);
-        for (uint64_t i = 0; i < ctx.kServerIp.size(); i++) {
-            if (i == ctx.txn_node_ip_index) continue;
-            socket_listen.connect("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(22000+i));//to server
-            printf("Listen Server connect ZMQ_SUB %s", ("tcp://" + ctx.kServerIp[i] + ":" + std::to_string(22000+i) + "\n").c_str());
+        for (uint64_t i = 0; i < ctx.taasContext.kServerIp.size(); i++) {
+            if (i == ctx.taasContext.txn_node_ip_index) continue;
+            socket_listen.connect("tcp://" + ctx.taasContext.kServerIp[i] + ":" + std::to_string(22000+i));//to server
+            printf("Listen Server connect ZMQ_SUB %s", ("tcp://" + ctx.taasContext.kServerIp[i] + ":" + std::to_string(22000+i) + "\n").c_str());
         }
 
         socket_listen.set(zmq::sockopt::subscribe,"");

@@ -77,7 +77,7 @@ namespace Taas {
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         std::unordered_map<std::string, std::unique_ptr<zmq::socket_t>> socket_map;
         // 测试用，如果设置了会丢弃发送给client的Reply
-        if (ctx.kTestClientNum > 0) {
+        if (ctx.taasContext.kTestClientNum > 0) {
             while (!EpochManager::IsTimerStop()) {
                 MessageQueue::send_to_client_queue->wait_dequeue(params);
             }

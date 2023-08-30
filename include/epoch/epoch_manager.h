@@ -102,8 +102,8 @@ namespace Taas {
         }
 
         static void EpochCacheSafeCheck() {
-            if(((GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength)) ||
-                    ((GetPushDownEpoch() % ctx.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength))) {
+            if(((GetLogicalEpoch() % ctx.taasContext.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.taasContext.kCacheMaxLength)) ||
+                    ((GetPushDownEpoch() % ctx.taasContext.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.taasContext.kCacheMaxLength))) {
                 uint64_t i = 0;
                 OUTPUTLOG("Assert", reinterpret_cast<uint64_t &>(i));
                 printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");

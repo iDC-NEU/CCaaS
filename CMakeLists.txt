@@ -197,8 +197,6 @@ add_library(
         ${PROJECT_NAME}
         ${headers}
         ${sources}
-        src/workload/txn_graph_generate.cpp
-        include/workload/worker.h
 )
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 

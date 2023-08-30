@@ -79,35 +79,35 @@ namespace Taas {
 
 
         static bool CheckEpochMergeComplete(const uint64_t& epoch) {
-            if(epoch_merge_complete[epoch % ctx.kCacheMaxLength]->load()) {
+            if(epoch_merge_complete[epoch % ctx.taasContext.kCacheMaxLength]->load()) {
                 return true;
             }
             if (epoch < EpochManager::GetPhysicalEpoch() && IsMergeComplete(epoch)) {
-                epoch_merge_complete[epoch % ctx.kCacheMaxLength]->store(true);
+                epoch_merge_complete[epoch % ctx.taasContext.kCacheMaxLength]->store(true);
                 return true;
             }
             return false;
         }
         static bool IsEpochMergeComplete(const uint64_t& epoch) {
-            return epoch_merge_complete[epoch % ctx.kCacheMaxLength]->load();
+            return epoch_merge_complete[epoch % ctx.taasContext.kCacheMaxLength]->load();
         }
 
         static bool CheckEpochCommitComplete(const uint64_t& epoch) {
-            if (epoch_commit_complete[epoch % ctx.kCacheMaxLength]->load()) return true;
+            if (epoch_commit_complete[epoch % ctx.taasContext.kCacheMaxLength]->load()) return true;
             if (epoch < EpochManager::GetPhysicalEpoch() && IsCommitComplete(epoch)) {
-                epoch_commit_complete[epoch % ctx.kCacheMaxLength]->store(true);
+                epoch_commit_complete[epoch % ctx.taasContext.kCacheMaxLength]->store(true);
                 return true;
             }
             return false;
         }
         static bool IsEpochCommitComplete(const uint64_t& epoch) {
-            return epoch_commit_complete[epoch % ctx.kCacheMaxLength]->load();
+            return epoch_commit_complete[epoch % ctx.taasContext.kCacheMaxLength]->load();
         }
 
 
 
         static bool IsMergeComplete(const uint64_t& epoch) {
-            for(uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
+            for(uint64_t i = 0; i < ctx.taasContext.kTxnNodeNum; i++) {
                 if (epoch_should_merge_txn_num.GetCount(epoch, i) > epoch_merged_txn_num.GetCount(epoch, i))
                     return false;
             }
@@ -117,7 +117,7 @@ namespace Taas {
             return epoch_should_merge_txn_num.GetCount(epoch, server_id) <= epoch_merged_txn_num.GetCount(epoch, server_id);
         }
         static bool IsCommitComplete(const uint64_t & epoch) {
-            for(uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
+            for(uint64_t i = 0; i < ctx.taasContext.kTxnNodeNum; i++) {
                 if (epoch_should_commit_txn_num.GetCount(epoch, i) > epoch_committed_txn_num.GetCount(epoch, i))
                     return false;
             }
@@ -128,7 +128,7 @@ namespace Taas {
         }
 
         static bool IsRedoLogComplete(const uint64_t & epoch) {
-            for(uint64_t i = 0; i < ctx.kTxnNodeNum; i++) {
+            for(uint64_t i = 0; i < ctx.taasContext.kTxnNodeNum; i++) {
                 if (epoch_record_commit_txn_num.GetCount(epoch, i) > epoch_record_committed_txn_num.GetCount(epoch, i))
                     return false;
             }

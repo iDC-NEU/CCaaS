@@ -22,11 +22,11 @@ namespace Taas {
         task_queue = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
         redo_log_queue = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
         pushed_down_epoch.store(1);
-        epoch_should_push_down_txn_num.Init(ctx.kCacheMaxLength, ctx.kTxnNodeNum);
-        epoch_pushed_down_txn_num.Init(ctx.kCacheMaxLength, ctx.kTxnNodeNum);
-        epoch_redo_log_complete.resize(ctx.kCacheMaxLength);
-        epoch_redo_log_queue.resize(ctx.kCacheMaxLength);
-        for(int i = 0; i < static_cast<int>(ctx.kCacheMaxLength); i ++) {
+        epoch_should_push_down_txn_num.Init(ctx.taasContext.kCacheMaxLength, ctx.taasContext.kTxnNodeNum);
+        epoch_pushed_down_txn_num.Init(ctx.taasContext.kCacheMaxLength, ctx.taasContext.kTxnNodeNum);
+        epoch_redo_log_complete.resize(ctx.taasContext.kCacheMaxLength);
+        epoch_redo_log_queue.resize(ctx.taasContext.kCacheMaxLength);
+        for(int i = 0; i < static_cast<int>(ctx.taasContext.kCacheMaxLength); i ++) {
             epoch_redo_log_complete[i] = std::make_unique<std::atomic<bool>>(false);
             epoch_redo_log_queue[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
         }
@@ -36,8 +36,8 @@ namespace Taas {
     void MOT::StaticClear(const uint64_t &epoch) {
         epoch_should_push_down_txn_num.Clear(epoch);
         epoch_pushed_down_txn_num.Clear(epoch);
-        epoch_redo_log_complete[epoch % ctx.kCacheMaxLength]->store(false);
-//        epoch_redo_log_queue[epoch % ctx.kCacheMaxLength] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
+        epoch_redo_log_complete[epoch % ctx.taasContext.kCacheMaxLength]->store(false);
+//        epoch_redo_log_queue[epoch % ctx.taasContext.kCacheMaxLength] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
     }
 
     bool MOT::GeneratePushDownTask(const uint64_t &epoch) {
@@ -61,7 +61,7 @@ namespace Taas {
                 usleep(storage_sleep_time);
                 epoch = EpochManager::GetPushDownEpoch();
             }
-            epoch_mod = epoch % ctx.kCacheMaxLength;
+            epoch_mod = epoch % ctx.taasContext.kCacheMaxLength;
             while(epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                 if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     continue;
@@ -102,7 +102,7 @@ namespace Taas {
                 commit_cv.wait(lck);
                 epoch = EpochManager::GetPushDownEpoch();
             }
-            epoch_mod = epoch % ctx.kCacheMaxLength;
+            epoch_mod = epoch % ctx.taasContext.kCacheMaxLength;
             sleep_flag = true;
             while(epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr)) {
                 if(txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
@@ -129,10 +129,10 @@ namespace Taas {
     }
 
     bool MOT::CheckEpochPushDownComplete(const uint64_t &epoch) {
-        if(epoch_redo_log_complete[epoch % ctx.kCacheMaxLength]->load()) return true;
+        if(epoch_redo_log_complete[epoch % ctx.taasContext.kCacheMaxLength]->load()) return true;
         if(epoch < EpochManager::GetLogicalEpoch() &&
            epoch_pushed_down_txn_num.GetCount(epoch) >= epoch_should_push_down_txn_num.GetCount(epoch)) {
-            epoch_redo_log_complete[epoch % ctx.kCacheMaxLength]->store(true);
+            epoch_redo_log_complete[epoch % ctx.taasContext.kCacheMaxLength]->store(true);
             pushed_down_epoch.fetch_add(1);
             return true;
         }
@@ -141,14 +141,14 @@ namespace Taas {
 
     void MOT::DBRedoLogQueueEnqueue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
         epoch_should_push_down_txn_num.IncCount(epoch, txn_ptr->server_id(), 1);
-        auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        auto epoch_mod = epoch % ctx.taasContext.kCacheMaxLength;
         epoch_redo_log_queue[epoch_mod]->enqueue(txn_ptr);
         epoch_redo_log_queue[epoch_mod]->enqueue(nullptr);
         txn_ptr.reset();
     }
 
     bool MOT::DBRedoLogQueueTryDequeue(const uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr) {
-        auto epoch_mod = epoch % ctx.kCacheMaxLength;
+        auto epoch_mod = epoch % ctx.taasContext.kCacheMaxLength;
         return epoch_redo_log_queue[epoch_mod]->try_dequeue(txn_ptr);
     }
 
