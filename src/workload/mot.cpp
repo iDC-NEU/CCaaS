@@ -13,8 +13,6 @@ namespace workload {
     static SQLHENV motEnv = SQL_NULL_HENV;
     static SQLHDBC motHdbc = SQL_NULL_HDBC;
 
-    std::vector<MOTTxn > MOT::txnVector;
-
     void ExecSQL(SQLHDBC hdbc, SQLCHAR *sql) {
         SQLRETURN retcode;                  // Return status
         SQLHSTMT hstmt = SQL_NULL_HSTMT;    // Statement handle
@@ -45,7 +43,7 @@ namespace workload {
         }
     }
 
-    void MOT::Init(const Taas::Context& ctx_) {
+    void MOT::Init() {
         RETCODE retcode;//错误返回码
         // Allocate the ODBC Environment and save handle.
         //  1. 申请环境句柄
@@ -86,7 +84,9 @@ namespace workload {
         char* DsnAuthStr = (char*)"Test@123";//passward
         //connect to the Data Source
         //5. 连接数据源
-        retcode=SQLConnect(motHdbc,(SQLCHAR*)DsnName,(SWORD)strlen(DsnName),(SQLCHAR*)DsnUID, (SWORD)strlen(DsnUID),(SQLCHAR*)DsnAuthStr, (SWORD)strlen(DsnAuthStr));
+        retcode=SQLConnect(motHdbc,(SQLCHAR*)DsnName,(SWORD)strlen(DsnName),
+                           (SQLCHAR*)DsnUID, (SWORD)strlen(DsnUID),(SQLCHAR*)DsnAuthStr,
+                           (SWORD)strlen(DsnAuthStr));
         if(retcode < 0 ) {//错误处理
             LOG(FATAL) << "connect to ODBC datasource errors.";
             return ;
@@ -94,27 +94,57 @@ namespace workload {
         else {
             LOG(INFO) << "connect to ODBC datasource done.";
         }
-        ExecSQL(motHdbc, (SQLCHAR *)"CREATE Foreign TABLE IF NOT EXISTS taas_odbc(c_sk INTEGER PRIMARY KEY, c_name VARCHAR(32), c_tid VARCHAR(32));");
+        ExecSQL(motHdbc, (SQLCHAR *)
+            "CREATE Foreign TABLE IF NOT EXISTS usertable(key VARCHAR(32) PRIMARY KEY, filed0 VARCHAR(32), filed1 VARCHAR(32), " \
+            "filed2 VARCHAR(32), filed3 VARCHAR(32), filed4 VARCHAR(32), filed5 VARCHAR(32), filed6 VARCHAR(32)" \
+            "filed7 VARCHAR(32), filed8 VARCHAR(32), filed9 VARCHAR(32), txnid VARCHAR(32));");
     }
 
-    void MOT::GenerateTxn(uint64_t tid) {
-        uint64_t num = MultiModelWorkload::ctx.multiModelContext.kOpNum;
-        uint64_t randnum = Taas::RandomNumber(0, 100);
-        MOTTxn res;
-        if (randnum < MultiModelWorkload::ctx.multiModelContext.kWriteNum) {
-            while (num--) {
-                std::string name = Taas::RandomString(20);
-                auto now = tid * MultiModelWorkload::ctx.multiModelContext.kOpNum + num;
-                res.push_back("INSERT INTO taas_odbc VALUES(" + std::to_string(now) + ", '" + name
-                              + "','tid" + std::to_string(tid) + "');");
-            }
-        } else {
-            while (num--) {
-                uint64_t number = Taas::RandomNumber(1, MultiModelWorkload::GetTxnId()*MultiModelWorkload::ctx.multiModelContext.kOpNum);
-                res.push_back("SELECT * FROM taas_odbc WHERE c_tid = 'tid" + std::to_string(number) + "';");
+    void MOT::InsertData(uint64_t& tid) {
+        if(tid > MultiModelWorkload::ctx.multiModelContext.kRecordCount) return;
+        char genKey[100], sql[800];
+        std::string data = Taas::RandomString(256);
+        sprintf(genKey, "usertable_key:%064lu", tid);
+        auto keyName = std::string(genKey);
+        utils::ByteIteratorMap values;
+        MultiModelWorkload::buildValues(values, keyName);
+        sprintf(sql, R"(INSERT INTO usertable VALUES("%s", "%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%lu");)",
+                genKey, values["filed0"].c_str(), values["filed1"].c_str(), values["filed2"].c_str(),
+                values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(), values["filed6"].c_str(),
+                values["filed7"].c_str(), values["filed8"].c_str(), values["filed9"].c_str(), tid);
+        ExecSQL(motHdbc, (SQLCHAR *)sql);
+    }
+
+    void MOT::RunTxn(uint64_t& tid) { /// todo: create mot connection for every thread
+        char genKey[100], sql[800];
+        std::string value;
+        int cnt, i;
+        if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::MultiModel) {
+            cnt = 4;
+        }
+        else if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::KV) {
+            cnt = 9;
+        }
+        else return ;
+
+        {
+            for (i = 0; i < cnt; i++) {
+                auto opType = MultiModelWorkload::operationChooser->nextValue();
+                auto id = MultiModelWorkload::keyChooser[0]->nextValue();
+                sprintf(genKey, "usertable_key:%064lu", id);
+                auto keyName = std::string(genKey);
+                if (opType == Operation::READ) {
+                    sprintf(sql, "SELECT * FROM usertable WHERE key = '%s';", genKey);
+                    ExecSQL(motHdbc, (SQLCHAR *)sql);
+                } else {
+                    utils::ByteIteratorMap values;
+                    MultiModelWorkload::buildValues(values, keyName);
+                    for (const auto &it: values) {
+                        value += it.second + ",";
+                    }
+                }
             }
         }
-        txnVector.push_back(std::move(res));
     }
 
     void MOT::CloseDB() {
@@ -123,15 +153,8 @@ namespace workload {
         SQLFreeHandle(SQL_HANDLE_ENV, motEnv);
     }
 
-    void MOT::RunTxn(const MOTTxn& txn) {
-        std::string mot_tempstr;
-        mot_tempstr="";
-        for(const auto & i : txn) mot_tempstr += i;
-        ExecSQL(motHdbc,(SQLCHAR*)(mot_tempstr.c_str()));
-    }
 
-    void MOT::InsertData(uint64_t tid) {
 
-    }
+
 
 }

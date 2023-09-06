@@ -15,13 +15,10 @@
 namespace workload {
     class MOT {
     public:
-        static std::vector<MOTTxn > txnVector;
-
-        static void Init(const Taas::Context& ctx);
-        static void InsertData(uint64_t tid);
-        static void GenerateTxn(uint64_t tid);
+        static void Init();
+        static void InsertData(uint64_t&  tid);
+        static void RunTxn(uint64_t& tid);
         static void CloseDB();
-        static void RunTxn(const MOTTxn& txn);
     };
 }
 

@@ -87,6 +87,13 @@ namespace Taas {
 
     };
 
+    enum TestMode {
+        MultiModel = 1,
+        KV = 2,
+        SQL = 3,
+        GQL = 4
+    };
+
     class MultiModelContext {
     public:
 
@@ -100,6 +107,7 @@ namespace Taas {
         std::string  kMultiModelClient, kTaasIP,
                 kNebulaIP, kNebulaSpace, kNebulaUser, kNebulaPwd,
                 kMOTIP, kMOTDsnName, kMOTDsnUid, kMOTDsnPwd;
+        TestMode kTestMode = MultiModel;
         bool isLoadData = true , isUseMot = true, isUseNebula = true;
 
         uint64_t kRecordCount = 1000000, kTxnNum = 10000, kWriteNum = 100, kReadNum = 0,kOpNum = 10,kClientNum = 10;

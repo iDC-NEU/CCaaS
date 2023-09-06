@@ -176,6 +176,9 @@ namespace Taas {
         kMOTDsnPwd = std::string(mot_dsnpwds);
 
 
+        tinyxml2::XMLElement* test_mode = root->FirstChildElement("test_mode");
+        kTestMode = static_cast<TestMode>(std::stoull(test_mode->GetText()));
+
         tinyxml2::XMLElement* is_generate_txn = root->FirstChildElement("is_load_data");
         isLoadData = std::stoull(is_generate_txn->GetText());
 

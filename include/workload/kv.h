@@ -7,13 +7,16 @@
 
 #include "txn_type.h"
 
+#include <proto/kvdb_server.pb.h>
+
 namespace workload {
     class KV {
     public:
-        static std::vector<KVTxn > txnVector;
+        static std::string GenerateKey(uint64_t key_id);
+        static std::string GenerateValue();
         static void InsertData(uint64_t tid);
         static void GenerateTxn(uint64_t tid);
-        static void RunTxn(const std::vector<workload::KeyValue>& txn, proto::Transaction* message_txn);
+        static void RunTxn(proto::Transaction* message_txn, proto::KvDBGetService_Stub& get_stub);
     };
 
 }

@@ -12,7 +12,6 @@ namespace workload {
 
     nebula::SessionPoolConfig Nebula::nebulaSessionPoolConfig;
     std::unique_ptr<nebula::SessionPool> Nebula::nebulaSessionPool;
-    std::vector<NebulaTxn> Nebula::txnVector;
 
     void Nebula::Init(const Taas::Context& ctx) {
         nebula::ConnectionPool pool;
@@ -32,33 +31,69 @@ namespace workload {
         nebulaSessionPoolConfig.maxSize_ = 1;
         nebulaSessionPool = std::make_unique<nebula::SessionPool>(nebulaSessionPoolConfig);
         nebulaSessionPool->init();
-        resp = nebulaSessionPool->execute("CREATE TAG IF NOT EXISTS person (name string, age int , tid string);");
+        resp = nebulaSessionPool->execute("CREATE TAG IF NOT EXISTS usertable (key, string, filed0 string, filed1 string, " \
+                                          "filed2 string , filed3 string, filed4 string, filed5 string, filed6 string, "
+                                          "filed7 string, filed8 string, filed9 string, tid string);");
         assert(resp.errorCode == nebula::ErrorCode::SUCCEEDED);
-        resp = nebulaSessionPool->execute("CREATE TAG INDEX IF NOT EXISTS person_index on person(name(10));");
+        resp = nebulaSessionPool->execute("CREATE TAG INDEX IF NOT EXISTS usertable_index on usertable(key(10));");
         assert(resp.errorCode == nebula::ErrorCode::SUCCEEDED);
         LOG(INFO) << "=== connect to nebula done ===";
     }
 
-    void Nebula::RunTxn(const std::string &txn) {
-        auto resp = nebulaSessionPool->execute(txn);
-        std::cout << "Nebula Txn done " << txn << std::endl;
+    void Nebula::InsertData(uint64_t& tid) {
+        if(tid > MultiModelWorkload::ctx.multiModelContext.kRecordCount) return;
+        char genKey[100], gql[800];
+        std::string data1 = Taas::RandomString(256);
+        std::string data2 = Taas::RandomString(256);
+        sprintf(genKey, "taas_nebula_key:%064lu", tid);
+        auto keyName = std::string(genKey);
+        utils::ByteIteratorMap values;
+        MultiModelWorkload::buildValues(values, keyName);
+
+        sprintf(gql, R"(INSERT VERTEX IF NOT EXISTS usertable(key, filed0, filed1, filed2, filed3, filed4, filed5, filed6, filed7" \
+                                "filed8, filed9, txnid) VALUES "%s" :("%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%lu");)",
+                                genKey, genKey, values["filed0"].c_str(), values["filed1"].c_str(), values["filed2"].c_str(),
+                                values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(), values["filed6"].c_str(),
+                                values["filed7"].c_str(), values["filed8"].c_str(), values["filed9"].c_str(), tid);
+
+        auto resp = nebulaSessionPool->execute(gql);
     }
 
-    void Nebula::GenerateTxn(uint64_t tid) {
-        uint64_t randnum = Taas::RandomNumber(0, 100);
-        if (randnum < MultiModelWorkload::ctx.multiModelContext.kWriteNum) {
-            std::string name = Taas::RandomString(20);
-            int age = (int)Taas::RandomNumber(10, 90);
-            txnVector.push_back("INSERT VERTEX IF NOT EXISTS person(name,age,tid) VALUES \"vid" +
-                                                          std::to_string(tid) +  "\" :(\"" + name + "\"," + std::to_string(age) + ",\"vid" + std::to_string(tid) + "\");");
-        } else {
-            uint64_t number = Taas::RandomNumber(0, MultiModelWorkload::GetTxnId());
-            txnVector.push_back("FETCH PROP ON person \"vid" + std::to_string(number) + "\" YIELD properties(VERTEX);");
+    void Nebula::RunTxn(uint64_t& tid) {///single op txn
+        char genKey[100], gql[800];
+        std::string value;
+        int cnt, i;
+        if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::MultiModel) {
+            cnt = 1;
+        }
+        else if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::GQL) {
+            cnt = 9;
+        }
+        else return ;
+        {
+            for (i = 0; i < cnt; i++) {
+                auto opType = MultiModelWorkload::operationChooser->nextValue();
+                auto id = MultiModelWorkload::keyChooser[0]->nextValue();
+                sprintf(genKey, "usertable_key:%064lu", id);
+                auto keyName = std::string(genKey);
+                if (opType == Operation::READ) {
+                    sprintf(gql, R"(FETCH PROP ON usertable "%s" YIELD properties(VERTEX);)",genKey);
+                    auto resp = nebulaSessionPool->execute(gql);
+
+                } else {
+                    utils::ByteIteratorMap values;
+                    MultiModelWorkload::buildValues(values, keyName);
+                    sprintf(gql, R"(UPDATE VERTEX on usertable "%s" set filed0 = %s, filed1 = %s, filed2 = %s, filed3 = %s, filed4 = %s, filed5 = %s, filed6 = %s, filed7 = %s" \
+                                "filed8 = %s, filed9 = %s, txnid = %lu;)",
+                            genKey, values["filed0"].c_str(), values["filed1"].c_str(), values["filed2"].c_str(),
+                            values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(), values["filed6"].c_str(),
+                            values["filed7"].c_str(), values["filed8"].c_str(), values["filed9"].c_str(), tid);
+                    auto resp = nebulaSessionPool->execute(gql);
+
+                }
+            }
         }
     }
 
-    void Nebula::InsertData(uint64_t tid) {
-
-    }
 }
 

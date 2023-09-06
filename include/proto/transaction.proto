@@ -60,7 +60,7 @@ message Transaction{
   repeated Row row = 1;
   uint64 start_epoch = 2;
   uint64 commit_epoch = 3;
-  uint64 csn = 4;
+  uint64 csn = 4; //Taas
 
   string server_ip = 5; // used to identify which remote server sends this txn to current server
   uint32 server_id = 6; // used to identify which remote server sends this txn to current server
@@ -72,5 +72,7 @@ message Transaction{
   TxnState txn_state = 10;
 
   uint64 sharding_id = 11;
+  uint64 storage_total_num = 12; //multi-model transaction
+  string storage_type = 13; //multi-model transaction
 
 }

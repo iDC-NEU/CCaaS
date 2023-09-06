@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <root>
-    <multimodel_client>47.92.65.171</multimodel_client>
+    <multimodel_client>47.92.65.171</multimodel_client><!-- local ip addr-->
     <taas_ip>39.98.36.243</taas_ip>
 
     <use_nebula>0</use_nebula>
@@ -15,6 +15,7 @@
     <mot_dsnuid>jack</mot_dsnuid>
     <mot_dsnpwd>Test@123</mot_dsnpwd>
 
+    <test_mode>0</test_mode> <!-- 1 : MultiModel, 2 : KV, 3 : SQL, 4 : GQL-->
     <is_load_data>1</is_load_data>
     <record_count>1000000</record_count>
     <txn_num>1000000</txn_num>

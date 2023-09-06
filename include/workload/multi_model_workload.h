@@ -21,11 +21,22 @@
 #include "kv.h"
 #include "nebula.h"
 #include "mot.h"
+#include "generator/discrete_generator.h"
+#include "generator/scrambled_zipfian_generator.h"
+#include "common/byte_iterator.h"
 
 #include <sql.h>
 #include <sqlext.h>
 
 namespace workload {
+
+    enum class Operation {
+        INSERT,
+        READ,
+        UPDATE,
+        SCAN,
+        READ_MODIFY_WRITE,
+    };
 
     typedef struct MultiModelTxn{
         KVTxn kvTxn;
@@ -46,13 +57,13 @@ namespace workload {
     };
 
     class MultiModelWorkload {
-    private:
-        static std::atomic<uint64_t> txn_id, graph_vid;
     public:
+        static std::atomic<uint64_t> txn_id, graph_vid, success_txn_num, failed_txn_num, success_op_num, failed_op_num;
         static Taas::Context ctx;
         static std::unique_ptr<util::thread_pool_light> thread_pool;
+        static std::unique_ptr<utils::DiscreteGenerator<Operation>> operationChooser;
+        static std::vector<std::unique_ptr<utils::NumberGenerator>> keyChooser;
         static bthread::CountdownEvent workCountDown;
-
         static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<send_multimodel_params>>> send_multi_txn_queue;
         static std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>> client_listen_taas_message_queue;
         static std::vector<bool> isExe;
@@ -61,8 +72,11 @@ namespace workload {
         static Taas::concurrent_unordered_map<uint64_t, std::shared_ptr<std::condition_variable>> multiModelTxnConditionVariable;
 
         static void StaticInit(const Taas::Context& ctx_);
+        static void buildValues(utils::ByteIteratorMap& values, const std::string& key);
         static void LoadData();
-        static void GenerateWorkload();
+        static void LoadKVData();
+        static void LoadSQLData();
+        static void LoadGQLData();
         static void RunMultiTxn();
         static void SetTxnId(uint64_t value){ txn_id.store(value);}
         static uint64_t AddTxnId(){
@@ -74,6 +88,20 @@ namespace workload {
             return graph_vid.fetch_add(1);;
         }
         static uint64_t GetGraphVid(){ return graph_vid.load();}
+
+
+        static void CreateOperationGenerator() {
+            operationChooser = std::make_unique<utils::DiscreteGenerator<Operation>>();
+            operationChooser->addValue((double)ctx.multiModelContext.kReadNum / 100.0, Operation::READ);
+            operationChooser->addValue((double)ctx.multiModelContext.kWriteNum / 100.0, Operation::UPDATE);
+        }
+
+        static void CreateKeyChooser() {
+            keyChooser.push_back(utils::ScrambledZipfianGenerator::NewScrambledZipfianGenerator(1, ctx.multiModelContext.kRecordCount/3));
+            keyChooser.push_back(utils::ScrambledZipfianGenerator::NewScrambledZipfianGenerator(ctx.multiModelContext.kRecordCount/3 + 1,ctx.multiModelContext.kRecordCount * 2 / 3));
+            keyChooser.push_back(utils::ScrambledZipfianGenerator::NewScrambledZipfianGenerator(ctx.multiModelContext.kRecordCount * 2 / 3 + 1,ctx.multiModelContext.kRecordCount));
+        }
+
     };
 }
 

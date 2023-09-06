@@ -101,15 +101,19 @@ namespace workload {
         MultiModelWorkload param;
         MultiModelWorkload::StaticInit(ctx);
         std::vector<std::unique_ptr<std::thread>> threads;
-        if(ctx.multiModelContext.isUseNebula) Nebula::Init(ctx);
-        if(ctx.multiModelContext.isUseMot) MOT::Init(ctx);
 
         threads.push_back(std::make_unique<std::thread>(ClientListenTaasThreadMain));
         threads.push_back(std::make_unique<std::thread>(DequeueClientListenTaasMessageQueue));
         threads.push_back(std::make_unique<std::thread>(SendTaasClientThreadMain));
 
+        if(ctx.multiModelContext.isUseNebula) Nebula::Init(ctx);
+        if(ctx.multiModelContext.isUseMot) MOT::Init();
 
+        if(ctx.multiModelContext.isLoadData) {
+            MultiModelWorkload::LoadData();
+        }
 
+        MultiModelWorkload::workCountDown.reset((int)ctx.multiModelContext.kClientNum);
         for(int i = 0; i < (int)MultiModelWorkload::ctx.multiModelContext.kClientNum; i ++) {
             MultiModelWorkload::thread_pool->push_task(MultiModelWorkload::RunMultiTxn);
         }
