@@ -61,7 +61,6 @@ namespace Taas {
         uint64_t epoch, epoch_mod;
         //connect to thrift2 server in order to communicate with hbase
         CHbaseHandler hbase_txn;
-        hbase_txn.connect(ctx.kHbaseIP,9090);
         while(!EpochManager::IsTimerStop()) {
             epoch = EpochManager::GetPushDownEpoch();
             epoch_mod = epoch % ctx.kCacheMaxLength;
@@ -78,6 +77,7 @@ namespace Taas {
                 if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     continue;
                 }
+                hbase_txn.connect(ctx.kHbaseIP,9090);
                 try{
                     total_commit_txn_num.fetch_add(1);
                     for (auto i = 0; i < txn_ptr->row_size(); i++) {
@@ -94,13 +94,14 @@ namespace Taas {
                     LOG(INFO) << "*** Commit Txn To Hbase Failed: " << e.what();
                     failed_commit_txn_num.fetch_add(1);
                 }
+                hbase_txn.disconnect();
                 epoch_pushed_down_txn_num.IncCount(txn_ptr->commit_epoch(), txn_ptr->server_id(), 1);
                 sleep_flag = false;
             }
             if(sleep_flag)
                 usleep(sleep_time);
         }
-        hbase_txn.disconnect();
+
     }
 
 
