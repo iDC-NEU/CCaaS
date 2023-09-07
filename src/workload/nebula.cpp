@@ -31,9 +31,7 @@ namespace workload {
         nebulaSessionPoolConfig.maxSize_ = ctx.multiModelContext.kClientNum;
         nebulaSessionPool = std::make_unique<nebula::SessionPool>(nebulaSessionPoolConfig);
         nebulaSessionPool->init();
-        resp = nebulaSessionPool->execute("CREATE TAG IF NOT EXISTS usertable (key, string, filed0 string, filed1 string, " \
-                                          "filed2 string , filed3 string, filed4 string, filed5 string, filed6 string, "
-                                          "filed7 string, filed8 string, filed9 string, tid string);");
+        resp = nebulaSessionPool->execute("CREATE TAG IF NOT EXISTS usertable (key, string, filed, tid string);");
         assert(resp.errorCode == nebula::ErrorCode::SUCCEEDED);
         resp = nebulaSessionPool->execute("CREATE TAG INDEX IF NOT EXISTS usertable_index on usertable(key(10));");
         assert(resp.errorCode == nebula::ErrorCode::SUCCEEDED);
@@ -49,12 +47,12 @@ namespace workload {
         auto keyName = std::string(genKey);
         utils::ByteIteratorMap values;
         MultiModelWorkload::buildValues(values, keyName);
-
-        sprintf(gql, R"(INSERT VERTEX IF NOT EXISTS usertable(key, filed0, filed1, filed2, filed3, filed4, filed5, filed6, filed7" \
-                                "filed8, filed9, txnid) VALUES "%s" :("%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%lu");)",
-                                genKey, genKey, values["filed0"].c_str(), values["filed1"].c_str(), values["filed2"].c_str(),
-                                values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(), values["filed6"].c_str(),
-                                values["filed7"].c_str(), values["filed8"].c_str(), values["filed9"].c_str(), tid);
+        std::string value;
+        for (const auto &it: values) {
+            value += it.second + ",";
+        }
+        sprintf(gql, R"(INSERT VERTEX IF NOT EXISTS usertable(key, filed, txnid) VALUES "%s" :("%s","%s","%lu");)",
+                                genKey, genKey, value.c_str(), tid);
 
         auto resp = nebulaSessionPool->execute(gql);
     }
@@ -83,17 +81,16 @@ namespace workload {
                 } else {
                     utils::ByteIteratorMap values;
                     MultiModelWorkload::buildValues(values, keyName);
-                    sprintf(gql, R"(UPDATE VERTEX on usertable "%s" set filed0 = %s, filed1 = %s, filed2 = %s, filed3 = %s, filed4 = %s, filed5 = %s, filed6 = %s, filed7 = %s" \
-                                "filed8 = %s, filed9 = %s, txnid = %lu;)",
-                            genKey, values["filed0"].c_str(), values["filed1"].c_str(), values["filed2"].c_str(),
-                            values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(), values["filed6"].c_str(),
-                            values["filed7"].c_str(), values["filed8"].c_str(), values["filed9"].c_str(), tid);
+                    for (const auto &it: values) {
+                        value += it.second + ",";
+                    }
+                    sprintf(gql, R"(UPDATE VERTEX on usertable "%s" set filed = "%s", txnid = "%lu";)",
+                            genKey, value.c_str(), tid);
                     auto resp = nebulaSessionPool->execute(gql);
 
                 }
             }
         }
     }
-
 }
 

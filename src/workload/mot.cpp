@@ -155,7 +155,7 @@ namespace workload {
         auto keyName = std::string(genKey);
         utils::ByteIteratorMap values;
         MultiModelWorkload::buildValues(values, keyName);
-        sprintf(sql, R"(INSERT INTO usertable VALUES("%s", "%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%lu");)",
+        sprintf(sql, R"(INSERT INTO usertable VALUES("%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%lu");)",
                 genKey, values["filed0"].c_str(), values["filed1"].c_str(), values["filed2"].c_str(),
                 values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(), values["filed6"].c_str(),
                 values["filed7"].c_str(), values["filed8"].c_str(), values["filed9"].c_str(), tid);
@@ -175,6 +175,7 @@ namespace workload {
         else return ;
 
         {
+            std::string txn = "start transaction;";
             for (i = 0; i < cnt; i++) {
                 auto opType = MultiModelWorkload::operationChooser->nextValue();
                 auto id = MultiModelWorkload::keyChooser[0]->nextValue();
@@ -182,15 +183,20 @@ namespace workload {
                 auto keyName = std::string(genKey);
                 if (opType == Operation::READ) {
                     sprintf(sql, "SELECT * FROM usertable WHERE key = '%s';", genKey);
-                    MOTConnectionPool::ExecSQL( (SQLCHAR *)sql);
+                    txn += std::string(sql);
                 } else {
                     utils::ByteIteratorMap values;
                     MultiModelWorkload::buildValues(values, keyName);
-                    for (const auto &it: values) {
-                        value += it.second + ",";
-                    }
+                    sprintf(sql, R"(update usertable set set filed0="%s", filed1="%s", filed2="%s", filed3="%s", filed4="%s", filed5="%s", filed6="%s", filed7 = %s", \
+                                "filed8="%s", filed9="%s", txnid="%lu" where key ="%s";)",
+                            values["filed0"].c_str(), values["filed1"].c_str(), values["filed2"].c_str(),
+                            values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(), values["filed6"].c_str(),
+                            values["filed7"].c_str(), values["filed8"].c_str(), values["filed9"].c_str(), tid, genKey);
+                    txn += std::string(sql);
                 }
             }
+            txn += "commit;";
+            MOTConnectionPool::ExecSQL((SQLCHAR *)txn.c_str());
         }
     }
 
