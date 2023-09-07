@@ -16,7 +16,7 @@ namespace workload {
     void Nebula::Init(const Taas::Context& ctx) {
         nebula::ConnectionPool pool;
         auto connectConfig = nebula::Config{};
-        connectConfig.maxConnectionPoolSize_ = 1;
+        connectConfig.maxConnectionPoolSize_ = ctx.multiModelContext.kClientNum ;
         pool.init({ctx.multiModelContext.kNebulaIP}, connectConfig);
         auto session = pool.getSession(ctx.multiModelContext.kNebulaUser, ctx.multiModelContext.kNebulaPwd);
         assert(session.valid());
@@ -28,7 +28,7 @@ namespace workload {
         nebulaSessionPoolConfig.password_ = ctx.multiModelContext.kNebulaPwd;
         nebulaSessionPoolConfig.addrs_ = {ctx.multiModelContext.kNebulaIP};
         nebulaSessionPoolConfig.spaceName_ = ctx.multiModelContext.kNebulaSpace;
-        nebulaSessionPoolConfig.maxSize_ = 1;
+        nebulaSessionPoolConfig.maxSize_ = ctx.multiModelContext.kClientNum;
         nebulaSessionPool = std::make_unique<nebula::SessionPool>(nebulaSessionPoolConfig);
         nebulaSessionPool->init();
         resp = nebulaSessionPool->execute("CREATE TAG IF NOT EXISTS usertable (key, string, filed0 string, filed1 string, " \

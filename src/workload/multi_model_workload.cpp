@@ -15,6 +15,8 @@ namespace workload{
 
     Taas::Context MultiModelWorkload::ctx;
     std::unique_ptr<util::thread_pool_light> MultiModelWorkload::thread_pool;
+    std::unique_ptr<utils::DiscreteGenerator<Operation>> MultiModelWorkload::operationChooser;
+    std::vector<std::unique_ptr<utils::NumberGenerator>> MultiModelWorkload::keyChooser;
     bthread::CountdownEvent MultiModelWorkload::workCountDown;
 
     std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<send_multimodel_params>>> MultiModelWorkload::send_multi_txn_queue;
