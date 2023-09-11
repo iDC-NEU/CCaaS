@@ -10,8 +10,9 @@
 #include "tools/atomic_counters.h"
 #include "tools/context.h"
 
-#include <unistd.h>
+#include "proto/transaction.pb.h"
 
+#include <unistd.h>
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -35,6 +36,13 @@ namespace Taas {
     extern void EpochPhysicalTimerManagerThreadMain(Context ctx);
     std::string PrintfToString(const char* format, ...);
     void OUTPUTLOG(const std::string& s, uint64_t& epoch);
+
+    class MultiModelTxn{
+    public:
+        uint64_t total_txn_num, received_txn_num;
+        std::shared_ptr<proto::Transaction> kv, sql, gql;
+    };
+
     class EpochManager {
     private:
         static bool timerStop;

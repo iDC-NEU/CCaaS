@@ -20,7 +20,8 @@ namespace Taas {
         receiveHandler.Init(id);
         twoPC.Init(id);
         while(!EpochManager::IsTimerStop()){
-            switch(ctx.taasContext.taas_mode) {
+            switch(ctx.taasContext.taasMode) {
+                case TaasMode::MultiModel :
                 case TaasMode::MultiMaster :
                 case TaasMode::Sharding : {
                     while(!EpochManager::IsTimerStop()) {
@@ -47,7 +48,8 @@ namespace Taas {
         receiveHandler.Init(id);
         twoPC.Init(id);
         while(!EpochManager::IsTimerStop()){
-            switch(ctx.taasContext.taas_mode) {
+            switch(ctx.taasContext.taasMode) {
+                case TaasMode::MultiModel :
                 case TaasMode::MultiMaster :
                 case TaasMode::Sharding : {
                     while(!EpochManager::IsTimerStop()) {
@@ -101,11 +103,16 @@ namespace Taas {
         SendServerPUBThreadMain(ctx);
     }
 
-    void WorkerForStorageSendThreadMain(const Context& ctx) {
-        std::string name = "EpochStorageSend";
+    void WorkerForStorageSendMOTThreadMain(const Context& ctx) {
+        std::string name = "EpochMOTStorage";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
-        SendStoragePUBThreadMain(ctx);
+        SendToMOTStorageThreadMain(ctx);
     }
 
+    void WorkerForStorageSendNebulaThreadMain(const Context& ctx) {
+        std::string name = "EpochNebulaStorage";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        SendToNebulaStorageThreadMain(ctx);
+    }
 }
 

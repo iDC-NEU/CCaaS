@@ -98,7 +98,7 @@ namespace Taas {
         auto serialized_txn_str_ptr = std::make_unique<std::string>();
         Gzip(msg.get(), serialized_txn_str_ptr.get());
         assert(!serialized_txn_str_ptr->empty());
-        if(ctx.taasContext.taas_mode == TaasMode::MultiMaster) {
+        if(ctx.taasContext.taasMode == TaasMode::MultiMaster) {
             for (uint64_t i = 0; i < ctx.taasContext.kTxnNodeNum; i++) {
                 if (i == ctx.taasContext.txn_node_ip_index) continue;/// send to everyone
                 auto str_copy = std::make_unique<std::string>(*serialized_txn_str_ptr);

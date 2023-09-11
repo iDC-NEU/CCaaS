@@ -17,6 +17,7 @@
 #include "tools/thread_pool_light.h"
 
 namespace Taas {
+
     class EpochMessageReceiveHandler{
     public:
         bool Init(const uint64_t &id);
@@ -25,6 +26,7 @@ namespace Taas {
         void HandleReceivedControlMessage();
         bool SetMessageRelatedCountersInfo();
         bool HandleReceivedTxn();
+        bool HandleMultiModelClientTxn();
         bool HandleClientTxn();
         bool UpdateEpochAbortSet();
 
@@ -65,6 +67,8 @@ namespace Taas {
             epoch_backup_txn,
             epoch_insert_set,
             epoch_abort_set;
+
+        static concurrent_unordered_map<std::string, std::shared_ptr<MultiModelTxn>> multiModelTxnMap;
 
         static std::vector<std::unique_ptr<std::atomic<bool>>>
             epoch_sharding_send_complete,
@@ -306,7 +310,9 @@ namespace Taas {
         }
 
 
+        void HandleMultiModelClientSubTxn();
 
+        uint64_t getMultiModelTxnId();
     };
 
 }

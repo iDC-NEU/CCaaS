@@ -30,7 +30,8 @@ namespace Taas {
     enum TaasMode {
         MultiMaster = 1,
         Sharding = 2,
-        TwoPC = 3
+        TwoPC = 3,
+        MultiModel = 4
     };
 
     class TaasContext {
@@ -45,7 +46,7 @@ namespace Taas {
         ServerMode server_type = ServerMode::Taas;
 
         ///TaaS server config
-        TaasMode taas_mode = TaasMode::MultiMaster;
+        TaasMode taasMode = TaasMode::MultiMaster;
         std::vector<std::string> kServerIp;
         uint64_t kTxnNodeNum = 1, kBackUpNum = 1;
         uint64_t kIndexNum = 1, kEpochSize_us = 10000/** us */, txn_node_ip_index = 0, kDurationTime_us = 0,
@@ -89,7 +90,7 @@ namespace Taas {
     };
 
     enum TestMode {
-        MultiModel = 1,
+        MultiModelTest = 1,
         KV = 2,
         SQL = 3,
         GQL = 4
@@ -105,10 +106,10 @@ namespace Taas {
             GetMultiModelInfo(MultiModel_config_file_path);
         }
 
-        std::string  kMultiModelClient, kTaasIP,
+        std::string  kMultiModelClientIP, kTaasIP,
                 kNebulaIP, kNebulaSpace, kNebulaUser, kNebulaPwd,
                 kMOTIP, kMOTDsnName, kMOTDsnUid, kMOTDsnPwd;
-        TestMode kTestMode = MultiModel;
+        TestMode kTestMode = MultiModelTest;
         bool isLoadData = true , isUseMot = true, isUseNebula = true;
 
         uint64_t kRecordCount = 1000000, kTxnNum = 10000, kWriteNum = 100, kReadNum = 0,kOpNum = 10,kClientNum = 10;

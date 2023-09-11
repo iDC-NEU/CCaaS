@@ -72,7 +72,7 @@ namespace workload {
         static Taas::concurrent_unordered_map<uint64_t, std::shared_ptr<std::condition_variable>> multiModelTxnConditionVariable;
 
         static void StaticInit(const Taas::Context& ctx_);
-        static void buildValues(utils::ByteIteratorMap& values, const std::string& key);
+        static void buildValues(utils::ByteIteratorMap &values);
         static void LoadData();
         static void LoadKVData();
         static void LoadSQLData();

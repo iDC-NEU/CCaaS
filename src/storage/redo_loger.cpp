@@ -8,6 +8,7 @@
 #include "storage/leveldb.h"
 #include "storage/hbase.h"
 #include "storage/mot.h"
+#include "storage/nebula.h"
 
 namespace Taas {
     Context RedoLoger::ctx;
@@ -59,16 +60,22 @@ namespace Taas {
         auto key = std::to_string(epoch_id) + ":" + std::to_string(lsn);
         committed_txn_cache[epoch_id % ctx.taasContext.kCacheMaxLength]->insert(key, txn_ptr);
         if(ctx.storageContext.is_mot_enable) {
-            MOT::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
+            if(txn_ptr->storage_type() == "mot")
+                MOT::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
+            if(txn_ptr->storage_type() == "nebula")
+                Nebula::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
         }
         if(ctx.storageContext.is_tikv_enable) {
-            TiKV::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
+            if(txn_ptr->storage_type() == "kv")
+                TiKV::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
         }
         if(ctx.storageContext.is_leveldb_enable) {
-            LevelDB::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
+            if(txn_ptr->storage_type() == "kv")
+                LevelDB::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
         }
         if(ctx.storageContext.is_hbase_enable) {
-            HBase::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
+            if(txn_ptr->storage_type() == "kv")
+                HBase::DBRedoLogQueueEnqueue(epoch_id, txn_ptr);
         }
         txn_ptr.reset();
         return true;

@@ -25,6 +25,8 @@ namespace Taas {
         EpochMessageReceiveHandler::epoch_insert_set,
         EpochMessageReceiveHandler::epoch_abort_set;
 
+    concurrent_unordered_map<std::string, std::shared_ptr<MultiModelTxn>> EpochMessageReceiveHandler::multiModelTxnMap;
+
     std::vector<std::unique_ptr<std::atomic<bool>>>
             EpochMessageReceiveHandler::epoch_sharding_send_complete,
             EpochMessageReceiveHandler::epoch_sharding_receive_complete,
@@ -195,16 +197,20 @@ namespace Taas {
         switch (txn_ptr->txn_type()) {
             ///这里需要注意 这几个计数器是以server_id为粒度增加的，不是线程id ！！！
             case proto::TxnType::ClientTxn : {/// sql node --> txn node
-                message_epoch = EpochManager::GetPhysicalEpoch();
-                sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
-                txn_ptr->set_commit_epoch(message_epoch);
-                txn_ptr->set_csn(now_to_us());
-                txn_ptr->set_server_id(ctx.taasContext.txn_node_ip_index);
-                SetMessageRelatedCountersInfo();
-                HandleClientTxn();
-                assert(txn_ptr != nullptr);
-                Merger::CommitQueueEnqueue(message_epoch, txn_ptr);
-                sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
+                if(ctx.taasContext.taasMode == TaasMode::MultiModel) {
+                    HandleMultiModelClientTxn();
+                }
+                else {
+                    message_epoch = EpochManager::GetPhysicalEpoch();
+                    sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
+                    txn_ptr->set_commit_epoch(message_epoch);
+                    txn_ptr->set_csn(now_to_us());
+                    txn_ptr->set_server_id(ctx.taasContext.txn_node_ip_index);
+                    SetMessageRelatedCountersInfo();
+                    HandleClientTxn();
+                    Merger::CommitQueueEnqueue(message_epoch, txn_ptr);
+                    sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
+                }
                 break;
             }
             case proto::TxnType::RemoteServerTxn : {
@@ -212,7 +218,7 @@ namespace Taas {
                 Merger::MergeQueueEnqueue(message_epoch, txn_ptr);
                 Merger::CommitQueueEnqueue(message_epoch, txn_ptr);
                 sharding_received_txn_num.IncCount(message_epoch,message_server_id, 1);
-                if(ctx.taasContext.taas_mode == TaasMode::MultiMaster) {
+                if(ctx.taasContext.taasMode == TaasMode::MultiMaster) {
 //                    epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
 //                    epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
                     backup_received_txn_num.IncCount(message_epoch,message_server_id, 1);
@@ -244,7 +250,6 @@ namespace Taas {
 //                epoch_abort_set[message_epoch_mod]->enqueue(txn_ptr);
 //                epoch_abort_set[message_epoch_mod]->enqueue(nullptr);
                 abort_set_received_num.IncCount(message_epoch,message_server_id, 1);
-                ///send abort set ack
                 EpochMessageSendHandler::SendTxnToServer(message_epoch,message_server_id, empty_txn_ptr, proto::TxnType::AbortSetACK);
                 break;
             }
@@ -252,28 +257,22 @@ namespace Taas {
 //                epoch_insert_set[message_epoch_mod]->enqueue(txn_ptr);
 //                epoch_insert_set[message_epoch_mod]->enqueue(nullptr);
                 insert_set_received_num.IncCount(message_epoch,message_server_id, 1);
-                ///send insert set ack
                 EpochMessageSendHandler::SendTxnToServer(message_epoch, message_server_id, empty_txn_ptr, proto::TxnType::InsertSetACK);
                 break;
             }
             case proto::TxnType::EpochShardingACK : {
                 sharding_received_ack_num.IncCount(message_epoch,message_server_id, 1);
                 CheckEpochShardingSendComplete(message_epoch);
-//                printf("EpochShardingACK epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::BackUpACK : {
                 backup_received_ack_num.IncCount(message_epoch,message_server_id, 1);
-//                printf("=== receive backup ack from %lu epoch %lu\n", message_server_id, message_epoch);
                 CheckEpochBackUpComplete(message_epoch);
-//                printf("BackUpACK epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::AbortSetACK : {
                 abort_set_received_ack_num.IncCount(message_epoch,message_server_id, 1);
                 CheckEpochAbortSetMergeComplete(message_epoch);
-//                LOG(INFO) << "=== Receive Abort Set ACK epoch :" << message_epoch  << "===\n";
-//                printf("AbortSetACK epoch %lu server %lu\n", message_epoch, message_server_id);
                 break;
             }
             case proto::TxnType::InsertSetACK : {
@@ -282,7 +281,6 @@ namespace Taas {
             }
             case proto::TxnType::EpochLogPushDownComplete : {
                 redo_log_push_down_ack_num.IncCount(message_epoch,message_server_id, 1);
-//                LOG(INFO) << "receive EpochLogPushDownComplete, epoch:" << message_epoch << ", server_id: " << message_server_id;
             break;
         }
         case proto::NullMark:
@@ -294,9 +292,71 @@ namespace Taas {
         return true;
     }
 
+    uint64_t EpochMessageReceiveHandler::getMultiModelTxnId() {
+        for(auto i = 0; i < txn_ptr->row_size(); i ++) {
+            const auto &row = txn_ptr->row(i);
+            if (row.op_type() == proto::OpType::Read) {
+                continue;
+            }
+            std::string tempData = txn_ptr->row(0).data();
+            std::string tempKey = txn_ptr->row(0).key();
+            uint64_t index = 4294967295;
+            if (tempData.length() > 0) {
+                index = tempData.find("tid");
+                if (index < tempData.length()) {
+                    auto tid = std::strtoull(&tempData.at(index), NULL, 10);
+                    return tid;
+                }
+            }
+        }
+        return 0;
+    }
+
+    void EpochMessageReceiveHandler::HandleMultiModelClientSubTxn() {
+        sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
+        txn_ptr->set_commit_epoch(message_epoch);
+        txn_ptr->set_csn(now_to_us());
+        txn_ptr->set_server_id(ctx.taasContext.txn_node_ip_index);
+        SetMessageRelatedCountersInfo();
+        HandleClientTxn();
+        Merger::CommitQueueEnqueue(message_epoch, txn_ptr);
+        sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
+    }
+
+    bool EpochMessageReceiveHandler::HandleMultiModelClientTxn() {
+        std::shared_ptr<MultiModelTxn> multiModelTxn;
+        uint64_t txn_id;
+        if(txn_ptr->storage_type() == "mot" || txn_ptr->storage_type() == "nebula") {
+            txn_id = getMultiModelTxnId();
+        }
+        else {
+            txn_id = txn_ptr->client_txn_id();
+        }
+        multiModelTxnMap.getValue(std::to_string(txn_id), multiModelTxn);
+        if(txn_ptr->storage_type() == "kv") {
+            multiModelTxn->total_txn_num = txn_ptr->csn();
+        }
+        multiModelTxn->received_txn_num += 1;
+        if(multiModelTxn->total_txn_num == multiModelTxn->received_txn_num) {
+            message_epoch = EpochManager::GetPhysicalEpoch();
+            sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
+            txn_ptr = multiModelTxn->kv;
+            HandleMultiModelClientSubTxn();
+            if(multiModelTxn->sql != nullptr) {
+                txn_ptr = multiModelTxn->sql;
+                HandleMultiModelClientSubTxn();
+            }
+            if(multiModelTxn->gql != nullptr) {
+                txn_ptr = multiModelTxn->gql;
+                HandleMultiModelClientSubTxn();
+            }
+            sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
+        }
+        return true;
+    }
+
     bool EpochMessageReceiveHandler::HandleClientTxn() {
-//        auto time1 = now_to_us();
-        if(ctx.taasContext.taas_mode == TaasMode::Sharding) {
+        if(ctx.taasContext.taasMode == TaasMode::Sharding) {
             std::vector<std::shared_ptr<proto::Transaction>> sharding_row_vector;
             for(uint64_t i = 0; i < sharding_num; i ++) {
                 sharding_row_vector.emplace_back(std::make_shared<proto::Transaction>());
@@ -314,9 +374,8 @@ namespace Taas {
             }
             for(uint64_t i = 0; i < sharding_num; i ++) {
                 if(sharding_row_vector[i]->row_size() > 0) {
-                    ///sharding sending
                     if(i == ctx.taasContext.txn_node_ip_index) {
-                        Merger::MergeQueueEnqueue(message_epoch, sharding_row_vector[ctx.taasContext.txn_node_ip_index]);
+                        Merger::MergeQueueEnqueue(message_epoch, sharding_row_vector[ctx.taasContext.txn_node_ip_index]);/// sharding merge
                     }
                     else {
                         sharding_should_send_txn_num.IncCount(message_epoch, i, 1);
@@ -332,9 +391,8 @@ namespace Taas {
 //            epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
             sharding_row_vector.clear();
         }
-
-        else if(ctx.taasContext.taas_mode == TaasMode::MultiMaster) {
-            Merger::MergeQueueEnqueue(message_epoch, txn_ptr);
+        else if(ctx.taasContext.taasMode == TaasMode::MultiMaster) {
+            Merger::MergeQueueEnqueue(message_epoch, txn_ptr);/// multi-master merge
             sharding_should_send_txn_num.IncCount(message_epoch, ctx.taasContext.txn_node_ip_index, 1);
             backup_should_send_txn_num.IncCount(message_epoch, ctx.taasContext.txn_node_ip_index, 1);
             EpochMessageSendHandler::SendTxnToServer(message_epoch, ctx.taasContext.txn_node_ip_index, txn_ptr, proto::TxnType::RemoteServerTxn);
@@ -343,8 +401,6 @@ namespace Taas {
 //            epoch_backup_txn[message_epoch_mod]->enqueue(txn_ptr);
 //            epoch_backup_txn[message_epoch_mod]->enqueue(nullptr);
         }
-//        auto time3 = now_to_us();
-//        LOG(INFO) << "Handle Client Txn Time Cost : " << time3 - time1;
         return true;
     }
 

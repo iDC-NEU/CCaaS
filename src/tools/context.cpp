@@ -16,7 +16,7 @@ namespace Taas {
         server_type = static_cast<ServerMode>(std::stoull(server->GetText()));
 
         tinyxml2::XMLElement* server_mode = root->FirstChildElement("taas_server_mode");
-        taas_mode = static_cast<TaasMode>(std::stoull(server_mode->GetText()));
+        taasMode = static_cast<TaasMode>(std::stoull(server_mode->GetText()));
 
         tinyxml2::XMLElement* server_num = root->FirstChildElement("txn_node_num");
         kTxnNodeNum= std::stoull(server_num->GetText());
@@ -130,7 +130,7 @@ namespace Taas {
 
         tinyxml2::XMLElement *multimodel_client = root->FirstChildElement("multimodel_client");
         auto multimodel_clients = multimodel_client->GetText();
-        kMultiModelClient = std::string(multimodel_clients);
+        kMultiModelClientIP = std::string(multimodel_clients);
 
         tinyxml2::XMLElement *taas_ip_port = root->FirstChildElement("taas_ip");
         auto taas_ip = taas_ip_port->GetText();

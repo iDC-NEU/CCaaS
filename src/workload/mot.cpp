@@ -135,10 +135,6 @@ namespace workload {
     }
 
 
-
-
-
-
     void MOT::Init() {
         MOTConnectionPool::Init();
         MOTConnectionPool::ExecSQL((SQLCHAR *)
@@ -154,12 +150,12 @@ namespace workload {
         sprintf(genKey, "usertable_key:%064lu", tid);
         auto keyName = std::string(genKey);
         utils::ByteIteratorMap values;
-        MultiModelWorkload::buildValues(values, keyName);
-        sprintf(sql, R"(INSERT INTO usertable VALUES("%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%lu");)",
+        MultiModelWorkload::buildValues(values);
+        sprintf(sql, R"(INSERT INTO usertable VALUES("%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s");)",
                 genKey, values["filed0"].c_str(), values["filed1"].c_str(), values["filed2"].c_str(),
                 values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(),
                 values["filed6"].c_str(), values["filed7"].c_str(), values["filed8"].c_str(),
-                values["filed9"].c_str(), tid);
+                values["filed9"].c_str(), ("tid:" + std::to_string(tid)).c_str());
         MOTConnectionPool::ExecSQL((SQLCHAR *)sql);
     }
 
@@ -167,7 +163,7 @@ namespace workload {
         char genKey[100], sql[800];
         std::string value;
         int cnt, i;
-        if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::MultiModel) {
+        if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::MultiModelTest) {
             cnt = 4;
         }
         else if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::KV) {
@@ -187,13 +183,13 @@ namespace workload {
                     txn += std::string(sql);
                 } else {
                     utils::ByteIteratorMap values;
-                    MultiModelWorkload::buildValues(values, keyName);
+                    MultiModelWorkload::buildValues(values);
                     sprintf(sql, R"(update usertable set filed0="%s", filed1="%s", filed2="%s", filed3="%s", filed4="%s", filed5="%s", filed6="%s", filed7 = %s", \
-                                "filed8="%s", filed9="%s", txnid="%lu" where key ="%s";)",
+                                "filed8="%s", filed9="%s", txnid="%s" where key ="%s";)",
                             values["filed0"].c_str(), values["filed1"].c_str(), values["filed2"].c_str(),
                             values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(),
                             values["filed6"].c_str(), values["filed7"].c_str(), values["filed8"].c_str(),
-                            values["filed9"].c_str(), tid, genKey);
+                            values["filed9"].c_str(), ("tid:" + std::to_string(tid)).c_str(), genKey);
                     txn += std::string(sql);
                 }
             }

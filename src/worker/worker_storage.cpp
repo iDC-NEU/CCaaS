@@ -7,6 +7,7 @@
 #include "storage/leveldb.h"
 #include "storage/hbase.h"
 #include "storage/mot.h"
+#include "storage/nebula.h"
 
 namespace Taas {
 
@@ -15,12 +16,17 @@ namespace Taas {
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
-//            if(id == 0)
                 MOT::SendTransactionToDB_Usleep();
-//            else
-//                MOT::SendTransactionToDB_Block();
         }
-        ///EpochManager::CheckRedoLogPushDownState(); in this function
+    }
+
+    void WorkerFroNebulaStorageThreadMain(const Context& ctx, uint64_t id) {
+        std::string name = "EpochNebula";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while (!EpochManager::IsTimerStop()) {
+            Nebula::SendTransactionToDB_Usleep();
+        }
     }
 
     void WorkerFroTiKVStorageThreadMain(const Context& ctx, uint64_t id) {

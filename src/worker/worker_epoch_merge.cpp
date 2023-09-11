@@ -15,7 +15,8 @@ namespace Taas {
         Merger merger;
         merger.Init(id);
         auto txn_ptr = std::make_shared<proto::Transaction>();
-        switch(ctx.taasContext.taas_mode) {
+        switch(ctx.taasContext.taasMode) {
+            case TaasMode::MultiModel :
             case TaasMode::MultiMaster :
             case TaasMode::Sharding : {
                 while(!EpochManager::IsTimerStop()) {

@@ -65,10 +65,17 @@ namespace Taas {
             }
 
             ///Storage
-            threads.push_back(std::make_unique<std::thread>(WorkerForStorageSendThreadMain, ctx)); cnt++;
+            threads.push_back(std::make_unique<std::thread>(WorkerForStorageSendMOTThreadMain, ctx)); cnt++;
+            threads.push_back(std::make_unique<std::thread>(WorkerForStorageSendNebulaThreadMain, ctx)); cnt++;
+
             if(ctx.storageContext.is_mot_enable) {
                 for(int i = 0; i < (int)ctx.storageContext.kMOTThreadNum; i ++) {
                     threads.push_back(std::make_unique<std::thread>(WorkerFroMOTStorageThreadMain, ctx, i));  cnt++;///mot push down
+                }
+            }
+            if(ctx.storageContext.is_mot_enable) {
+                for(int i = 0; i < (int)ctx.storageContext.kMOTThreadNum; i ++) {
+                    threads.push_back(std::make_unique<std::thread>(WorkerFroNebulaStorageThreadMain, ctx, i));  cnt++;///mot push down
                 }
             }
             if(ctx.storageContext.is_tikv_enable) {

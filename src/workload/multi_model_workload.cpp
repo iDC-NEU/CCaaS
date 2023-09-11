@@ -35,7 +35,7 @@ namespace workload{
 
     }
 
-    void MultiModelWorkload::buildValues(utils::ByteIteratorMap& values, const std::string& key) {
+    void MultiModelWorkload::buildValues(utils::ByteIteratorMap &values) {
         auto field = "filed";
         for (int i = 0; i < 10; i ++) {
             // fill with random data
@@ -45,7 +45,7 @@ namespace workload{
     }
 
     void MultiModelWorkload::LoadData() {
-        if ((ctx.multiModelContext.kTestMode == Taas::MultiModel || ctx.multiModelContext.kTestMode == Taas::KV)) {
+        if ((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::KV)) {
             workCountDown.reset((int) ctx.multiModelContext.kClientNum);
             for (int i = 0; i < (int) ctx.multiModelContext.kClientNum; i++) {
                 thread_pool->push_task([] {
@@ -56,7 +56,7 @@ namespace workload{
             workCountDown.wait();
             SetTxnId(0);
         }
-        if ((ctx.multiModelContext.kTestMode == Taas::MultiModel || ctx.multiModelContext.kTestMode == Taas::SQL)) {
+        if ((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::SQL)) {
             workCountDown.reset((int) ctx.multiModelContext.kClientNum);
             for (int i = 0; i < (int) ctx.multiModelContext.kClientNum; i++) {
                 thread_pool->push_task([] {
@@ -67,7 +67,7 @@ namespace workload{
             workCountDown.wait();
             SetTxnId(0);
         }
-        if ((ctx.multiModelContext.kTestMode == Taas::MultiModel || ctx.multiModelContext.kTestMode == Taas::GQL)) {
+        if ((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::GQL)) {
             workCountDown.reset((int) ctx.multiModelContext.kClientNum);
             for (int i = 0; i < (int) ctx.multiModelContext.kClientNum; i++) {
                 thread_pool->push_task([] {
@@ -111,7 +111,7 @@ namespace workload{
     void MultiModelWorkload::RunMultiTxn() {
         uint64_t txnId, kTotalTxnNum = ctx.multiModelContext.kTxnNum;
         std::unique_ptr<proto::KvDBGetService_Stub> get_stub;
-        if((ctx.multiModelContext.kTestMode == Taas::MultiModel || ctx.multiModelContext.kTestMode == Taas::KV)) {
+        if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::KV)) {
             brpc::Channel chan;
             brpc::ChannelOptions options;
             chan.Init(ctx.storageContext.kLevelDBIP.c_str(), &options);
@@ -124,48 +124,45 @@ namespace workload{
             txnId = AddTxnId();
             if(txnId > kTotalTxnNum) break;
 
-            MultiModelTxn txn;
-            txn.tid = txnId;
-            txn.stTime = Taas::now_to_us();
+            auto stTime = Taas::now_to_us();
             subTxnCountDown.reset(3);
             uint64_t txn_num = 0;
             auto msg = std::make_unique<proto::Message>();
             auto message_txn = msg->mutable_txn();
-            if((ctx.multiModelContext.kTestMode == Taas::MultiModel || ctx.multiModelContext.kTestMode == Taas::KV)) {
+            if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::KV)) {
                 KV::RunTxn(message_txn, *get_stub);
                 subTxnCountDown.signal();
-                txn_num ++;
             }
-            if((ctx.multiModelContext.kTestMode == Taas::MultiModel || ctx.multiModelContext.kTestMode == Taas::GQL)) {
+            if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::GQL)) {
                 threads->push_task(Nebula::RunTxn, txnId, subTxnCountDown);
                 txn_num ++;
             }
-            if((ctx.multiModelContext.kTestMode == Taas::MultiModel || ctx.multiModelContext.kTestMode == Taas::SQL)) {
+            if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::SQL)) {
                 threads->push_task(MOT::RunTxn, txnId, subTxnCountDown);
                 txn_num ++;
             }
-            txn.typeNumber =  txn_num;
+            txn_num ++;
             message_txn->set_csn(txn_num);
-            message_txn->set_client_ip(ctx.multiModelContext.kMultiModelClient);
-            message_txn->set_client_txn_id(txn.tid);
+            message_txn->set_client_ip(ctx.multiModelContext.kMultiModelClientIP);
+            message_txn->set_client_txn_id(txnId);
             message_txn->set_txn_type(proto::TxnType::ClientTxn);
+            message_txn->set_storage_type("kv");
             std::unique_ptr<std::string> serialized_txn_str_ptr(new std::string());
             auto res = Taas::Gzip(msg.get(), serialized_txn_str_ptr.get());
             assert(res);
             send_multi_txn_queue->enqueue(std::make_unique<send_multimodel_params>(
-                    txn.tid, serialized_txn_str_ptr.release()));
+                    txnId, serialized_txn_str_ptr.release()));
             send_multi_txn_queue->enqueue(std::make_unique<send_multimodel_params>(0, nullptr));
             std::mutex _mutex;
             std::unique_lock<std::mutex> _lock(_mutex);
             auto cv_ptr = std::make_shared<std::condition_variable>();
-            multiModelTxnConditionVariable.insert(txn.tid, cv_ptr);
+            multiModelTxnConditionVariable.insert(txnId, cv_ptr);
             cv_ptr->wait(_lock);
-            if(ctx.multiModelContext.kTestMode == Taas::MultiModel) {
+            if(ctx.multiModelContext.kTestMode == Taas::MultiModelTest) {
                 subTxnCountDown.wait();
             }
-            txn.edTime = Taas::now_to_us();
-            execTimes.emplace_back(txn.edTime-txn.stTime);
-
+            auto edTime = Taas::now_to_us();
+            execTimes.emplace_back(edTime - stTime);
         }
         workCountDown.signal();
     }

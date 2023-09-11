@@ -269,7 +269,7 @@ namespace Taas {
     //    request_puller.recv(&message);
         gettimeofday(&start_time, nullptr);
         start_time_ll = start_time.tv_sec * 1000000 + start_time.tv_usec;
-        if(ctx.taasContext.is_sync_start && ctx.taasContext.taas_mode != TaasMode::TwoPC) {
+        if(ctx.taasContext.is_sync_start && ctx.taasContext.taasMode != TaasMode::TwoPC) {
             auto sleep_time_temp = static_cast<uint64_t>((((start_time.tv_sec / 60) + 1) * 60) * 1000000);
             usleep(sleep_time_temp - start_time_ll);
             gettimeofday(&start_time, nullptr);

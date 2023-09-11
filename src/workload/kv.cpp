@@ -23,7 +23,7 @@ namespace workload {
         row->set_data(data);
         row->set_op_type(proto::OpType::Insert);
         message_txn->set_csn(1);
-        message_txn->set_client_ip(MultiModelWorkload::ctx.multiModelContext.kMultiModelClient);
+        message_txn->set_client_ip(MultiModelWorkload::ctx.multiModelContext.kMultiModelClientIP);
         message_txn->set_client_txn_id(tid);
         message_txn->set_txn_type(proto::TxnType::ClientTxn);
         std::unique_ptr<std::string> serialized_txn_str_ptr(new std::string());
@@ -43,7 +43,7 @@ namespace workload {
         char genKey[100];
         std::string value;
         int cnt, i;
-        if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::MultiModel) {
+        if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::MultiModelTest) {
             cnt = 4;
         }
         else if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::KV) {
@@ -77,7 +77,7 @@ namespace workload {
                     row->set_op_type(proto::OpType::Read);
                 } else {
                     utils::ByteIteratorMap values;
-                    MultiModelWorkload::buildValues(values, keyName);
+                    MultiModelWorkload::buildValues(values);
                     for (const auto &it: values) {
                         value += it.second + ",";
                     }

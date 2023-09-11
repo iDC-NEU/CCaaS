@@ -18,8 +18,8 @@ namespace Taas {
     extern void WorkerForServerListenThreadMain_Epoch(const Context& ctx);
     extern void WorkerForServerSendThreadMain(const Context& ctx);
     extern void WorkerForServerSendPUBThreadMain(const Context& ctx);
-    extern void WorkerForStorageSendThreadMain(const Context& ctx);
-
+    extern void WorkerForStorageSendMOTThreadMain(const Context& ctx);
+    extern void WorkerForStorageSendNebulaThreadMain(const Context& ctx);
 }
 
 #endif //TAAS_WORKER_MESSAGE_H

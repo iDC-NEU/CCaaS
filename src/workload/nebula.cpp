@@ -46,13 +46,13 @@ namespace workload {
         sprintf(genKey, "taas_nebula_key:%064lu", tid);
         auto keyName = std::string(genKey);
         utils::ByteIteratorMap values;
-        MultiModelWorkload::buildValues(values, keyName);
+        MultiModelWorkload::buildValues(values);
         std::string value;
         for (const auto &it: values) {
             value += it.second + ",";
         }
-        sprintf(gql, R"(INSERT VERTEX IF NOT EXISTS usertable(key, filed, txnid) VALUES "%s" :("%s","%s","%lu");)",
-                                genKey, genKey, value.c_str(), tid);
+        sprintf(gql, R"(INSERT VERTEX IF NOT EXISTS usertable(key, filed, txnid) VALUES "%s" :("%s","%s","%s");)",
+                                genKey, genKey, value.c_str(), ("tid:" + std::to_string(tid)).c_str());
 
         auto resp = nebulaSessionPool->execute(gql);
     }
@@ -61,7 +61,7 @@ namespace workload {
         char genKey[100], gql[800];
         std::string value;
         int cnt, i;
-        if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::MultiModel) {
+        if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::MultiModelTest) {
             cnt = 1;
         }
         else if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::GQL) {
@@ -80,12 +80,12 @@ namespace workload {
 
                 } else {
                     utils::ByteIteratorMap values;
-                    MultiModelWorkload::buildValues(values, keyName);
+                    MultiModelWorkload::buildValues(values);
                     for (const auto &it: values) {
                         value += it.second + ",";
                     }
-                    sprintf(gql, R"(UPDATE VERTEX on usertable "%s" set filed = "%s", txnid = "%lu";)",
-                            genKey, value.c_str(), tid);
+                    sprintf(gql, R"(UPDATE VERTEX on usertable "%s" set filed = "%s", txnid = "%s";)",
+                            genKey, value.c_str(), ("tid:" + std::to_string(tid)).c_str());
                     auto resp = nebulaSessionPool->execute(gql);
 
                 }
