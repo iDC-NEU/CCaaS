@@ -118,28 +118,31 @@ namespace workload{
             std::shared_ptr<proto::Transaction> txn_ptr;
             get_stub = std::make_unique<proto::KvDBGetService_Stub>(&chan);
         }
+        auto threads = std::make_unique<util::thread_pool_light>(4);
+        bthread::CountdownEvent subTxnCountDown;
         while(true) {
             txnId = AddTxnId();
             if(txnId > kTotalTxnNum) break;
 
             MultiModelTxn txn;
             txn.tid = txnId;
-
             txn.stTime = Taas::now_to_us();
+            subTxnCountDown.reset(3);
             uint64_t txn_num = 0;
             auto msg = std::make_unique<proto::Message>();
             auto message_txn = msg->mutable_txn();
             if((ctx.multiModelContext.kTestMode == Taas::MultiModel || ctx.multiModelContext.kTestMode == Taas::KV)) {
                 KV::RunTxn(message_txn, *get_stub);
+                subTxnCountDown.signal();
                 txn_num ++;
             }
             if((ctx.multiModelContext.kTestMode == Taas::MultiModel || ctx.multiModelContext.kTestMode == Taas::GQL)) {
-                    Nebula::RunTxn(txnId);
-                    txn_num ++;
+                threads->push_task(Nebula::RunTxn, txnId, subTxnCountDown);
+                txn_num ++;
             }
-            if((ctx.multiModelContext.kTestMode == Taas::MultiModel || ctx.multiModelContext.kTestMode == Taas::GQL)) {
-                    MOT::RunTxn(txnId);
-                    txn_num ++;
+            if((ctx.multiModelContext.kTestMode == Taas::MultiModel || ctx.multiModelContext.kTestMode == Taas::SQL)) {
+                threads->push_task(MOT::RunTxn, txnId, subTxnCountDown);
+                txn_num ++;
             }
             txn.typeNumber =  txn_num;
             message_txn->set_csn(txn_num);
@@ -157,8 +160,12 @@ namespace workload{
             auto cv_ptr = std::make_shared<std::condition_variable>();
             multiModelTxnConditionVariable.insert(txn.tid, cv_ptr);
             cv_ptr->wait(_lock);
+            if(ctx.multiModelContext.kTestMode == Taas::MultiModel) {
+                subTxnCountDown.wait();
+            }
             txn.edTime = Taas::now_to_us();
             execTimes.emplace_back(txn.edTime-txn.stTime);
+
         }
         workCountDown.signal();
     }

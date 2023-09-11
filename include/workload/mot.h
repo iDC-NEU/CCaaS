@@ -16,8 +16,8 @@ namespace workload {
     class MOT {
     public:
         static void Init();
-        static void InsertData(uint64_t&  tid);
-        static void RunTxn(uint64_t& tid);
+        static void InsertData(const uint64_t&  tid);
+        static void RunTxn(const uint64_t& tid, bthread::CountdownEvent& subTxnCountDown);
         static void CloseDB();
     };
 }

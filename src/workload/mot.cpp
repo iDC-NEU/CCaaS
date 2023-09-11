@@ -147,7 +147,7 @@ namespace workload {
             "filed7 VARCHAR(32), filed8 VARCHAR(32), filed9 VARCHAR(32), txnid VARCHAR(32));");
     }
 
-    void MOT::InsertData(uint64_t& tid) {
+    void MOT::InsertData(const uint64_t& tid) {
         if(tid > MultiModelWorkload::ctx.multiModelContext.kRecordCount) return;
         char genKey[100], sql[800];
         std::string data = Taas::RandomString(256);
@@ -157,12 +157,13 @@ namespace workload {
         MultiModelWorkload::buildValues(values, keyName);
         sprintf(sql, R"(INSERT INTO usertable VALUES("%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%lu");)",
                 genKey, values["filed0"].c_str(), values["filed1"].c_str(), values["filed2"].c_str(),
-                values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(), values["filed6"].c_str(),
-                values["filed7"].c_str(), values["filed8"].c_str(), values["filed9"].c_str(), tid);
+                values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(),
+                values["filed6"].c_str(), values["filed7"].c_str(), values["filed8"].c_str(),
+                values["filed9"].c_str(), tid);
         MOTConnectionPool::ExecSQL((SQLCHAR *)sql);
     }
 
-    void MOT::RunTxn(uint64_t& tid) {
+    void MOT::RunTxn(const uint64_t& tid, bthread::CountdownEvent& subTxnCountDown) {
         char genKey[100], sql[800];
         std::string value;
         int cnt, i;
@@ -187,17 +188,19 @@ namespace workload {
                 } else {
                     utils::ByteIteratorMap values;
                     MultiModelWorkload::buildValues(values, keyName);
-                    sprintf(sql, R"(update usertable set set filed0="%s", filed1="%s", filed2="%s", filed3="%s", filed4="%s", filed5="%s", filed6="%s", filed7 = %s", \
+                    sprintf(sql, R"(update usertable set filed0="%s", filed1="%s", filed2="%s", filed3="%s", filed4="%s", filed5="%s", filed6="%s", filed7 = %s", \
                                 "filed8="%s", filed9="%s", txnid="%lu" where key ="%s";)",
                             values["filed0"].c_str(), values["filed1"].c_str(), values["filed2"].c_str(),
-                            values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(), values["filed6"].c_str(),
-                            values["filed7"].c_str(), values["filed8"].c_str(), values["filed9"].c_str(), tid, genKey);
+                            values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(),
+                            values["filed6"].c_str(), values["filed7"].c_str(), values["filed8"].c_str(),
+                            values["filed9"].c_str(), tid, genKey);
                     txn += std::string(sql);
                 }
             }
             txn += "commit;";
             MOTConnectionPool::ExecSQL((SQLCHAR *)txn.c_str());
         }
+        subTxnCountDown.signal();
     }
 
     void MOT::CloseDB() {

@@ -11,6 +11,7 @@
 
 #include <nebula/client/Config.h>
 #include <nebula/client/SessionPool.h>
+#include <bthread/countdown_event.h>
 
 namespace workload {
     class Nebula {
@@ -19,8 +20,8 @@ namespace workload {
         static std::unique_ptr<nebula::SessionPool> nebulaSessionPool;
     public:
         static void Init(const Taas::Context& ctx);
-        static void InsertData(uint64_t& tid);
-        static void RunTxn(uint64_t& tid);
+        static void InsertData(const uint64_t& tid);
+        static void RunTxn(const uint64_t& tid, bthread::CountdownEvent& subTxnCountDown);
     };
 
 }

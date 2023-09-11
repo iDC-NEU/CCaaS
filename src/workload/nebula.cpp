@@ -38,7 +38,7 @@ namespace workload {
         LOG(INFO) << "=== connect to nebula done ===";
     }
 
-    void Nebula::InsertData(uint64_t& tid) {
+    void Nebula::InsertData(const uint64_t& tid) {
         if(tid > MultiModelWorkload::ctx.multiModelContext.kRecordCount) return;
         char genKey[100], gql[800];
         std::string data1 = Taas::RandomString(256);
@@ -57,7 +57,7 @@ namespace workload {
         auto resp = nebulaSessionPool->execute(gql);
     }
 
-    void Nebula::RunTxn(uint64_t& tid) {///single op txn
+    void Nebula::RunTxn(const uint64_t& tid, bthread::CountdownEvent& subTxnCountDown) {///single op txn
         char genKey[100], gql[800];
         std::string value;
         int cnt, i;
@@ -91,6 +91,7 @@ namespace workload {
                 }
             }
         }
+        subTxnCountDown.signal();
     }
 }
 

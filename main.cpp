@@ -131,9 +131,13 @@ namespace Taas {
         else if(ctx.taasContext.server_type == ServerMode::HBase) { ///hbase server
             //do nothing
         }
-        else if(ctx.taasContext.server_type == ServerMode::MultiModelTest) { ///hbase server
+        else if(ctx.taasContext.server_type == ServerMode::MultiModelServer) { ///hbase server
+            ///todo: multimodel server
+        }
+        else if(ctx.taasContext.server_type == ServerMode::MultiModelClient) { ///hbase server
             workload::main();
         }
+
 
 
         if(ctx.taasContext.kDurationTime_us != 0) {
