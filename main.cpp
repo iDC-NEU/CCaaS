@@ -24,19 +24,6 @@
 
 using namespace std;
 
-//class Thread {
-//public:
-//    Thread() = default;
-//    static void setScheduling(std::thread &th, int policy, int priority) {
-//        sch_params.sched_priority = priority;
-//        if(pthread_setschedparam(th.native_handle(), policy, &sch_params)) {
-//            std::cerr <<"Failed to set Thread scheduling :" << std::strerror(errno) << std::endl;
-//        }
-//    }
-//private:
-//    static sched_param sch_params;
-//};
-
 namespace Taas {
 
     int main() {
@@ -57,16 +44,6 @@ namespace Taas {
             threads.push_back(std::make_unique<std::thread>(WorkerForPhysicalThreadMain, ctx)); cnt++;
             threads.push_back(std::make_unique<std::thread>(WorkerForLogicalThreadMain, ctx)); cnt++;
             threads.push_back(std::make_unique<std::thread>(WorkerForLogicalRedoLogPushDownCheckThreadMain, ctx)); cnt++;
-//            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalTxnMergeCheckThreadMain, ctx)); cnt++;
-//            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalAbortSetMergeCheckThreadMain, ctx)); cnt++;
-//            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalCommitCheckThreadMain, ctx)); cnt++;
-
-//            threads.push_back(std::make_unique<std::thread>(WorkerForEpochControlMessageThreadMain, ctx)); cnt++;
-
-//            threads.push_back(std::make_unique<std::thread>(WorkerForLogicalReceiveAndReplyCheckThreadMain, ctx)); cnt++;
-//            threads.push_back(std::make_unique<std::thread>(WorkerForEpochAbortSendThreadMain, ctx)); cnt++;
-//            threads.push_back(std::make_unique<std::thread>(WorkerForEpochEndFlagSendThreadMain, ctx)); cnt++;
-//            threads.push_back(std::make_unique<std::thread>(WorkerForEpochBackUpEndFlagSendThreadMain, ctx)); cnt++;
 
             for(int i = 0; i < (int)ctx.taasContext.kEpochTxnThreadNum; i ++) {///handle client txn
                 threads.push_back(std::make_unique<std::thread>(WorkerFroMessageThreadMain, ctx, i));  cnt++;///txn message
@@ -89,7 +66,6 @@ namespace Taas {
 
             ///Storage
             threads.push_back(std::make_unique<std::thread>(WorkerForStorageSendThreadMain, ctx)); cnt++;
-//            kTikvThreadNum = 10, kLeveldbThreadNum = 10, kHbaseTxnThreadNum = 10, kMOTThreadNum = 10;
             if(ctx.storageContext.is_mot_enable) {
                 for(int i = 0; i < (int)ctx.storageContext.kMOTThreadNum; i ++) {
                     threads.push_back(std::make_unique<std::thread>(WorkerFroMOTStorageThreadMain, ctx, i));  cnt++;///mot push down
