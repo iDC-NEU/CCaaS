@@ -33,8 +33,10 @@ namespace workload {
         nebulaSessionPool->init();
         resp = nebulaSessionPool->execute("CREATE TAG IF NOT EXISTS usertable (key, string, filed, tid string);");
         assert(resp.errorCode == nebula::ErrorCode::SUCCEEDED);
+        LOG(INFO) << "Nebula Exec:" << "CREATE TAG IF NOT EXISTS usertable (key, string, filed, tid string);";
         resp = nebulaSessionPool->execute("CREATE TAG INDEX IF NOT EXISTS usertable_index on usertable(key(10));");
         assert(resp.errorCode == nebula::ErrorCode::SUCCEEDED);
+        LOG(INFO) << "Nebula Exec:" << "CREATE TAG INDEX IF NOT EXISTS usertable_index on usertable(key(10));";
         LOG(INFO) << "=== connect to nebula done ===";
     }
 
@@ -54,7 +56,8 @@ namespace workload {
         sprintf(gql, R"(INSERT VERTEX IF NOT EXISTS usertable(key, filed, txnid) VALUES "%s" :("%s","%s","%s");)",
                                 genKey, genKey, value.c_str(), ("tid:" + std::to_string(tid)).c_str());
 
-        auto resp = nebulaSessionPool->execute(gql);
+//        auto resp = nebulaSessionPool->execute(gql);
+        LOG(INFO) << "Nebula Exec:" << gql;
     }
 
     void Nebula::RunTxn(const uint64_t& tid, bthread::CountdownEvent& subTxnCountDown) {///single op txn
@@ -76,8 +79,8 @@ namespace workload {
                 auto keyName = std::string(genKey);
                 if (opType == Operation::READ) {
                     sprintf(gql, R"(FETCH PROP ON usertable "%s" YIELD properties(VERTEX);)",genKey);
-                    auto resp = nebulaSessionPool->execute(gql);
-
+//                    auto resp = nebulaSessionPool->execute(gql);
+                    LOG(INFO) << "Nebula Exec:" << gql;
                 } else {
                     utils::ByteIteratorMap values;
                     MultiModelWorkload::buildValues(values);
@@ -86,8 +89,8 @@ namespace workload {
                     }
                     sprintf(gql, R"(UPDATE VERTEX on usertable "%s" set filed = "%s", txnid = "%s";)",
                             genKey, value.c_str(), ("tid:" + std::to_string(tid)).c_str());
-                    auto resp = nebulaSessionPool->execute(gql);
-
+//                    auto resp = nebulaSessionPool->execute(gql);
+                    LOG(INFO) << "Nebula Exec:" << gql;
                 }
             }
         }

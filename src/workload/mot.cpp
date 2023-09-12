@@ -141,6 +141,9 @@ namespace workload {
             "CREATE Foreign TABLE IF NOT EXISTS usertable(key VARCHAR(32) PRIMARY KEY, filed0 VARCHAR(32), filed1 VARCHAR(32), " \
             "filed2 VARCHAR(32), filed3 VARCHAR(32), filed4 VARCHAR(32), filed5 VARCHAR(32), filed6 VARCHAR(32)" \
             "filed7 VARCHAR(32), filed8 VARCHAR(32), filed9 VARCHAR(32), txnid VARCHAR(32));");
+        LOG(INFO) << "MOT Exec:" << "CREATE Foreign TABLE IF NOT EXISTS usertable(key VARCHAR(32) PRIMARY KEY, filed0 VARCHAR(32), filed1 VARCHAR(32), " \
+            "filed2 VARCHAR(32), filed3 VARCHAR(32), filed4 VARCHAR(32), filed5 VARCHAR(32), filed6 VARCHAR(32)" \
+            "filed7 VARCHAR(32), filed8 VARCHAR(32), filed9 VARCHAR(32), txnid VARCHAR(32));";
     }
 
     void MOT::InsertData(const uint64_t& tid) {
@@ -156,7 +159,8 @@ namespace workload {
                 values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(),
                 values["filed6"].c_str(), values["filed7"].c_str(), values["filed8"].c_str(),
                 values["filed9"].c_str(), ("tid:" + std::to_string(tid)).c_str());
-        MOTConnectionPool::ExecSQL((SQLCHAR *)sql);
+//        MOTConnectionPool::ExecSQL((SQLCHAR *)sql);
+        LOG(INFO) << "MOT Exec:" << sql;
     }
 
     void MOT::RunTxn(const uint64_t& tid, bthread::CountdownEvent& subTxnCountDown) {
@@ -194,7 +198,8 @@ namespace workload {
                 }
             }
             txn += "commit;";
-            MOTConnectionPool::ExecSQL((SQLCHAR *)txn.c_str());
+//            MOTConnectionPool::ExecSQL((SQLCHAR *)txn.c_str());
+            LOG(INFO) << "MOT Exec:" << txn.c_str();
         }
         subTxnCountDown.signal();
     }

@@ -24,8 +24,7 @@ namespace Taas {
         Taas = 1,
         LevelDB = 2,
         HBase = 3,
-        MultiModelServer = 4,
-        MultiModelClient = 5,
+        MultiModelClient = 4,
     };
     enum TaasMode {
         MultiMaster = 1,

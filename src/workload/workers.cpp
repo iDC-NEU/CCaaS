@@ -106,8 +106,8 @@ namespace workload {
         threads.push_back(std::make_unique<std::thread>(DequeueClientListenTaasMessageQueue));
         threads.push_back(std::make_unique<std::thread>(SendTaasClientThreadMain));
 
-        if(ctx.multiModelContext.isUseNebula) Nebula::Init(ctx);
-        if(ctx.multiModelContext.isUseMot) MOT::Init();
+//        if(ctx.multiModelContext.isUseNebula) Nebula::Init(ctx);
+//        if(ctx.multiModelContext.isUseMot) MOT::Init();
 
         if(ctx.multiModelContext.isLoadData) {
             MultiModelWorkload::LoadData();

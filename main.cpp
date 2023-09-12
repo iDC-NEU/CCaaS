@@ -72,10 +72,8 @@ namespace Taas {
                 for(int i = 0; i < (int)ctx.storageContext.kMOTThreadNum; i ++) {
                     threads.push_back(std::make_unique<std::thread>(WorkerFroMOTStorageThreadMain, ctx, i));  cnt++;///mot push down
                 }
-            }
-            if(ctx.storageContext.is_mot_enable) {
                 for(int i = 0; i < (int)ctx.storageContext.kMOTThreadNum; i ++) {
-                    threads.push_back(std::make_unique<std::thread>(WorkerFroNebulaStorageThreadMain, ctx, i));  cnt++;///mot push down
+                    threads.push_back(std::make_unique<std::thread>(WorkerFroNebulaStorageThreadMain, ctx, i));  cnt++;///nebula push down
                 }
             }
             if(ctx.storageContext.is_tikv_enable) {
@@ -113,9 +111,6 @@ namespace Taas {
         }
         else if(ctx.taasContext.server_type == ServerMode::HBase) { ///hbase server
             //do nothing
-        }
-        else if(ctx.taasContext.server_type == ServerMode::MultiModelServer) { ///hbase server
-            ///todo: multimodel server
         }
         else if(ctx.taasContext.server_type == ServerMode::MultiModelClient) { ///hbase server
             workload::main();
