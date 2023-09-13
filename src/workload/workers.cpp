@@ -108,18 +108,28 @@ namespace workload {
 
 //        if(ctx.multiModelContext.isUseNebula) Nebula::Init(ctx);
 //        if(ctx.multiModelContext.isUseMot) MOT::Init();
-
+        printf("====== Taas Multi-Model Client Init OK ======\n");
+        printf("====== Taas Multi-Model Client LoadData Start ======\n");
         if(ctx.multiModelContext.isLoadData) {
             MultiModelWorkload::LoadData();
         }
-
+        printf("====== Taas Multi-Model Client Run Start ======\n");
         MultiModelWorkload::workCountDown.reset((int)ctx.multiModelContext.kClientNum);
         for(int i = 0; i < (int)MultiModelWorkload::ctx.multiModelContext.kClientNum; i ++) {
             MultiModelWorkload::thread_pool->push_task(MultiModelWorkload::RunMultiTxn);
         }
-        while(!check()) usleep(10000);
+        while(!check()) {
+            usleep(10000);
+        }
         uint64_t startTime = Taas::now_to_us();
-        MultiModelWorkload::workCountDown.wait();
+        uint64_t cnt = 0;
+        while(MultiModelWorkload::subWorksNum.load() < MultiModelWorkload::ctx.multiModelContext.kClientNum) {
+            if(cnt % 100 == 0) {
+                LOG(INFO) << "Test Exec:" << Taas::now_to_us() - startTime << ", Commit txn number : " << MultiModelWorkload::execTimes.size();
+            }
+            cnt ++;
+            usleep(10000);
+        }
         uint64_t consumeTime = Taas::now_to_us() - startTime;
         std::cout<<"Total consume time(ms) : "<<1.0 * (double)consumeTime / 1000.0<<std::endl;
         double avgTime = 1.0 * (double)MultiModelWorkload::execTimes[0];

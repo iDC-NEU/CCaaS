@@ -3,26 +3,26 @@
     <multimodel_client>47.92.65.171</multimodel_client><!-- local ip addr-->
     <taas_ip>39.98.36.243</taas_ip>
 
-    <use_nebula>0</use_nebula>
+    <use_nebula>1</use_nebula>
     <nebula_ip>127.0.0.1:9669</nebula_ip>
     <nebula_user>root</nebula_user>
     <nebula_pwd>nebula</nebula_pwd>
     <nebula_space>nebula</nebula_space>
 
-    <use_mot>0</use_mot>
+    <use_mot>1</use_mot>
     <mot_ip>127.0.0.1</mot_ip>
     <mot_dsnname>MPPODBC</mot_dsnname>
     <mot_dsnuid>jack</mot_dsnuid>
     <mot_dsnpwd>Test@123</mot_dsnpwd>
 
-    <test_mode>0</test_mode> <!-- 1 : MultiModel, 2 : KV, 3 : SQL, 4 : GQL-->
+    <test_mode>1</test_mode> <!-- 1 : MultiModel, 2 : KV, 3 : SQL, 4 : GQL-->
     <is_load_data>1</is_load_data>
-    <record_count>1000000</record_count>
-    <txn_num>1000000</txn_num>
+    <record_count>1000</record_count>
+    <txn_num>1000</txn_num>
     <write>90</write>
     <read>10</read>
-    <opnum>10</opnum>
+    <op_num>10</op_num>
     <distribution>zipfian</distribution>
-    <client_threads>20</client_threads>
+    <client_threads>2</client_threads>
 
 </root>

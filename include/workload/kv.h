@@ -13,7 +13,7 @@ namespace workload {
     class KV {
     public:
         static void InsertData(uint64_t tid);
-        static void RunTxn(proto::Transaction* message_txn, proto::KvDBGetService_Stub& get_stub);
+        static void RunTxn(proto::Transaction* message_txn);
     };
 
 }

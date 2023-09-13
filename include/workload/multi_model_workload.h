@@ -58,7 +58,7 @@ namespace workload {
 
     class MultiModelWorkload {
     public:
-        static std::atomic<uint64_t> txn_id, graph_vid, success_txn_num, failed_txn_num, success_op_num, failed_op_num;
+        static std::atomic<uint64_t> txn_id, graph_vid, success_txn_num, failed_txn_num, success_op_num, failed_op_num, subWorksNum;
         static Taas::Context ctx;
         static std::unique_ptr<util::thread_pool_light> thread_pool;
         static std::unique_ptr<utils::DiscreteGenerator<Operation>> operationChooser;
@@ -101,7 +101,6 @@ namespace workload {
             keyChooser.push_back(utils::ScrambledZipfianGenerator::NewScrambledZipfianGenerator(ctx.multiModelContext.kRecordCount/3 + 1,ctx.multiModelContext.kRecordCount * 2 / 3));
             keyChooser.push_back(utils::ScrambledZipfianGenerator::NewScrambledZipfianGenerator(ctx.multiModelContext.kRecordCount * 2 / 3 + 1,ctx.multiModelContext.kRecordCount));
         }
-
     };
 }
 

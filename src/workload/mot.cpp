@@ -148,7 +148,7 @@ namespace workload {
 
     void MOT::InsertData(const uint64_t& tid) {
         if(tid > MultiModelWorkload::ctx.multiModelContext.kRecordCount) return;
-        char genKey[100], sql[800];
+        char genKey[100], sql[5000];
         std::string data = Taas::RandomString(256);
         sprintf(genKey, "usertable_key:%064lu", tid);
         auto keyName = std::string(genKey);
@@ -159,12 +159,12 @@ namespace workload {
                 values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(),
                 values["filed6"].c_str(), values["filed7"].c_str(), values["filed8"].c_str(),
                 values["filed9"].c_str(), ("tid:" + std::to_string(tid)).c_str());
-//        MOTConnectionPool::ExecSQL((SQLCHAR *)sql);
-        LOG(INFO) << "MOT Exec:" << sql;
+        MOTConnectionPool::ExecSQL((SQLCHAR *)sql);
+//        LOG(INFO) << "MOT Exec:" << sql;
     }
 
-    void MOT::RunTxn(const uint64_t& tid, bthread::CountdownEvent& subTxnCountDown) {
-        char genKey[100], sql[800];
+    void MOT::RunTxn(const uint64_t& tid, const std::shared_ptr<std::atomic<uint64_t>>& sunTxnNum) {
+        char genKey[100], sql[5000];
         std::string value;
         int cnt, i;
         if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::MultiModelTest) {
@@ -173,13 +173,16 @@ namespace workload {
         else if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::KV) {
             cnt = 9;
         }
-        else return ;
+        else {
+            sunTxnNum->fetch_add(1);
+            return ;
+        }
 
         {
             std::string txn = "start transaction;";
             for (i = 0; i < cnt; i++) {
                 auto opType = MultiModelWorkload::operationChooser->nextValue();
-                auto id = MultiModelWorkload::keyChooser[0]->nextValue();
+                auto id = MultiModelWorkload::keyChooser[1]->nextValue();
                 sprintf(genKey, "usertable_key:%064lu", id);
                 auto keyName = std::string(genKey);
                 if (opType == Operation::READ) {
@@ -198,10 +201,11 @@ namespace workload {
                 }
             }
             txn += "commit;";
-//            MOTConnectionPool::ExecSQL((SQLCHAR *)txn.c_str());
-            LOG(INFO) << "MOT Exec:" << txn.c_str();
+            MOTConnectionPool::ExecSQL((SQLCHAR *)txn.c_str());
+//            LOG(INFO) << "MOT Exec:" << txn.c_str();
+//            usleep(5000);
         }
-        subTxnCountDown.signal();
+        sunTxnNum->fetch_add(1);
     }
 
     void MOT::CloseDB() {

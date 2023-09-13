@@ -55,6 +55,9 @@ namespace Taas {
                         get_data->set_key("hello" + std::to_string(rand_num));
                         get_stub.Get(&get_Cntl, &get_Request, &get_Response, nullptr);
                         if (get_Cntl.Failed()) {
+                            LOG(WARNING) << get_Cntl.ErrorText() << ": Get Failed: " << " key: " << get_data->key() << ", data is NULL";
+                            write_version = "";
+                        } else {
                             LOG(INFO) << "Get success: " << get_Response.result() << " key: " << get_data->key() << ", data: " << get_Response.data()[0].value();
                             if (get_Response.result()) {
                                 write_version = get_Response.data()[0].value();
@@ -62,9 +65,6 @@ namespace Taas {
                             else {
                                 write_version = "";
                             }
-                        } else {
-                            LOG(WARNING) << get_Cntl.ErrorText() << ": Get Failed: " << " key: " << get_data->key() << ", data is NULL";
-                            write_version = "";
                         }
                         row->set_op_type(proto::Read);
                         break;

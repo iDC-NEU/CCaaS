@@ -8,6 +8,9 @@
 #include "workload/multi_model_workload.h"
 
 #include "proto/message.pb.h"
+#include <glog/logging.h>
+#include <brpc/channel.h>
+#include <proto/kvdb_server.pb.h>
 
 namespace workload {
 
@@ -35,11 +38,30 @@ namespace workload {
         std::unique_lock<std::mutex> _lock(_mutex);
         auto cv_ptr = std::make_shared<std::condition_variable>();
         MultiModelWorkload::multiModelTxnConditionVariable.insert(tid, cv_ptr);
-        cv_ptr->wait(_lock);
+//        cv_ptr->wait(_lock);
+        LOG(INFO) <<"KV Exec Insert : " <<  row->op_type() << ", key:" << row->key() << ", data:" << row->data();
+
         ///todo check return result
+//        brpc::Channel chan;
+//        brpc::ChannelOptions options;
+//        std::unique_ptr<proto::KvDBPutService_Stub> put_stub;
+//        chan.Init(MultiModelWorkload::ctx.storageContext.kLevelDBIP.c_str(), &options);
+//        put_stub = std::make_unique<proto::KvDBPutService_Stub>(&chan);
+//        proto::KvDBRequest request;
+//        proto::KvDBResponse response;
+//        brpc::Controller cntl;
+//        cntl.set_timeout_ms(500);
+//        auto req_data = request.add_data();
+//        req_data->set_op_type(proto::OpType::Insert);
+//        req_data->set_key(genKey);
+//        req_data->set_value(data);
+//        put_stub->Put(&cntl, &request, &response, nullptr);
+//        if (cntl.Failed()) {
+//            LOG(WARNING) <<"KV write OP ERROR : " <<  cntl.ErrorText();
+//        }
     }
 
-    void KV::RunTxn(proto::Transaction* message_txn, proto::KvDBGetService_Stub& get_stub) {
+    void KV::RunTxn(proto::Transaction* message_txn) {
         char genKey[100];
         std::string value;
         int cnt, i;
@@ -52,6 +74,12 @@ namespace workload {
         else return ;
 
          {
+            brpc::Channel chan;
+            brpc::ChannelOptions options;
+            std::unique_ptr<proto::KvDBGetService_Stub> get_stub;
+            chan.Init(MultiModelWorkload::ctx.storageContext.kLevelDBIP.c_str(), &options);
+            get_stub = std::make_unique<proto::KvDBGetService_Stub>(&chan);
+//            auto s = std::string("KV exec :");
             for (i = 0; i < cnt; i++) {
                 auto opType = MultiModelWorkload::operationChooser->nextValue();
                 auto id = MultiModelWorkload::keyChooser[0]->nextValue();
@@ -66,9 +94,8 @@ namespace workload {
                     auto data = request.add_data();
                     data->set_op_type(proto::OpType::Read);
                     data->set_key(keyName);
-                    get_stub.Get(&cntl, &request, &response, nullptr);
+                    get_stub->Get(&cntl, &request, &response, nullptr);
                     if (cntl.Failed()) {
-                        // RPC失败.
                         value = "";
                         LOG(WARNING) <<"KV Read OP ERROR : " <<  cntl.ErrorText();
                     } else {
@@ -85,8 +112,10 @@ namespace workload {
                 }
                 row->set_key(keyName);
                 row->set_data(value);
+//                s += std::to_string(row->op_type()) + ", key:" + row->key() + ", data:" + row->data();
             }
-        }
+//            LOG(INFO) << s;
+         }
     }
 
 }

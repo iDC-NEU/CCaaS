@@ -21,7 +21,7 @@ namespace workload {
     public:
         static void Init(const Taas::Context& ctx);
         static void InsertData(const uint64_t& tid);
-        static void RunTxn(const uint64_t& tid, bthread::CountdownEvent& subTxnCountDown);
+        static void RunTxn(const uint64_t& tid, const std::shared_ptr<std::atomic<uint64_t>>& sunTxnNum);
     };
 
 }

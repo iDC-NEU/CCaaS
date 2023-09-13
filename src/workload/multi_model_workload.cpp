@@ -2,16 +2,19 @@
 // Created by zwx on 23-8-23.
 //
 
-#include <brpc/channel.h>
-#include <proto/kvdb_server.pb.h>
 #include "workload/multi_model_workload.h"
 #include "generator/scrambled_zipfian_generator.h"
 #include "generator/uniform_long_generator.h"
 #include "common/byte_iterator.h"
 
+#include <glog/logging.h>
+#include <brpc/channel.h>
+#include <proto/kvdb_server.pb.h>
+
 namespace workload{
     std::atomic<uint64_t> MultiModelWorkload::txn_id(1), MultiModelWorkload::graph_vid(1), MultiModelWorkload::success_txn_num(1),
-            MultiModelWorkload::failed_txn_num(1), MultiModelWorkload::success_op_num(1), MultiModelWorkload::failed_op_num(1);
+            MultiModelWorkload::failed_txn_num(1), MultiModelWorkload::success_op_num(1), MultiModelWorkload::failed_op_num(1),
+            MultiModelWorkload::subWorksNum(0);
 
     Taas::Context MultiModelWorkload::ctx;
     std::unique_ptr<util::thread_pool_light> MultiModelWorkload::thread_pool;
@@ -32,7 +35,8 @@ namespace workload{
         workCountDown.reset((int)ctx.multiModelContext.kClientNum);
         send_multi_txn_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<send_multimodel_params>>>();
         client_listen_taas_message_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>>();
-
+        CreateOperationGenerator();
+        CreateKeyChooser();
     }
 
     void MultiModelWorkload::buildValues(utils::ByteIteratorMap &values) {
@@ -49,6 +53,8 @@ namespace workload{
             workCountDown.reset((int) ctx.multiModelContext.kClientNum);
             for (int i = 0; i < (int) ctx.multiModelContext.kClientNum; i++) {
                 thread_pool->push_task([] {
+                    int _seed = 0;
+                    utils::GetThreadLocalRandomGenerator()->seed(_seed);
                     LoadKVData();
                     workCountDown.signal();
                 });
@@ -60,6 +66,8 @@ namespace workload{
             workCountDown.reset((int) ctx.multiModelContext.kClientNum);
             for (int i = 0; i < (int) ctx.multiModelContext.kClientNum; i++) {
                 thread_pool->push_task([] {
+                    int _seed = 0;
+                    utils::GetThreadLocalRandomGenerator()->seed(_seed);
                     LoadSQLData();
                     workCountDown.signal();
                 });
@@ -71,6 +79,8 @@ namespace workload{
             workCountDown.reset((int) ctx.multiModelContext.kClientNum);
             for (int i = 0; i < (int) ctx.multiModelContext.kClientNum; i++) {
                 thread_pool->push_task([] {
+                    int _seed = 0;
+                    utils::GetThreadLocalRandomGenerator()->seed(_seed);
                     LoadGQLData();
                     workCountDown.signal();
                 });
@@ -110,36 +120,35 @@ namespace workload{
 
     void MultiModelWorkload::RunMultiTxn() {
         uint64_t txnId, kTotalTxnNum = ctx.multiModelContext.kTxnNum;
-        std::unique_ptr<proto::KvDBGetService_Stub> get_stub;
-        if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::KV)) {
-            brpc::Channel chan;
-            brpc::ChannelOptions options;
-            chan.Init(ctx.storageContext.kLevelDBIP.c_str(), &options);
-            std::shared_ptr<proto::Transaction> txn_ptr;
-            get_stub = std::make_unique<proto::KvDBGetService_Stub>(&chan);
-        }
+        auto sunTxnNum = std::make_shared<std::atomic<uint64_t>>(0);
         auto threads = std::make_unique<util::thread_pool_light>(4);
-        bthread::CountdownEvent subTxnCountDown;
+        for(int i = 0; i < 4; i ++) {
+            threads->push_task([]{
+                int _seed = 0;
+                utils::GetThreadLocalRandomGenerator()->seed(_seed);
+                usleep(2000);
+            });
+        }
         while(true) {
             txnId = AddTxnId();
             if(txnId > kTotalTxnNum) break;
-
+//            LOG(INFO) << "start txn " << txnId << " exec";
             auto stTime = Taas::now_to_us();
-            subTxnCountDown.reset(3);
+
             uint64_t txn_num = 0;
             auto msg = std::make_unique<proto::Message>();
             auto message_txn = msg->mutable_txn();
-            if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::KV)) {
-                KV::RunTxn(message_txn, *get_stub);
-                subTxnCountDown.signal();
-            }
+            sunTxnNum->store(0);
             if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::GQL)) {
-                threads->push_task(Nebula::RunTxn, txnId, subTxnCountDown);
+                threads->push_task(Nebula::RunTxn, txnId, sunTxnNum);
                 txn_num ++;
             }
             if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::SQL)) {
-                threads->push_task(MOT::RunTxn, txnId, subTxnCountDown);
+                threads->push_task(MOT::RunTxn, txnId, sunTxnNum);
                 txn_num ++;
+            }
+            if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::KV)) {
+                KV::RunTxn(message_txn);
             }
             txn_num ++;
             message_txn->set_csn(txn_num);
@@ -157,13 +166,17 @@ namespace workload{
             std::unique_lock<std::mutex> _lock(_mutex);
             auto cv_ptr = std::make_shared<std::condition_variable>();
             multiModelTxnConditionVariable.insert(txnId, cv_ptr);
-            cv_ptr->wait(_lock);
+//            cv_ptr->wait(_lock);
             if(ctx.multiModelContext.kTestMode == Taas::MultiModelTest) {
-                subTxnCountDown.wait();
+//                LOG(INFO) << "waiting for sub " << txnId << " txns execed";
+                while(sunTxnNum->load() < 2) usleep(1000);
+//                LOG(INFO) << "sub " << txnId << " txns execed";
             }
+//            LOG(INFO) << "txn " << txnId << " exec finished";
             auto edTime = Taas::now_to_us();
             execTimes.emplace_back(edTime - stTime);
         }
+        subWorksNum.fetch_add(1);
         workCountDown.signal();
     }
 
