@@ -106,8 +106,8 @@ namespace workload {
         threads.push_back(std::make_unique<std::thread>(DequeueClientListenTaasMessageQueue));
         threads.push_back(std::make_unique<std::thread>(SendTaasClientThreadMain));
 
-//        if(ctx.multiModelContext.isUseNebula) Nebula::Init(ctx);
-//        if(ctx.multiModelContext.isUseMot) MOT::Init();
+        if(ctx.multiModelContext.isUseNebula) Nebula::Init(ctx);
+        if(ctx.multiModelContext.isUseMot) MOT::Init();
         printf("====== Taas Multi-Model Client Init OK ======\n");
         printf("====== Taas Multi-Model Client LoadData Start ======\n");
         if(ctx.multiModelContext.isLoadData) {
@@ -133,7 +133,7 @@ namespace workload {
         uint64_t consumeTime = Taas::now_to_us() - startTime;
         std::cout<<"Total consume time(ms) : "<<1.0 * (double)consumeTime / 1000.0<<std::endl;
         double avgTime = 1.0 * (double)MultiModelWorkload::execTimes[0];
-        for(int i = 1; i < (int)MultiModelWorkload::execTimes.size(); i++){
+        for(int i = 1; i < (int)ctx.multiModelContext.kTxnNum; i++){
             avgTime = (avgTime + (double)MultiModelWorkload::execTimes[i]) / 2.0;
         }
         std::cout << "Commit txn number : " << MultiModelWorkload::execTimes.size() <<std::endl;
@@ -141,6 +141,9 @@ namespace workload {
         std::cout << "============================================================================" << std::endl;
         std::cout << "=====================              END                 =====================" << std::endl;
         std::cout << "============================================================================" << std::endl;
+        for(auto &i : threads) {
+            i->join();
+        }
         return 0;
     }
 }

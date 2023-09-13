@@ -83,7 +83,7 @@ namespace workload {
                 if (opType == Operation::READ) {
                     sprintf(gql, R"(FETCH PROP ON usertable "%s" YIELD properties(VERTEX);)",genKey);
                     auto resp = nebulaSessionPool->execute(gql);
-//                    LOG(INFO) << "Nebula Exec:" << gql;
+                    LOG(INFO) << "Nebula Exec:" << gql;
                 } else {
                     std::string data1 = Taas::RandomString(256);
                     std::string data2 = Taas::RandomString(256);
@@ -99,7 +99,7 @@ namespace workload {
 //                    sprintf(gql, R"(UPDATE VERTEX on usertable "%s" set filed = "%s", txnid = "%s";)",
 //                            genKey, value.c_str(), ("tid:" + std::to_string(tid)).c_str());
                     auto resp = nebulaSessionPool->execute(gql);
-//                    LOG(INFO) << "Nebula Exec:" << gql;
+                    LOG(INFO) << "Nebula Exec:" << gql;
 //                    usleep(5000);
                 }
             }

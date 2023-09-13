@@ -79,7 +79,7 @@ namespace workload {
             std::unique_ptr<proto::KvDBGetService_Stub> get_stub;
             chan.Init(MultiModelWorkload::ctx.storageContext.kLevelDBIP.c_str(), &options);
             get_stub = std::make_unique<proto::KvDBGetService_Stub>(&chan);
-//            auto s = std::string("KV exec :");
+            auto s = std::string("KV exec :");
             for (i = 0; i < cnt; i++) {
                 auto opType = MultiModelWorkload::operationChooser->nextValue();
                 auto id = MultiModelWorkload::keyChooser[0]->nextValue();
@@ -112,7 +112,7 @@ namespace workload {
                 }
                 row->set_key(keyName);
                 row->set_data(value);
-//                s += std::to_string(row->op_type()) + ", key:" + row->key() + ", data:" + row->data();
+                s += std::to_string(row->op_type()) + ", key:" + row->key() + ", data:" + row->data();
             }
 //            LOG(INFO) << s;
          }

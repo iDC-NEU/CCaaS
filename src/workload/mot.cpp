@@ -170,7 +170,7 @@ namespace workload {
         if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::MultiModelTest) {
             cnt = 4;
         }
-        else if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::KV) {
+        else if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::SQL) {
             cnt = 9;
         }
         else {

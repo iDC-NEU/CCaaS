@@ -37,6 +37,7 @@ namespace workload{
         client_listen_taas_message_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>>();
         CreateOperationGenerator();
         CreateKeyChooser();
+        execTimes.resize(ctx.multiModelContext.kTxnNum + 10000);
     }
 
     void MultiModelWorkload::buildValues(utils::ByteIteratorMap &values) {
@@ -121,6 +122,7 @@ namespace workload{
     void MultiModelWorkload::RunMultiTxn() {
         uint64_t txnId, kTotalTxnNum = ctx.multiModelContext.kTxnNum;
         auto sunTxnNum = std::make_shared<std::atomic<uint64_t>>(0);
+        uint64_t totalSubTxnNum = 0;
         auto threads = std::make_unique<util::thread_pool_light>(4);
         for(int i = 0; i < 4; i ++) {
             threads->push_task([]{
@@ -132,18 +134,21 @@ namespace workload{
         while(true) {
             txnId = AddTxnId();
             if(txnId > kTotalTxnNum) break;
-//            LOG(INFO) << "start txn " << txnId << " exec";
+            LOG(INFO) << "start txn " << txnId << " exec";
             auto stTime = Taas::now_to_us();
 
             uint64_t txn_num = 0;
             auto msg = std::make_unique<proto::Message>();
             auto message_txn = msg->mutable_txn();
             sunTxnNum->store(0);
+            totalSubTxnNum = 0;
             if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::GQL)) {
+                totalSubTxnNum ++;
                 threads->push_task(Nebula::RunTxn, txnId, sunTxnNum);
                 txn_num ++;
             }
             if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::SQL)) {
+                totalSubTxnNum ++;
                 threads->push_task(MOT::RunTxn, txnId, sunTxnNum);
                 txn_num ++;
             }
@@ -167,14 +172,12 @@ namespace workload{
             auto cv_ptr = std::make_shared<std::condition_variable>();
             multiModelTxnConditionVariable.insert(txnId, cv_ptr);
 //            cv_ptr->wait(_lock);
-            if(ctx.multiModelContext.kTestMode == Taas::MultiModelTest) {
 //                LOG(INFO) << "waiting for sub " << txnId << " txns execed";
-                while(sunTxnNum->load() < 2) usleep(1000);
+            while(sunTxnNum->load() < totalSubTxnNum) usleep(1000);
 //                LOG(INFO) << "sub " << txnId << " txns execed";
-            }
 //            LOG(INFO) << "txn " << txnId << " exec finished";
             auto edTime = Taas::now_to_us();
-            execTimes.emplace_back(edTime - stTime);
+            execTimes[txnId] = (edTime - stTime);
         }
         subWorksNum.fetch_add(1);
         workCountDown.signal();
