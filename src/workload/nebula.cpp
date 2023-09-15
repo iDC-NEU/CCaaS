@@ -31,9 +31,9 @@ namespace workload {
         nebulaSessionPoolConfig.maxSize_ = ctx.multiModelContext.kClientNum;
         nebulaSessionPool = std::make_unique<nebula::SessionPool>(nebulaSessionPoolConfig);
         nebulaSessionPool->init();
-        resp = nebulaSessionPool->execute("CREATE TAG IF NOT EXISTS usertable (key, string, filed, tid string);");
+        resp = nebulaSessionPool->execute("CREATE TAG IF NOT EXISTS usertable (key string, filed string, tid string);");
         assert(resp.errorCode == nebula::ErrorCode::SUCCEEDED);
-        LOG(INFO) << "Nebula Exec:" << "CREATE TAG IF NOT EXISTS usertable (key, string, filed, tid string);";
+        LOG(INFO) << "Nebula Exec:" << "CREATE TAG IF NOT EXISTS usertable (key string, filed string, tid string);";
         resp = nebulaSessionPool->execute("CREATE TAG INDEX IF NOT EXISTS usertable_index on usertable(key(10));");
         assert(resp.errorCode == nebula::ErrorCode::SUCCEEDED);
         LOG(INFO) << "Nebula Exec:" << "CREATE TAG INDEX IF NOT EXISTS usertable_index on usertable(key(10));";
