@@ -11,11 +11,11 @@ namespace Taas {
   // 事务发送到client初始化处理
   void TwoPC::ClientTxn_Init() {
     // txn_state_struct 记录当前事务的分片个数，完成个数
-    tid_client = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
+    tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
     std::unique_ptr<TwoPCTxnStateStruct> txn_state_struct;
     txn_state_struct = std::make_unique<TwoPCTxnStateStruct>(sharding_num, 0, 0, 0, 0, 0, 0,
                                                              client_txn);  // 无用数据state
-    txn_state_map.insert(tid_client, *txn_state_struct);
+    txn_state_map.insert(tid, *txn_state_struct);
   }
 
   // 事务进行分片
@@ -299,6 +299,10 @@ namespace Taas {
         // 当所有应答已经收到，并且commit阶段未完成
         if (txn_state_struct.two_pc_commit_reply == txn_state_struct.txn_sharding_num) {
           if (Check_2PL_Commit_complete(txn_ptr)) {
+            for (uint64_t i = 0; i < sharding_num; i++) {
+              // 解锁
+              Send(ctx, epoch, i, txn_ptr, proto::TxnType::Abort_txn);
+            }
             SendToClient(ctx, txn_ptr, proto::TxnType::CommittedTxn, proto::TxnState::Commit);
           } else {
             // 统一处理abort

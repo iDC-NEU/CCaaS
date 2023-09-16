@@ -40,7 +40,7 @@ namespace Taas {
     uint64_t GetHashValue(const std::string& key) const { return _hash(key) % sharding_num; }
     // 生成key_sorted
     void GetKeySorted(proto::Transaction& txn) {
-      for (size_t i = 0; i < txn.row_size(); i++) {
+      for (uint64_t i = 0; i < txn.row_size(); i++) {
         key_sorted.insert(txn.row(i).key(), i);
       }
     }
@@ -75,14 +75,14 @@ namespace Taas {
     Context ctx;
     std::string tid;  // 记录当前tid
     // std::vector<std::string> key_sorted;
-    std::map<std::string, size_t, Comparator> key_sorted;
+    std::map<std::string, uint64_t, Comparator> key_sorted;
 
     bool res, sleep_flag;
 
     std::hash<std::string> _hash;
 
     /// 从client得到的txn的tid
-    std::string tid_client, tid_to_remote, tid_from_remote;
+    // std::string tid_client, tid_to_remote, tid_from_remote;
 
     /// to_whom = all
     uint64_t to_whom_all = 0;
