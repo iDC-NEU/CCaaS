@@ -13,8 +13,8 @@ enum Result {
 }
 
 enum TxnType {
-  ClientTxn = 0; // client sends to txn
-  RemoteServerTxn = 1; // txn sends to txn, transactions sharding
+  ClientTxn = 0; // client sends to txn Coordinator接收到client发来的txn
+  RemoteServerTxn = 1; // txn sends to txn, transactions sharding，coordinator发送到applicant，相当于lock req
   EpochEndFlag = 2; // txn sends to txn, epoch transactions info
   CommittedTxn = 3; // txn sends to storage , redo log
   BackUpTxn = 4; // txn sends to txn, transactions backup
@@ -27,6 +27,20 @@ enum TxnType {
   InsertSetACK = 11;
   EpochLogPushDownComplete = 12;
   NullMark = 13;
+
+  // 添加2PL状态
+  Lock_ok = 14;
+  Lock_abort = 15;
+  // 添加2PC状态
+  Prepare_req = 16;
+  Prepare_ok = 17;
+  Prepare_abort = 18;
+
+  Commit_req = 19;
+  Commit_ok = 20;
+  Commit_abort = 21;
+  // abort统一处理
+  Abort_txn = 22;
 }
 
 enum TxnState {
