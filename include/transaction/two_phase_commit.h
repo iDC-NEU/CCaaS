@@ -25,23 +25,25 @@ namespace Taas {
     static concurrent_unordered_map<std::string, std::unique_ptr<TwoPCTxnStateStruct>>
         txn_state_map;  /// tid, txn struct
 
-    // add context ?
-    // std::unique_ptr<zmq::message_t> message_ptr;
-    // std::unique_ptr<std::string> message_string_ptr;
-    // std::unique_ptr<proto::Message> msg_ptr;
-    // std::unique_ptr<proto::Transaction> txn_ptr;
-    // std::unique_ptr<pack_params> pack_param;
-    // std::string csn_temp, key_temp, key_str, table_name, csn_result;
-    // uint64_t thread_id = 0, epoch = 0, epoch_mod = 0, txn_server_id = 0;
-    // bool res, sleep_flag;
-    // Context ctx;
-    // TwoPCMessageSendHandler message_transmitter;
-    // TwoPCMessageReceiveHandler message_handler;
-
     // 工具
+    struct Comparator {
+      bool operator()(const std::string& x1, const std::string& x2) {
+        if (x1 == x2)
+          return true;  // 相等返回true
+        else if (x1.length() != x2.length())
+          return x1.length() < x2.length();
+        else
+          return x1 < x2;
+      }
+    };
+
     uint64_t GetHashValue(const std::string& key) const { return _hash(key) % sharding_num; }
-    // 生成key_sorted 加锁
-    void GetKeySorted(proto::Transaction& txn) {}
+    // 生成key_sorted
+    void GetKeySorted(proto::Transaction& txn) {
+      for (size_t i = 0; i < txn.row_size(); i++) {
+        key_sorted.insert(txn.row(i).key(), i);
+      }
+    }
 
     void ClientTxn_Init();
     bool Sharding_2PL();
@@ -72,7 +74,8 @@ namespace Taas {
 
     Context ctx;
     std::string tid;  // 记录当前tid
-    std::vector<std::string> key_sorted;
+    // std::vector<std::string> key_sorted;
+    std::map<std::string, size_t, Comparator> key_sorted;
 
     bool res, sleep_flag;
 

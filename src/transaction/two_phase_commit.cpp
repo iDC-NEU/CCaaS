@@ -49,12 +49,12 @@ namespace Taas {
     tid = std::to_string(txn.csn()) + ":" + std::to_string(txn_ptr->server_id());
     uint64_t key_lock_num = 0;
     std::string tmp = "-1";
-    for (size_t i = 0; i < key_sorted.size(); i++) {
-      row_lock_map.getValue(key_sorted[i], tmp);
+    for (auto iter = key_sorted.begin(); iter != key_sorted.end(); i++) {
+      row_lock_map.getValue(iter->first, tmp);
       if (tmp == tid) {
         key_lock_num++;
-      } else if (tmp == -1 || tmp == 0) {
-        row_lock_map.insert(key_sorted[i], tid);
+      } else if (tmp == "-1" || tmp == "0") {
+        row_lock_map.insert(iter->first, tid);
         key_lock_num++;
       } else {
         return false;
@@ -68,13 +68,12 @@ namespace Taas {
     // 事务完全提交或中途abort调用，无需返回coordinator?
     uint64_t key_unlock_num = 0;
     std::string tmp = "-1";
-    for (size_t i = 0; i < key_sorted.size(); i++) {
-      /* code */
-      row_lock_map.getValue(key_sorted[i], tmp);
+    for (auto iter = key_sorted.begin(); iter != key_sorted.end(); i++) {
+      row_lock_map.getValue(iter->first, tmp);
       if (tmp == tid) {
-        row_lock_map.remove(key_sorted[i], tid);
+        row_lock_map.insert(iter->first, "0");
         key_unlock_num++;
-      } else if (tmp == -1 || tmp == 0) {
+      } else if (tmp == "-1" || tmp == "0") {
         key_unlock_num++;
       } else {
         return false;
@@ -158,7 +157,7 @@ namespace Taas {
     sharding_num = ctx_.kTxnNodeNum;
     message_ptr = nullptr;
     txn_ptr = nullptr;
-    return false;
+    return true;
   }
 
   // 处理接收到的消息
@@ -186,7 +185,6 @@ namespace Taas {
 
   // 核心：根据txn type操作
   bool TwoPC::HandleReceivedTxn(std::unique_ptr<proto::Transaction> txn_ptr) {
-    // 最初请求发送过来是什么txn type？
     switch (txn_ptr->txn_type) {
       case proto::TxnType::ClientTxn: {
         ClientTxn_Init();
@@ -211,26 +209,22 @@ namespace Taas {
         txn_state_struct.two_pl_reply++;
         txn_state_struct.two_pl_num++;
 
-        // 当前 two_pl_reply == sharding_num 则
+        // 所有应答收到
         if (txn_state_struct.two_pl_reply == txn_state_struct.txn_sharding_num) {
           if (Check_2PL_complete(txn_ptr)) {
             // 2pl完成，开始2pc prepare阶段
             for (uint64_t i = 0; i < sharding_num; i++) {
-              // Send(ctx, sharding_row_vector[i], proto::TxnType::Prepare_req);
               Send(ctx, epoch, i, txn_ptr, proto::TxnType::Prepare_req);
             }
           } else {
             // 统一处理abort
             for (uint64_t i = 0; i < sharding_num; i++) {
-              // Send(ctx, sharding_row_vector[i], proto::TxnType::Abort_txn);
               Send(ctx, epoch, i, txn_ptr, proto::TxnType::Abort_txn);
             }
             // 发送abort给client
-            // SendToClient(ctx, txn, proto::TxnState::Abort);
             SendToClient(ctx, txn_ptr, proto::TxnType::Abort_txn, proto::TxnState::Abort);
           }
         }
-
         break;
       }
       case proto::TxnType::Lock_abort: {
@@ -240,17 +234,14 @@ namespace Taas {
         txn_state_struct.two_pl_reply++;
         // 直接发送abort
         for (uint64_t i = 0; i < sharding_num; i++) {
-          // Send(ctx, sharding_row_vector[i], proto::TxnType::Abort_txn);
           Send(ctx, epoch, i, txn_ptr, proto::TxnType::Abort_txn);
         }
         // 发送abort给client
-        // SendToClient(ctx, txn, proto::TxnState::Abort);
         SendToClient(ctx, txn_ptr, proto::TxnType::Abort_txn, proto::TxnState::Abort);
         break;
       }
       case proto::TxnType::Prepare_req: {
         // 日志操作等等，总之返回Prepare_ok
-        // Send(ctx, , proto::TxnType::Prepare_ok);
         Send(ctx, epoch, ctx.txn_node_ip_index, txn_ptr, proto::TxnType::Prepare_ok);
         break;
       }
@@ -295,37 +286,35 @@ namespace Taas {
       }
       case proto::TxnType::Commit_req: {
         // 日志操作等等，总之返回Commit_ok
-        // Send(ctx, , proto::TxnType::Commit_ok);
         Send(ctx, epoch, ctx.txn_node_ip_index, txn_ptr, proto::TxnType::Commit_ok);
         break;
       }
       case proto::TxnType::Commit_ok: {
         // 与上相同
         // 修改元数据
-        std::string tid
-            = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
         TwoPCTxnStateStruct txn_state_struct;
         txn_state_map.getValue(tid, txn_state_struct);
         txn_state_struct.two_pc_commit_reply++;
         txn_state_struct.two_pc_commit_num++;
         // 当所有应答已经收到，并且commit阶段未完成
-        if (txn_state_struct.two_pc_commit_reply == txn_state_struct.txn_sharding_num
-            && !Check_2PL_Commit_complete(txn_ptr)) {
-          // 统一处理abort
-          for (uint64_t i = 0; i < sharding_num; i++) {
-            Send(ctx, epoch, i, txn_ptr, proto::TxnType::Abort_txn);
+        if (txn_state_struct.two_pc_commit_reply == txn_state_struct.txn_sharding_num) {
+          if (Check_2PL_Commit_complete(txn_ptr)) {
+            SendToClient(ctx, txn_ptr, proto::TxnType::CommittedTxn, proto::TxnState::Commit);
+          } else {
+            // 统一处理abort
+            for (uint64_t i = 0; i < sharding_num; i++) {
+              Send(ctx, epoch, i, txn_ptr, proto::TxnType::Abort_txn);
+            }
+            SendToClient(ctx, txn_ptr, proto::TxnType::Abort_txn, proto::TxnState::Abort);
           }
-          SendToClient(ctx, txn_ptr, proto::TxnType::Abort_txn, proto::TxnState::Abort);
         }
         break;
       }
       case proto::TxnType::Commit_abort: {
         // 与上相同
-        std::string tid
-            = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
-        TwoPCTxnStateStruct txn_state_struct;
-        txn_state_map.getValue(tid, txn_state_struct);
-        txn_state_struct.two_pc_commit_reply++;
+        // TwoPCTxnStateStruct txn_state_struct;
+        // txn_state_map.getValue(tid, txn_state_struct);
+        // txn_state_struct.two_pc_commit_reply++;
         // 直接发送abort
         for (uint64_t i = 0; i < sharding_num; i++) {
           Send(ctx, epoch, i, txn_ptr, proto::TxnType::Abort_txn);
