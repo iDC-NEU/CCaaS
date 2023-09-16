@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <root>
 <!--Storage config-->
-    <is_mot_enable>0</is_mot_enable>
-    <mot_thread_num>5</mot_thread_num>
+    <is_mot_enable>1</is_mot_enable>
+    <mot_thread_num>1</mot_thread_num><!--MOT port 5556 & Nebula port 5557-->
 
     <!--    tikv config -->
     <is_tikv_enable>0</is_tikv_enable>
@@ -10,9 +10,10 @@
     <tikv_thread_num>5</tikv_thread_num>
 
     <!--    leveldb config -->
-    <is_leveldb_enable>0</is_leveldb_enable>
-    <leveldb_ip>47.92.250.79:2379</leveldb_ip>
-    <leveldb_thread_num>5</leveldb_thread_num>
+    <is_leveldb_enable>1</is_leveldb_enable>
+    <leveldb_ip>127.0.0.1:2379</leveldb_ip>
+<!--    <leveldb_ip>202.199.6.181:2379</leveldb_ip>-->
+    <leveldb_thread_num>1</leveldb_thread_num>
 
     <!--    hbase config -->
     <is_hbase_enable>0</is_hbase_enable>

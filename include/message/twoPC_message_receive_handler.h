@@ -13,7 +13,7 @@
 #include "zmq.hpp"
 
 namespace Taas {
-
+  
   enum TwoPCTxnState {
     client_txn = 0,         // 2pl+2pc client send to txn
     remote_server_txn = 1,  // 2pl+2pc txn sends to txn, transactions sharding
@@ -76,6 +76,7 @@ namespace Taas {
     uint64_t thread_id = 0, server_dequeue_id = 0, max_length = 0,
              sharding_num = 0,                           /// cache check
         message_sharding_id = 0, message_server_id = 0,  /// message epoch info
+
         server_reply_ack_id = 0;
 
     bool res, sleep_flag;
@@ -83,6 +84,7 @@ namespace Taas {
     Context ctx;
     proto::Transaction empty_txn;
     std::hash<std::string> _hash;
+
 
   public:
     static std::vector<uint64_t> sharding_send_ack_epoch_num, backup_send_ack_epoch_num,

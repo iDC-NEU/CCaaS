@@ -3,24 +3,25 @@
 //
 
 #include "leveldb_server/leveldb_server.h"
+#include "db/db_interface.h"
+#include <future>
 
 #include <future>
 
-#include "leveldb_server/rocksdb_connection.h"
 
 namespace Taas {
 
   static std::vector<std::unique_ptr<RocksDBConnection>> leveldb_connections;
   static std::atomic<uint64_t> connection_num(0);
 
+
   void LevelDBServer(const Context &context) {
     brpc::Server leveldb_server;
     brpc::ServerOptions options;
     LevelDBGetService leveldb_get_service;
     LevelDBPutService leveldb_put_service;
-
-    leveldb_connections.resize(10001);
-    for (int i = 0; i < 10000; i++) {
+    leveldb_connections.resize(1);
+    for (int i = 0; i < 1; i++) {
       leveldb_connections.push_back(RocksDBConnection::NewConnection("leveldb"));
     }
 
@@ -44,12 +45,11 @@ namespace Taas {
     brpc::ClosureGuard done_guard(done);
 
     //        brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    auto num = connection_num.fetch_add(1) % 10000;
     std::string value;
     const auto &data = request->data();
-    const std::string &key = data[num].key();
+    const std::string &key = data[0].key();
     //        LOG(INFO) << "get-key : " << key;
-    auto res = leveldb_connections[num]->get(key, &value);
+    auto res = leveldb_connections[0]->get(key, &value);
     //        LOG(INFO) << "get-value : " << value;
     // 填写response
     response->set_result(res);
@@ -64,12 +64,12 @@ namespace Taas {
     brpc::ClosureGuard done_guard(done);
 
     //        brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    auto num = connection_num.fetch_add(1);
     const auto &data = request->data();
     const std::string &key = data[0].key();
     const std::string &value = data[0].value();
-    auto res = leveldb_connections[num % 10000]->syncPut(key, value);
+    auto res = leveldb_connections[0]->syncPut(key, value);
     // 填写response
     response->set_result(res);
   }
 }  // namespace Taas
+

@@ -4,6 +4,7 @@
 
 #include "test/test.h"
 #include "transaction/merge.h"
+#include "tools/utilities.h"
 #include <random>
 
 namespace Taas {
@@ -16,9 +17,9 @@ namespace Taas {
         std::random_device rd;
         auto gen = std::default_random_engine (rd());
         std::uniform_int_distribution<int>
-            op_num_dis(1, static_cast<int>(ctx.kTestTxnOpNum)),
+            op_num_dis(1, static_cast<int>(ctx.taasContext.kTestTxnOpNum)),
             op_type_dis(1,4),
-            key_range_dis(1,static_cast<int>(ctx.kTestTxnOpNum)),
+            key_range_dis(1,static_cast<int>(ctx.taasContext.kTestTxnOpNum)),
             sleep_dis(1, 20000);
 
         while(!EpochManager::IsInitOK() || EpochManager::GetLogicalEpoch() < 10) usleep(sleep_time);
@@ -26,13 +27,13 @@ namespace Taas {
         while(!EpochManager::IsTimerStop()) {
             auto message_ptr = std::make_unique<proto::Message>();
             auto* txn_ptr = message_ptr->mutable_txn();
-            txn_ptr->set_client_txn_id(txn_id * ctx.kTestClientNum + id);
-            write_version = std::to_string(txn_ptr->client_txn_id()) + std::to_string(ctx.txn_node_ip_index);
+            txn_ptr->set_client_txn_id(txn_id * ctx.taasContext.kTestClientNum + id);
+            write_version = std::to_string(txn_ptr->client_txn_id()) + std::to_string(ctx.taasContext.txn_node_ip_index);
             txn_id ++;
             txn_ptr->set_txn_type(proto::ClientTxn);
             op_num = op_num_dis(gen);
             for(unsigned int i = 0; i < op_num; i ++) {
-                auto key = std::to_string(key_range_dis(gen) % ctx.kTestKeyRange);
+                auto key = std::to_string(key_range_dis(gen) % ctx.taasContext.kTestKeyRange);
                 op_type = op_type_dis(gen);
                 auto row = txn_ptr->add_row();
                 row->set_key(key);
@@ -62,13 +63,14 @@ namespace Taas {
             }
             txn_ptr->set_client_ip("127.0.0.1");
             auto serialized_txn_str = std::string();
-            google::protobuf::io::GzipOutputStream::Options options;
-            options.format = google::protobuf::io::GzipOutputStream::GZIP;
-            options.compression_level = 9;
-            google::protobuf::io::StringOutputStream outputStream(&serialized_txn_str);
-            google::protobuf::io::GzipOutputStream gzipStream(&outputStream, options);
-            message_ptr->SerializeToZeroCopyStream(&gzipStream);
-            gzipStream.Close();
+            Gzip(message_ptr.get(), &serialized_txn_str);
+//            google::protobuf::io::GzipOutputStream::Options options;
+//            options.format = google::protobuf::io::GzipOutputStream::GZIP;
+//            options.compression_level = 9;
+//            google::protobuf::io::StringOutputStream outputStream(&serialized_txn_str);
+//            google::protobuf::io::GzipOutputStream gzipStream(&outputStream, options);
+//            message_ptr->SerializeToZeroCopyStream(&gzipStream);
+//            gzipStream.Close();
             void *data = static_cast<void*>(const_cast<char*>(serialized_txn_str.data()));
             MessageQueue::listen_message_txn_queue->enqueue(std::make_unique<zmq::message_t>(data, serialized_txn_str.size()));
 

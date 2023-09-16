@@ -8,6 +8,7 @@
 #include "tools/utilities.h"
 
 namespace Taas {
+
   // 事务发送到client初始化处理
   void TwoPC::ClientTxn_Init() {
     // txn_state_struct 记录当前事务的分片个数，完成个数

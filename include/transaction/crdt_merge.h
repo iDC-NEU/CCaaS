@@ -7,18 +7,18 @@
 
 #pragma once
 
+#include "tools/context.h"
 #include "proto/transaction.pb.h"
 
 namespace Taas{
 
-class Context;
-
 class CRDTMerge{
 public:
-    static bool ValidateReadSet(const Context& ctx, proto::Transaction& txn);
-    static bool ValidateWriteSet(const Context& ctx, proto::Transaction& txn);
-    static bool MultiMasterCRDTMerge(const Context& ctx, proto::Transaction& txn);
-    static bool Commit(const Context& ctx, proto::Transaction& txn);
+    static Context ctx;
+    static bool ValidateReadSet(std::shared_ptr<proto::Transaction> txn_ptr);
+    static bool ValidateWriteSet(std::shared_ptr<proto::Transaction> txn_ptr);
+    static bool MultiMasterCRDTMerge(std::shared_ptr<proto::Transaction> txn_ptr);
+    static bool Commit(std::shared_ptr<proto::Transaction> txn_ptr);
 
 };
 

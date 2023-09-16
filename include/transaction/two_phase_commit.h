@@ -16,6 +16,7 @@
 #include "tools/utilities.h"
 
 namespace Taas {
+  
   class TwoPC {
   public:
     static concurrent_unordered_map<std::string, std::unique_ptr<uint64_t>>
@@ -35,6 +36,7 @@ namespace Taas {
         else
           return x1 < x2;
       }
+
     };
 
     uint64_t GetHashValue(const std::string& key) const { return _hash(key) % sharding_num; }

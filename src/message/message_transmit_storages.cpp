@@ -43,6 +43,7 @@ namespace Taas {
         send_socket.set(zmq::sockopt::sndhwm, queue_length);
         send_socket.set(zmq::sockopt::rcvhwm, queue_length);
         recv_socket.bind("tcp://*:" + std::to_string(recv_port));
+        auto txn_ptr = std::make_shared<proto::Transaction>();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
 
         while (!EpochManager::IsTimerStop()) {
@@ -70,7 +71,8 @@ namespace Taas {
                 for (uint64_t i = 0; i < total_num; i++) {
                     auto key = s + std::to_string(i);
                     auto *ptr = pull_resp->add_txns();
-                    RedoLoger::committed_txn_cache[epoch_mod]->getValue(key, (*ptr)); //copy
+                    RedoLoger::committed_txn_cache[epoch_mod]->getValue(key, txn_ptr); //copy
+                    *ptr = *(txn_ptr);
                 }
 //            for (auto iter = EpochManager::redo_log[epoch_id]->begin(); iter != EpochManager::redo_log[epoch_id]->end(); iter++) {
 //                proto::Transaction* ptr = pull_resp->add_txns();
@@ -91,7 +93,7 @@ namespace Taas {
 
     }
 
-    void SendStoragePUBThreadMain(const Context& ctx) { //PUB Txn
+    void SendToMOTStorageThreadMain(const Context& ctx) { //PUB Txn
         int queue_length = 0;
         zmq::context_t context(1);
         zmq::message_t reply(5);
@@ -105,7 +107,29 @@ namespace Taas {
         std::unique_ptr<zmq::message_t> msg;
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
-            MessageQueue::send_to_storage_queue->wait_dequeue(params);
+            MessageQueue::send_to_mot_storage_queue->wait_dequeue(params);
+            if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
+            msg = std::make_unique<zmq::message_t>(*(params->str));
+            socket_send.send(*msg, sendFlags);
+        }
+        socket_send.send((zmq::message_t &) "end", sendFlags);
+    }
+
+    void SendToNebulaStorageThreadMain(const Context& ctx) { //PUB Txn
+        int queue_length = 0;
+        zmq::context_t context(1);
+        zmq::message_t reply(5);
+        zmq::send_flags sendFlags = zmq::send_flags::none;
+        zmq::socket_t socket_send(context, ZMQ_PUB);
+        socket_send.set(zmq::sockopt::sndhwm, queue_length);
+        socket_send.set(zmq::sockopt::rcvhwm, queue_length);
+        socket_send.bind("tcp://*:5556");//to server
+        printf("线程开始工作 SendStoragePUBServerThread ZMQ_PUB tcp:// ip + :5557\n");
+        std::unique_ptr<send_params> params;
+        std::unique_ptr<zmq::message_t> msg;
+        while(!EpochManager::IsInitOK()) usleep(sleep_time);
+        while (!EpochManager::IsTimerStop()) {
+            MessageQueue::send_to_nebula_storage_queue->wait_dequeue(params);
             if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
             msg = std::make_unique<zmq::message_t>(*(params->str));
             socket_send.send(*msg, sendFlags);

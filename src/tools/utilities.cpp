@@ -9,21 +9,26 @@ namespace Taas {
 
 
     bool Gzip(google::protobuf::MessageLite* ptr, std::string* serialized_str_ptr) {
-        google::protobuf::io::GzipOutputStream::Options options;
-        options.format = google::protobuf::io::GzipOutputStream::GZIP;
-        options.compression_level = 9;
+//        google::protobuf::io::GzipOutputStream::Options options;
+//        options.format = google::protobuf::io::GzipOutputStream::GZIP;
+//        options.compression_level = 9;
+//        google::protobuf::io::StringOutputStream outputStream(serialized_str_ptr);
+//        google::protobuf::io::GzipOutputStream gzipStream(&outputStream, options);
+//        auto res = ptr->SerializeToZeroCopyStream(&gzipStream);
+//        gzipStream.Close();
+
         google::protobuf::io::StringOutputStream outputStream(serialized_str_ptr);
-        google::protobuf::io::GzipOutputStream gzipStream(&outputStream, options);
-        auto res = ptr->SerializeToZeroCopyStream(&gzipStream);
-        gzipStream.Close();
+        auto res = ptr->SerializeToZeroCopyStream(&outputStream);
         return res;
     }
 
     bool UnGzip(google::protobuf::MessageLite* ptr, const std::string* str) {
 //    auto message_string_ptr = std::make_unique<std::string>(static_cast<const char*>(message_ptr->data()), message_ptr->size());
+//        google::protobuf::io::ArrayInputStream inputStream(str->data(), (int)str->size());
+//        google::protobuf::io::GzipInputStream gzipStream(&inputStream);
+//        return ptr->ParseFromZeroCopyStream(&gzipStream);
         google::protobuf::io::ArrayInputStream inputStream(str->data(), (int)str->size());
-        google::protobuf::io::GzipInputStream gzipStream(&inputStream);
-        return ptr->ParseFromZeroCopyStream(&gzipStream);
+        return ptr->ParseFromZeroCopyStream(&inputStream);
     }
 
     std::atomic<int> cpu_index(1);
@@ -73,6 +78,33 @@ namespace Taas {
         std::chrono::microseconds ms_duration = std::chrono::duration_cast<std::chrono::microseconds>(time_duration);
         uint64_t timestamp = ms_duration.count();
         return timestamp;
+    }
+
+    std::string RandomString(int length) {			// length: 产生字符串的长度
+        char tmp;							// tmp: 暂存一个随机数
+        std::string buffer;						// buffer: 保存返回值
+        // 下面这两行比较重要:
+        std::random_device rd;					// 产生一个 std::random_device 对象 rd
+        std::default_random_engine random(rd());	// 用 rd 初始化一个随机数发生器 random
+        for (int i = 0; i < length; i++) {
+            tmp = random() % 36;	// 随机一个小于 36 的整数，0-9、A-Z 共 36 种字符
+            if (tmp < 10) {			// 如果随机数小于 10，变换成一个阿拉伯数字的 ASCII
+                tmp += '0';
+            } else {				// 否则，变换成一个大写字母的 ASCII
+                tmp -= 10;
+                tmp += 'A';
+            }
+            buffer += tmp;
+        }
+        return buffer;
+    }
+
+    uint64_t RandomNumber(uint64_t minn,uint64_t maxx){
+        uint64_t res;
+        std::random_device rd;
+        std::default_random_engine random(rd());
+        res = random()%(maxx-minn)+minn;
+        return res;
     }
 
 }

@@ -7,84 +7,90 @@
 #include "transaction/crdt_merge.h"
 
 namespace Taas {
-    bool CRDTMerge::ValidateReadSet(const Context &ctx, proto::Transaction &txn) {
-        ///RC & RR
-        auto epoch_mod = txn.commit_epoch() % ctx.kCacheMaxLength;
-        std::string key, version;
-        uint64_t csn = 0;
-        for(auto i = 0; i < txn.row_size(); i ++) {
-            const auto& row = txn.row(i);
-            if(row.op_type() != proto::OpType::Read) {
-                continue;
-            }
-            /// indeed, we should use the csn to check the read version,
-            /// but there are some bugs in updating the csn to the storage(tikv).
-            if (!Merger::read_version_map_data.getValue(row.key(), version)) {
-                /// should be abort, but Taas do not connect load data,
-                /// so read the init snap will get empty in read_version_map
-                continue;
-            }
-            if (version != row.data()) {
-                auto csn_temp = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
-                Merger::epoch_abort_txn_set[epoch_mod]->insert(csn_temp, csn_temp);
-                Merger::local_epoch_abort_txn_set[epoch_mod]->insert(csn_temp, csn_temp);
-//                LOG(INFO) <<"Txn read version check failed";
-//                LOG(INFO) <<"read version check failed version : " << version << ", row.data() : " << row.data();
-                return false;
-            }
-        }
+    Context CRDTMerge::ctx;
+    bool CRDTMerge::ValidateReadSet(std::shared_ptr<proto::Transaction> txn_ptr) {
+        ///RC & RR & SI
+        //RC do not check read data
+//        auto epoch_mod = txn_ptr->commit_epoch() % ctx.taasContext.kCacheMaxLength;
+//        std::string version;
+//        uint64_t csn = 0;
+//        for(auto i = 0; i < txn_ptr->row_size(); i ++) {
+//            const auto& row = txn_ptr->row(i);
+//            auto key = txn_ptr->storage_type() + ":" + row.key();
+//            if(row.op_type() != proto::OpType::Read) {
+//                continue;
+//            }
+//            /// indeed, we should use the csn to check the read version,
+//            /// but there are some bugs in updating the csn to the storage(tikv).
+//            if (!Merger::read_version_map_data.getValue(key, version)) {
+//                /// should be abort, but Taas do not connect load data,
+//                /// so read the init snap will get empty in read_version_map
+//                continue;
+//            }
+//            if (version != row.data()) {
+//                auto csn_temp = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
+//                Merger::epoch_abort_txn_set[epoch_mod]->insert(csn_temp, csn_temp);
+////                LOG(INFO) <<"Txn read version check failed";
+////                LOG(INFO) <<"read version check failed version : " << version << ", row.data() : " << row.data();
+//                return false;
+//            }
+//        }
+        txn_ptr.reset();
         return true;
     }
 
-    bool CRDTMerge::ValidateWriteSet(const Context &ctx, proto::Transaction &txn) {
-        auto epoch_mod = txn.commit_epoch() % ctx.kCacheMaxLength;
-        auto csn_temp = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
+    bool CRDTMerge::ValidateWriteSet(std::shared_ptr<proto::Transaction> txn_ptr) {
+        auto epoch_mod = txn_ptr->commit_epoch() % ctx.taasContext.kCacheMaxLength;
+        auto csn_temp = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
         if(Merger::epoch_abort_txn_set[epoch_mod]->contain(csn_temp, csn_temp)) {
+            txn_ptr.reset();
             return false;
         }
+        txn_ptr.reset();
         return true;
     }
 
-    bool CRDTMerge::MultiMasterCRDTMerge(const Context &ctx, proto::Transaction &txn) {
-        auto epoch_mod = txn.commit_epoch() % ctx.kCacheMaxLength;
-        auto csn_temp = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
+    bool CRDTMerge::MultiMasterCRDTMerge(std::shared_ptr<proto::Transaction> txn_ptr) {
+        auto epoch_mod = txn_ptr->commit_epoch() % ctx.taasContext.kCacheMaxLength;
+        auto csn_temp = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
         std::string csn_result;
         bool result = true;
-        for(auto i = 0; i < txn.row_size(); i ++) {
-            const auto& row = txn.row(i);
+        for(auto i = 0; i < txn_ptr->row_size(); i ++) {
+            const auto& row = txn_ptr->row(i);
             if(row.op_type() == proto::OpType::Read) {
                 continue;
             }
-            if (!Merger::epoch_merge_map[epoch_mod]->insert(row.key(), csn_temp, csn_result)) {
+            auto key = txn_ptr->storage_type() + ":" + row.key();
+            if (!Merger::epoch_merge_map[epoch_mod]->insert(key, csn_temp, csn_result)) {
                 Merger::epoch_abort_txn_set[epoch_mod]->insert(csn_result, csn_result);
-                Merger::local_epoch_abort_txn_set[epoch_mod]->insert(csn_result, csn_result);
                 result = false;
             }
         }
+        txn_ptr.reset();
         return result;
     }
 
-    bool CRDTMerge::Commit(const Context &ctx, proto::Transaction &txn) {
-        auto epoch_mod = txn.commit_epoch() % ctx.kCacheMaxLength;
-        auto csn_temp = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
-        for(auto i = 0; i < txn.row_size(); i ++) {
-            const auto& row = txn.row(i);
+    bool CRDTMerge::Commit(std::shared_ptr<proto::Transaction> txn_ptr) {
+        auto csn_temp = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
+        for(auto i = 0; i < txn_ptr->row_size(); i ++) {
+            const auto& row = txn_ptr->row(i);
+            auto key = txn_ptr->storage_type() + ":" + row.key();
             if(row.op_type() == proto::OpType::Read) {
                 continue;
             }
             else if(row.op_type() == proto::OpType::Insert) {
-                Merger::epoch_insert_set[epoch_mod]->insert(row.key(), csn_temp);
-                Merger::insert_set.insert(row.key(), csn_temp);
+                Merger::insert_set.insert(key, csn_temp);
             }
             else if(row.op_type() == proto::OpType::Delete) {
-                Merger::insert_set.remove(row.key(), csn_temp);
+                Merger::insert_set.remove(key, csn_temp);
             }
             else {
                 //nothing to do
             }
-            Merger::read_version_map_data.insert(row.key(), row.data());
-            Merger::read_version_map_csn.insert(row.key(), csn_temp);
+            Merger::read_version_map_data.insert(key, row.data());
+            Merger::read_version_map_csn.insert(key, csn_temp);
         }
+        txn_ptr.reset();
         return true;
     }
 }
