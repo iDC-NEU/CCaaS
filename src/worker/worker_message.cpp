@@ -18,7 +18,7 @@ namespace Taas {
         class TwoPC twoPC;
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         receiveHandler.Init(id);
-        twoPC.Init(id);
+        twoPC.Init(ctx, id);
         while(!EpochManager::IsTimerStop()){
             switch(ctx.taasContext.taasMode) {
                 case TaasMode::MultiModel :
@@ -46,7 +46,7 @@ namespace Taas {
         class TwoPC twoPC;
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         receiveHandler.Init(id);
-        twoPC.Init(id);
+        twoPC.Init(ctx, id);
         while(!EpochManager::IsTimerStop()){
             switch(ctx.taasContext.taasMode) {
                 case TaasMode::MultiModel :

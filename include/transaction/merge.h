@@ -76,8 +76,6 @@ namespace Taas {
         static bool CommitQueueTryDequeue(uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
 
 
-
-
         static bool CheckEpochMergeComplete(const uint64_t& epoch) {
             if(epoch_merge_complete[epoch % ctx.taasContext.kCacheMaxLength]->load()) {
                 return true;

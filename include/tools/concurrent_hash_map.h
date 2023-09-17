@@ -237,6 +237,8 @@ namespace Taas {
             return false;
         }
 
+
+
         bool contain(const key &k){
             std::mutex& _mutex_temp = GetMutexRef(k);
             std::unordered_map<key, value>& _map_temp = GetMapRef(k);
@@ -268,7 +270,7 @@ namespace Taas {
             return ans;
         }
 
-        bool getValue(std::vector<key> &keys, std::vector<value> &values) {
+        bool getValue(std::basic_string<char> keys, std::vector<value> &values) {
             for(uint64_t i = 0; i < _N; i ++){
                 std::unique_lock<std::mutex> lock(_mutex[i]);
             }

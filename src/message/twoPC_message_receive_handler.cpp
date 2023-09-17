@@ -26,11 +26,6 @@ namespace Taas {
             TwoPCMessageReceiveHandler::backup_insert_set_send_ack_epoch_num,
             TwoPCMessageReceiveHandler::abort_set_send_ack_epoch_num; /// check and reply ack
 
-    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>>
-            TwoPCMessageReceiveHandler::epoch_backup_txn,
-            TwoPCMessageReceiveHandler::epoch_insert_set,
-            TwoPCMessageReceiveHandler::epoch_abort_set;
-
     bool TwoPCMessageReceiveHandler::Init(const Context& ctx_, uint64_t id) {
         message_ptr = nullptr;
         txn_ptr.reset();
@@ -60,11 +55,6 @@ namespace Taas {
         epoch_insert_set.resize(max_length);
         epoch_abort_set.resize(max_length);
 
-        for(int i = 0; i < static_cast<int>(max_length); i ++) {
-            epoch_backup_txn[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
-            epoch_insert_set[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
-            epoch_abort_set[i] = std::make_unique<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>();
-        }
         return true;
     }
 

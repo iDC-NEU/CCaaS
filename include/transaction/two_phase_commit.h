@@ -19,11 +19,11 @@ namespace Taas {
   
   class TwoPC {
   public:
-    static concurrent_unordered_map<std::string, std::unique_ptr<uint64_t>>
+    concurrent_unordered_map<std::string, std::string>
         row_lock_map;  /// key, tid
 
     // 将事务和元数据map
-    static concurrent_unordered_map<std::string, std::unique_ptr<TwoPCTxnStateStruct>>
+    concurrent_unordered_map<std::string, std::shared_ptr<TwoPCTxnStateStruct>>
         txn_state_map;  /// tid, txn struct
 
     // 工具
@@ -36,14 +36,14 @@ namespace Taas {
         else
           return x1 < x2;
       }
-
     };
 
     uint64_t GetHashValue(const std::string& key) const { return _hash(key) % sharding_num; }
     // 生成key_sorted
     void GetKeySorted(proto::Transaction& txn) {
-      for (uint64_t i = 0; i < txn.row_size(); i++) {
-        key_sorted.insert(txn.row(i).key(), i);
+        uint64_t size = txn.row_size();
+      for (uint64_t i = 0; i < size; i++) {
+        key_sorted[txn.row(i).key()] =  i;
       }
     }
 
@@ -56,12 +56,13 @@ namespace Taas {
     bool Check_2PL_Commit_complete(proto::Transaction& txn);
     bool Send(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn,
               proto::TxnType txn_type);
-    bool SendToClient(const Context& ctx, proto::Transaction& txn, proto::TxnState txn_state);
-
+//    bool SendToClient(const Context& ctx, proto::Transaction& txn, proto::TxnState txn_state);
+    bool  SendToClient(const Context& ctx, proto::Transaction& txn, proto::TxnType txn_type,
+                   proto::TxnState txn_state);
     static bool Init(const Taas::Context& ctx_, uint64_t id);
-    static bool HandleReceivedMessage();  // 处理接收到的消息
-    static bool HandleReceivedTxn();      // 处理接收到的事务（coordinator/applicant）
-    static bool SetMessageRelatedCountersInfo();
+    bool HandleReceivedMessage();  // 处理接收到的消息
+    bool HandleReceivedTxn();      // 处理接收到的事务（coordinator/applicant）
+    bool SetMessageRelatedCountersInfo();
 
     std::unique_ptr<zmq::message_t> message_ptr;
     std::unique_ptr<std::string> message_string_ptr;
@@ -70,14 +71,13 @@ namespace Taas {
     std::unique_ptr<proto::Transaction> local_txn_ptr;
     std::unique_ptr<pack_params> pack_param;
     std::string csn_temp, key_temp, key_str, table_name, csn_result;
-    uint64_t thread_id = 0, server_dequeue_id = 0, epoch_mod = 0, epoch = 0, max_length = 0,
-             sharding_num = 0,                                              /// cache check
-        message_epoch = 0, message_sharding_id = 0, message_server_id = 0;  /// message epoch info
+    uint64_t thread_id, server_dequeue_id, epoch_mod, epoch, max_length,
+             sharding_num,                                              /// cache check
+        message_epoch, message_sharding_id, message_server_id;  /// message epoch info
 
-    Context ctx;
+    static Context ctx;
     std::string tid;  // 记录当前tid
-    // std::vector<std::string> key_sorted;
-    std::map<std::string, uint64_t, Comparator> key_sorted;
+    std::map<std::string, uint64_t> key_sorted;
 
     bool res, sleep_flag;
 
@@ -92,6 +92,7 @@ namespace Taas {
     uint64_t sharding_num_struct_progressing, two_pl_num_progressing,
         two_pc_prepare_num_progressing, two_pc_commit_num_progressing;
   };
+
 }  // namespace Taas
 
 #endif  // TAAS_TWO_PHASE_COMMIT_H

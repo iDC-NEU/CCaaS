@@ -288,6 +288,24 @@ namespace Taas {
             case proto::TxnType_INT_MAX_SENTINEL_DO_NOT_USE_:
             case proto::CommittedTxn:
                 break;
+            case proto::Lock_ok:
+                break;
+            case proto::Lock_abort:
+                break;
+            case proto::Prepare_req:
+                break;
+            case proto::Prepare_ok:
+                break;
+            case proto::Prepare_abort:
+                break;
+            case proto::Commit_req:
+                break;
+            case proto::Commit_ok:
+                break;
+            case proto::Commit_abort:
+                break;
+            case proto::Abort_txn:
+                break;
         }
         return true;
     }
