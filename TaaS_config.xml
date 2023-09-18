@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <root>
-    <server_type>4</server_type><!-- 1: TaaS, 2:leveldb_server, 3:hbase_server 4:MultiModelClient-->
+    <server_type>1</server_type><!-- 1: TaaS, 2:leveldb_server, 3:hbase_server 4:MultiModelClient-->
 
 <!-- TaaS config-->
     <!--    client use push/pull mode send txn to taas through 5551 port-->

@@ -31,10 +31,9 @@ namespace Taas {
                 break;
             }
             case TaasMode::TwoPC : {
-                goto end;
+                MultiMasterEpochManager::EpochLogicalTimerManagerThreadMain(ctx);
             }
         }
-        end:
         return ;
     }
 

@@ -83,6 +83,7 @@ namespace Taas {
                 }
             }
             if(ctx.storageContext.is_leveldb_enable) {
+                LevelDBServer(ctx);
                 for(int i = 0; i < (int)ctx.storageContext.kLeveldbThreadNum; i ++) {
                     threads.push_back(std::make_unique<std::thread>(WorkerFroLevelDBStorageThreadMain, ctx, i)); cnt++;///tikv push down
                 }
@@ -95,6 +96,7 @@ namespace Taas {
 
             for(int i = 0; i < (int)ctx.taasContext.kTestClientNum; i ++) {
                 if(ctx.storageContext.is_leveldb_enable) {
+                    LOG(INFO) << "LevelDBClient inserting";
                     threads.push_back(std::make_unique<std::thread>(LevelDBClient, ctx, i));
                     cnt++;
                 }
