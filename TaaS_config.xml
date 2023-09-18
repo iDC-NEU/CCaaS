@@ -5,11 +5,11 @@
 <!-- TaaS config-->
     <!--    client use push/pull mode send txn to taas through 5551 port-->
     <!--    client use push/pull mode receive result from taas through 5552 port-->
-    <taas_server_mode>1</taas_server_mode><!-- 1: MultiMaster Epoch, 2: Sharding Epoch, 3: 2PC, 4:MultiModelTxn Epoch-->
+    <taas_server_mode>3</taas_server_mode><!-- 1: MultiMaster Epoch, 2: Sharding Epoch, 3: 2PC, 4:MultiModelTxn Epoch-->
     <txn_node_num>1</txn_node_num>
     <txn_node_ip_index>0</txn_node_ip_index><!-- 0, 1, 2, ...-->
     <txn_node_ip>
-        <txn_ip>202.199.6.123</txn_ip>
+        <txn_ip>127.0.0.1</txn_ip>
         <txn_ip>202.199.6.181</txn_ip>
         <txn_ip>172.30.67.195</txn_ip>
     </txn_node_ip>

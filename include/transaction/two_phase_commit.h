@@ -27,16 +27,16 @@ namespace Taas {
         txn_state_map;  /// tid, txn struct
 
     // 工具
-    struct Comparator {
-      bool operator()(const std::string& x1, const std::string& x2) {
-        if (x1 == x2)
-          return true;  // 相等返回true
-        else if (x1.length() != x2.length())
-          return x1.length() < x2.length();
-        else
-          return x1 < x2;
-      }
-    };
+//    struct Comparator {
+//      bool operator()(const std::string& x1, const std::string& x2) {
+//        if (x1 == x2)
+//          return true;  // 相等返回true
+//        else if (x1.length() != x2.length())
+//          return x1.length() < x2.length();
+//        else
+//          return x1 < x2;
+//      }
+//    };
 
     uint64_t GetHashValue(const std::string& key) const { return _hash(key) % sharding_num; }
     // 生成key_sorted
@@ -56,7 +56,6 @@ namespace Taas {
     bool Check_2PL_Commit_complete(proto::Transaction& txn);
     bool Send(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn,
               proto::TxnType txn_type);
-//    bool SendToClient(const Context& ctx, proto::Transaction& txn, proto::TxnState txn_state);
     bool  SendToClient(const Context& ctx, proto::Transaction& txn, proto::TxnType txn_type,
                    proto::TxnState txn_state);
     static bool Init(const Taas::Context& ctx_, uint64_t id);

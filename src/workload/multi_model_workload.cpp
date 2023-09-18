@@ -137,26 +137,28 @@ namespace workload{
             LOG(INFO) << "start txn " << txnId << " exec";
             auto stTime = Taas::now_to_us();
 
-            uint64_t txn_num = 0;
+            auto txn_num = std::make_shared<std::atomic<uint64_t>>(0);
             auto msg = std::make_unique<proto::Message>();
             auto message_txn = msg->mutable_txn();
             sunTxnNum->store(0);
             totalSubTxnNum = 0;
             if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::GQL)) {
                 totalSubTxnNum ++;
-                threads->push_task(Nebula::RunTxn, txnId, sunTxnNum);
-                txn_num ++;
+                threads->push_task(Nebula::RunTxn, txnId, sunTxnNum, txn_num);
+                ///if a read only txn , txn_num should not be added
             }
             if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::SQL)) {
                 totalSubTxnNum ++;
-                threads->push_task(MOT::RunTxn, txnId, sunTxnNum);
-                txn_num ++;
+                threads->push_task(MOT::RunTxn, txnId, sunTxnNum, txn_num);
+                ///if a read only txn , txn_num should not be added
             }
             if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::KV)) {
                 KV::RunTxn(message_txn);
+                ///read onlu txn, also send to taas
             }
-            txn_num ++;
-            message_txn->set_csn(txn_num);
+            txn_num->fetch_add(1);
+            ///todo : block wait sql and gql send
+            message_txn->set_csn(txn_num->load());
             message_txn->set_client_ip(ctx.multiModelContext.kMultiModelClientIP);
             message_txn->set_client_txn_id(txnId);
             message_txn->set_txn_type(proto::TxnType::ClientTxn);
@@ -171,7 +173,8 @@ namespace workload{
             std::unique_lock<std::mutex> _lock(_mutex);
             auto cv_ptr = std::make_shared<std::condition_variable>();
             multiModelTxnConditionVariable.insert(txnId, cv_ptr);
-//            cv_ptr->wait(_lock);
+            cv_ptr->wait(_lock);/// check commit state is commit / abort, otherwise block again
+            /// todo : collect return result
 //                LOG(INFO) << "waiting for sub " << txnId << " txns execed";
             while(sunTxnNum->load() < totalSubTxnNum) usleep(1000);
 //                LOG(INFO) << "sub " << txnId << " txns execed";

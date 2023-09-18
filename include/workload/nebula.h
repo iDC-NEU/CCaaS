@@ -21,7 +21,7 @@ namespace workload {
     public:
         static void Init(const Taas::Context& ctx);
         static void InsertData(const uint64_t& tid);
-        static void RunTxn(const uint64_t& tid, const std::shared_ptr<std::atomic<uint64_t>>& sunTxnNum);
+        static void RunTxn(const uint64_t& tid, const std::shared_ptr<std::atomic<uint64_t>>& sunTxnNum, std::shared_ptr<std::atomic<uint64_t>>& txn_num);
     };
 
 }

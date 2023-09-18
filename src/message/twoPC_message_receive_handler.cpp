@@ -97,53 +97,30 @@ namespace Taas {
                 HandleClientTxn();
                 break;
             }
-            case proto::TxnType::RemoteServerTxn : {
-
-                break;
-            }
-            case proto::TxnType::EpochEndFlag : {
-
-                break;
-            }
-            case proto::TxnType::BackUpTxn : {
-
-                break;
-            }
-            case proto::TxnType::BackUpEpochEndFlag : {
-
-                break;
-            }
-            case proto::TxnType::AbortSet : {
-
-                break;
-            }
-            case proto::TxnType::InsertSet : {
-
-                break;
-            }
-            case proto::TxnType::EpochShardingACK : {
-
-                break;
-            }
-            case proto::TxnType::BackUpACK : {
-
-            }
-            case proto::TxnType::AbortSetACK : {
-
-                break;
-            }
-            case proto::TxnType::InsertSetACK : {
-
-                break;
-            }
-            case proto::TxnType::EpochLogPushDownComplete : {
-
-                break;
-            }
-            case proto::NullMark:
-            case proto::TxnType_INT_MIN_SENTINEL_DO_NOT_USE_:
-            case proto::TxnType_INT_MAX_SENTINEL_DO_NOT_USE_:
-            case proto::CommittedTxn:
+            case proto::TxnType::RemoteServerTxn :
+            case proto::TxnType::EpochEndFlag :
+            case proto::TxnType::BackUpTxn :
+            case proto::TxnType::BackUpEpochEndFlag :
+            case proto::TxnType::AbortSet :
+            case proto::TxnType::InsertSet :
+            case proto::TxnType::EpochShardingACK :
+            case proto::TxnType::BackUpACK :
+            case proto::TxnType::AbortSetACK :
+            case proto::TxnType::InsertSetACK :
+            case proto::TxnType::EpochLogPushDownComplete :
+            case proto::NullMark :
+            case proto::TxnType_INT_MIN_SENTINEL_DO_NOT_USE_ :
+            case proto::TxnType_INT_MAX_SENTINEL_DO_NOT_USE_ :
+            case proto::CommittedTxn :
+            case proto::Lock_ok :
+            case proto::Lock_abort :
+            case proto::Prepare_req :
+            case proto::Prepare_ok :
+            case proto::Prepare_abort :
+            case proto::Commit_req :
+            case proto::Commit_ok :
+            case proto::Commit_abort :
+            case proto::Abort_txn :
                 break;
         }
         return true;

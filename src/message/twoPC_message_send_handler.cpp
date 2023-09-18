@@ -3,6 +3,8 @@
 //
 
 #include "message/twoPC_message_send_handler.h"
+
+#include <utility>
 #include "message/twoPC_message_receive_handler.h"
 #include "tools/utilities.h"
 #include "transaction/merge.h"
@@ -42,7 +44,7 @@ namespace Taas {
  * @param txn 等待回复给client的事务
  * @param txn_state 告诉client此txn的状态(Success or Abort)
  */
-    bool TwoPCMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, std::shared_ptr<proto::Transaction> txn_ptr, proto::TxnState txn_state) {
+    bool TwoPCMessageSendHandler::SendTxnCommitResultToClient(const Context &ctx, const std::shared_ptr<proto::Transaction>& txn_ptr, proto::TxnState txn_state) {
         if(txn_ptr->server_id() != ctx.taasContext.txn_node_ip_index) return true;
 
         txn_ptr->set_txn_state(txn_state);
@@ -64,7 +66,7 @@ namespace Taas {
         return MessageQueue::send_to_client_queue->enqueue(std::make_unique<send_params>(0, 0, "", 0, proto::TxnType::NullMark, nullptr, nullptr));
     }
 
-    bool TwoPCMessageSendHandler::SendTxnToServer(const Context& ctx, uint64_t &to_whom, std::shared_ptr<proto::Transaction> txn_ptr, proto::TxnType txn_type) {
+    bool TwoPCMessageSendHandler::SendTxnToServer(const Context& ctx, uint64_t &to_whom, const std::shared_ptr<proto::Transaction>& txn_ptr, proto::TxnType txn_type) {
         auto pack_param = std::make_unique<pack_params>(to_whom, 0, "", 0, txn_type, nullptr);
         switch (txn_type) {
             case proto::TxnType::RemoteServerTxn : {
@@ -85,12 +87,21 @@ namespace Taas {
             case proto::BackUpEpochEndFlag:
             case proto::AbortSet:
             case proto::InsertSet:
+            case proto::Lock_ok:
+            case proto::Lock_abort:
+            case proto::Prepare_req:
+            case proto::Prepare_ok:
+            case proto::Prepare_abort:
+            case proto::Commit_req:
+            case proto::Commit_ok:
+            case proto::Commit_abort:
+            case proto::Abort_txn:
                 break;
         }
         return true;
     }
 
-    bool TwoPCMessageSendHandler::SendRemoteServerTxn(const Context& ctx, uint64_t& to_whom, std::shared_ptr<proto::Transaction> txn_ptr, proto::TxnType txn_type) {
+    bool TwoPCMessageSendHandler::SendRemoteServerTxn(const Context& ctx, uint64_t& to_whom, const std::shared_ptr<proto::Transaction>& txn_ptr, proto::TxnType txn_type) {
         auto msg = std::make_unique<proto::Message>();
         auto* txn_temp = msg->mutable_txn();
         *(txn_temp) = *txn_ptr;

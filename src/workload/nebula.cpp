@@ -60,7 +60,7 @@ namespace workload {
 //        LOG(INFO) << "Nebula Exec:" << gql;
     }
 
-    void Nebula::RunTxn(const uint64_t& tid, const std::shared_ptr<std::atomic<uint64_t>>& sunTxnNum) {///single op txn
+    void Nebula::RunTxn(const uint64_t& tid, const std::shared_ptr<std::atomic<uint64_t>>& sunTxnNum, std::shared_ptr<std::atomic<uint64_t>>& txn_num) {///single op txn
         char genKey[100], gql[5000];
         std::string value;
         int cnt, i;
@@ -98,9 +98,10 @@ namespace workload {
                             genKey, genKey, value.c_str(), ("tid:" + std::to_string(tid)).c_str());
 //                    sprintf(gql, R"(UPDATE VERTEX on usertable "%s" set filed = "%s", txnid = "%s";)",
 //                            genKey, value.c_str(), ("tid:" + std::to_string(tid)).c_str());
+                    txn_num->fetch_add(1);
+                    /// todo : add a counter to notify RunMultiTxn sub txn gql send
                     auto resp = nebulaSessionPool->execute(gql);
                     LOG(INFO) << "Nebula Exec:" << gql;
-//                    usleep(5000);
                 }
             }
         }

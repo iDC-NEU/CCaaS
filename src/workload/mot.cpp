@@ -163,7 +163,7 @@ namespace workload {
 //        LOG(INFO) << "MOT Exec:" << sql;
     }
 
-    void MOT::RunTxn(const uint64_t& tid, const std::shared_ptr<std::atomic<uint64_t>>& sunTxnNum) {
+    void MOT::RunTxn(const uint64_t& tid, const std::shared_ptr<std::atomic<uint64_t>>& sunTxnNum, std::shared_ptr<std::atomic<uint64_t>>& txn_num) {
         char genKey[100], sql[5000];
         std::string value;
         int cnt, i;
@@ -179,6 +179,7 @@ namespace workload {
         }
 
         {
+            bool is_read_only = true;
             std::string txn = "start transaction;";
             for (i = 0; i < cnt; i++) {
                 auto opType = MultiModelWorkload::operationChooser->nextValue();
@@ -189,6 +190,7 @@ namespace workload {
                     sprintf(sql, "SELECT * FROM usertable WHERE key = '%s';", genKey);
                     txn += std::string(sql);
                 } else {
+                    is_read_only = false;
                     utils::ByteIteratorMap values;
                     MultiModelWorkload::buildValues(values);
                     sprintf(sql, R"(update usertable set filed0="%s", filed1="%s", filed2="%s", filed3="%s", filed4="%s", filed5="%s", filed6="%s", filed7 = %s", \
@@ -201,10 +203,13 @@ namespace workload {
                 }
             }
             txn += "commit;";
+            if(!is_read_only) txn_num->fetch_add(1);
+            /// todo : add a counter to notify RunMultiTxn sub txn gql send
             MOTConnectionPool::ExecSQL((SQLCHAR *)txn.c_str());
 //            LOG(INFO) << "MOT Exec:" << txn.c_str();
 //            usleep(5000);
         }
+
         sunTxnNum->fetch_add(1);
     }
 

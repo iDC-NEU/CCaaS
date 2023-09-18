@@ -320,7 +320,7 @@ namespace Taas {
             std::string tempKey = txn_ptr->row(0).key();
             uint64_t index = 4294967295;
             if (tempData.length() > 0) {
-                index = tempData.find("tid");
+                index = tempData.find("tid:");
                 if (index < tempData.length()) {
                     auto tid = std::strtoull(&tempData.at(index), NULL, 10);
                     return tid;
@@ -330,10 +330,10 @@ namespace Taas {
         return 0;
     }
 
-    void EpochMessageReceiveHandler::HandleMultiModelClientSubTxn() {
+    void EpochMessageReceiveHandler::HandleMultiModelClientSubTxn(const uint64_t& txn_id) {
         sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
         txn_ptr->set_commit_epoch(message_epoch);
-        txn_ptr->set_csn(now_to_us());
+        txn_ptr->set_csn(txn_id);
         txn_ptr->set_server_id(ctx.taasContext.txn_node_ip_index);
         SetMessageRelatedCountersInfo();
         HandleClientTxn();
@@ -352,21 +352,21 @@ namespace Taas {
         }
         multiModelTxnMap.getValue(std::to_string(txn_id), multiModelTxn);
         if(txn_ptr->storage_type() == "kv") {
-            multiModelTxn->total_txn_num = txn_ptr->csn();
+            multiModelTxn->total_txn_num = txn_ptr->csn(); // total sub txn num
         }
         multiModelTxn->received_txn_num += 1;
         if(multiModelTxn->total_txn_num == multiModelTxn->received_txn_num) {
             message_epoch = EpochManager::GetPhysicalEpoch();
             sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
             txn_ptr = multiModelTxn->kv;
-            HandleMultiModelClientSubTxn();
+            HandleMultiModelClientSubTxn(txn_id);
             if(multiModelTxn->sql != nullptr) {
                 txn_ptr = multiModelTxn->sql;
-                HandleMultiModelClientSubTxn();
+                HandleMultiModelClientSubTxn(txn_id);
             }
             if(multiModelTxn->gql != nullptr) {
                 txn_ptr = multiModelTxn->gql;
-                HandleMultiModelClientSubTxn();
+                HandleMultiModelClientSubTxn(txn_id);
             }
             sharding_handled_local_txn_num.IncCount(message_epoch, thread_id, 1);
         }

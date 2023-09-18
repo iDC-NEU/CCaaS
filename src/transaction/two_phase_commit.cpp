@@ -154,14 +154,7 @@ namespace Taas {
   // 初始化哪些
   bool TwoPC::Init(const Taas::Context& ctx_, uint64_t id) {
     ctx = ctx_;
-//    thread_id = id;
-//    sharding_num = ctx_.taasContext.kTxnNodeNum;
-//    message_ptr = nullptr;
-//    message_string_ptr = nullptr;
-//    txn_ptr = nullptr;
-//      msg_ptr = nullptr;
-//      res = false;
-//    tid = "";
+    // static init
     return true;
   }
 

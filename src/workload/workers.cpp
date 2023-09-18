@@ -17,9 +17,9 @@ namespace workload {
         auto socket = std::make_unique<zmq::socket_t>(context, ZMQ_PUSH);
         socket->set(zmq::sockopt::sndhwm, queue_length);
         socket->set(zmq::sockopt::rcvhwm, queue_length);
-        socket->connect("tcp://" + MultiModelWorkload::ctx.multiModelContext.kTaasIP + ":" + std::to_string(10001));
+        socket->connect("tcp://" + MultiModelWorkload::ctx.multiModelContext.kTaasIP + ":" + std::to_string(5551));
         MultiModelWorkload::isExe[0] = true;
-        printf("Send Server connect ZMQ_PUSH %s", ("tcp://" + MultiModelWorkload::ctx.multiModelContext.kTaasIP + ":" + std::to_string(10001) + "\n").c_str());
+        printf("Send Server connect ZMQ_PUSH %s", ("tcp://" + MultiModelWorkload::ctx.multiModelContext.kTaasIP + ":" + std::to_string(5551) + "\n").c_str());
         printf("线程开始工作 SendServerThread\n");
         while (true) {
             MultiModelWorkload::send_multi_txn_queue->wait_dequeue(params);
@@ -71,19 +71,22 @@ namespace workload {
                 if (msg_ptr->type_case() == proto::Message::TypeCase::kReplyTxnResultToClient) {
                     auto &txn = msg_ptr->reply_txn_result_to_client();
                     csn = txn.client_txn_id();
-                    if (txn.txn_state() == proto::TxnState::Commit) {
-                        printf("kReplyTxnResultToClient Commit  \n");
-                        if(MultiModelWorkload::multiModelTxnConditionVariable.contain(csn)){
-                            printf("kReplyTxnResultToClient notify  \n");
-                            std::shared_ptr<std::condition_variable> cv_tmp;
-                            MultiModelWorkload::multiModelTxnConditionVariable.getValue(csn, cv_tmp);
-                            cv_tmp->notify_all();
-                            MultiModelWorkload::multiModelTxnConditionVariable.remove(csn);
-                        }
+                    if (MultiModelWorkload::multiModelTxnConditionVariable.contain(csn)) {
+                        printf("kReplyTxnResultToClient notify  \n");
+                        std::shared_ptr<std::condition_variable> cv_tmp;
+                        MultiModelWorkload::multiModelTxnConditionVariable.getValue(csn, cv_tmp);
+                        ///map[csn] = txn.txn_state()
+                        cv_tmp->notify_all();
+                        MultiModelWorkload::multiModelTxnConditionVariable.remove(csn);
+                        if (txn.txn_state() == proto::TxnState::Commit)
+                            printf("kReplyTxnResultToClient Commit  \n");
+                        else
+                            printf("kReplyTxnResultToClient Abort  \n");
                     } else {
                         printf("未找到 csn %lu \n", csn);
                     }
-                }  else {
+                }
+                else {
                     printf("not kReplyTxnResultToClient \n");
                 }
             }

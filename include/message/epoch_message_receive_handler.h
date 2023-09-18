@@ -26,6 +26,8 @@ namespace Taas {
         void HandleReceivedControlMessage();
         bool SetMessageRelatedCountersInfo();
         bool HandleReceivedTxn();
+        void HandleMultiModelClientSubTxn(const uint64_t& txn_id);
+        uint64_t getMultiModelTxnId();
         bool HandleMultiModelClientTxn();
         bool HandleClientTxn();
         bool UpdateEpochAbortSet();
@@ -309,10 +311,6 @@ namespace Taas {
             return true;
         }
 
-
-        void HandleMultiModelClientSubTxn();
-
-        uint64_t getMultiModelTxnId();
     };
 
 }
