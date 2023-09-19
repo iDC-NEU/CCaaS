@@ -19,11 +19,11 @@ namespace Taas {
   
   class TwoPC {
   public:
-    concurrent_unordered_map<std::string, std::string>
+    static concurrent_unordered_map<std::string, std::string>
         row_lock_map;  /// key, tid
 
     // 将事务和元数据map
-    concurrent_unordered_map<std::string, std::shared_ptr<TwoPCTxnStateStruct>>
+    static concurrent_unordered_map<std::string, std::shared_ptr<TwoPCTxnStateStruct>>
         txn_state_map;  /// tid, txn struct
 
     // 工具
@@ -38,7 +38,10 @@ namespace Taas {
 //      }
 //    };
 
-    uint64_t GetHashValue(const std::string& key) const { return _hash(key) % sharding_num; }
+    uint64_t GetHashValue(const std::string& key) const {
+        uint64_t hash_value = _hash(key);
+        return hash_value % sharding_num;
+    }
     // 生成key_sorted
     void GetKeySorted(proto::Transaction& txn) {
         uint64_t size = txn.row_size();
@@ -53,13 +56,14 @@ namespace Taas {
     bool Two_PL_UNLOCK(proto::Transaction& txn);
     bool Check_2PL_complete(proto::Transaction& txn);
     bool Check_2PC_Prepare_complete(proto::Transaction& txn);
-    bool Check_2PL_Commit_complete(proto::Transaction& txn);
+    bool Check_2PC_Commit_complete(proto::Transaction& txn);
     bool Send(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn,
               proto::TxnType txn_type);
     bool  SendToClient(const Context& ctx, proto::Transaction& txn, proto::TxnType txn_type,
                    proto::TxnState txn_state);
     static bool Init(const Taas::Context& ctx_, uint64_t id);
-    bool HandleReceivedMessage();  // 处理接收到的消息
+    bool HandleReceivedMessage();  // 处理接收到的消息 from client
+//    bool HandleReceivedMessage_Server(); // handle send_to_server_queue
     bool HandleReceivedTxn();      // 处理接收到的事务（coordinator/applicant）
     bool SetMessageRelatedCountersInfo();
 
@@ -71,9 +75,9 @@ namespace Taas {
     std::unique_ptr<pack_params> pack_param;
     std::string csn_temp, key_temp, key_str, table_name, csn_result;
     uint64_t thread_id, server_dequeue_id, epoch_mod, epoch, max_length,
-             sharding_num,                                              /// cache check
+                                                         /// cache check
         message_epoch, message_sharding_id, message_server_id;  /// message epoch info
-
+    static uint64_t  sharding_num;
     static Context ctx;
     std::string tid;  // 记录当前tid
     std::map<std::string, uint64_t> key_sorted;
@@ -90,6 +94,8 @@ namespace Taas {
 
     uint64_t sharding_num_struct_progressing, two_pl_num_progressing,
         two_pc_prepare_num_progressing, two_pc_commit_num_progressing;
+    static std::atomic<uint64_t> successTxnNumber , totalTxnNumber, failedTxnNumber,
+        lockFailed, unlockFailed;
   };
 
 }  // namespace Taas

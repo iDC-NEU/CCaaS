@@ -57,6 +57,7 @@ namespace Taas {
 
             threads.push_back(std::make_unique<std::thread>(WorkerForClientListenThreadMain, ctx));  cnt++;///client
             threads.push_back(std::make_unique<std::thread>(WorkerForClientSendThreadMain, ctx)); cnt++;
+
             if(ctx.taasContext.kTxnNodeNum > 1) {
                 threads.push_back(std::make_unique<std::thread>(WorkerForServerListenThreadMain, ctx)); cnt++;
                 threads.push_back(std::make_unique<std::thread>(WorkerForServerListenThreadMain_Epoch, ctx)); cnt++;
@@ -83,7 +84,7 @@ namespace Taas {
                 }
             }
             if(ctx.storageContext.is_leveldb_enable) {
-                LevelDBServer(ctx);
+                threads.push_back(std::make_unique<std::thread>(LevelDBServer,ctx));
                 for(int i = 0; i < (int)ctx.storageContext.kLeveldbThreadNum; i ++) {
                     threads.push_back(std::make_unique<std::thread>(WorkerFroLevelDBStorageThreadMain, ctx, i)); cnt++;///tikv push down
                 }

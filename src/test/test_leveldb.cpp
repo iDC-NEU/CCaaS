@@ -90,9 +90,13 @@ namespace Taas {
             auto serialized_txn_str = std::string();
             Gzip(message_ptr.get(), &serialized_txn_str);
             void *data = static_cast<void *>(const_cast<char *>(serialized_txn_str.data()));
-            MessageQueue::listen_message_txn_queue->enqueue(
+            // send to message queue waiting for 2pc to handle
+            // change queue to listen_message_epoch_queue
+            MessageQueue::listen_message_epoch_queue->enqueue(
                     std::make_unique<zmq::message_t>(data, serialized_txn_str.size()));
-            usleep(sleep_dis(gen) % 2000);
+//            usleep(sleep_dis(gen) % 2000);
+            usleep(200000);
+            // how to receive response from server? which queue?
         }
     }
 }
