@@ -192,6 +192,9 @@ namespace Taas {
         return true;
     }
 
+    /**
+     * 处理从5551端口接收到的事务，前序已经将反序列化的结果放到了txn_ptr中。
+     */
     bool EpochMessageReceiveHandler::HandleReceivedTxn() {
         SetMessageRelatedCountersInfo();
         switch (txn_ptr->txn_type()) {
@@ -342,17 +345,27 @@ namespace Taas {
     }
 
     bool EpochMessageReceiveHandler::HandleMultiModelClientTxn() {
-        std::shared_ptr<MultiModelTxn> multiModelTxn;
+        std::shared_ptr<MultiModelTxn> multiModelTxn = nullptr;
         uint64_t txn_id;
-        if(txn_ptr->storage_type() == "mot" || txn_ptr->storage_type() == "nebula") {
+        if (txn_ptr->storage_type() == "mot" || txn_ptr->storage_type() == "nebula") {
             txn_id = getMultiModelTxnId();
-        }
-        else {
+        } else {
             txn_id = txn_ptr->client_txn_id();
         }
         multiModelTxnMap.getValue(std::to_string(txn_id), multiModelTxn);
+        if (multiModelTxn == nullptr) {
+            // 首次接收到multiModelTxn，需要放到multiModelTxnMap中
+            LOG(INFO) << "first receive multi model txn, txn id is " << txn_id;
+            multiModelTxn = std::make_shared<MultiModelTxn>();
+            multiModelTxnMap.insert(std::to_string(txn_id), multiModelTxn);
+        }
         if(txn_ptr->storage_type() == "kv") {
             multiModelTxn->total_txn_num = txn_ptr->csn(); // total sub txn num
+            multiModelTxn->kv = txn_ptr;
+        } else if (txn_ptr->storage_type() == "nebula") {
+            multiModelTxn->gql = txn_ptr;
+        } else if (txn_ptr->storage_type() == "mot") {
+            multiModelTxn->sql = txn_ptr;
         }
         multiModelTxn->received_txn_num += 1;
         if(multiModelTxn->total_txn_num == multiModelTxn->received_txn_num) {

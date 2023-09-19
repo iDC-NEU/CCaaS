@@ -123,8 +123,9 @@ namespace workload{
         uint64_t txnId, kTotalTxnNum = ctx.multiModelContext.kTxnNum;
         auto sunTxnNum = std::make_shared<std::atomic<uint64_t>>(0);
         uint64_t totalSubTxnNum = 0;
-        auto threads = std::make_unique<util::thread_pool_light>(4);
-        for(int i = 0; i < 4; i ++) {
+        int generator_thread_num = 4;
+        auto threads = std::make_unique<util::thread_pool_light>(generator_thread_num);
+        for(int i = 0; i < generator_thread_num; ++i) {
             threads->push_task([]{
                 int _seed = 0;
                 utils::GetThreadLocalRandomGenerator()->seed(_seed);

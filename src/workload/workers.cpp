@@ -6,6 +6,10 @@
 
 namespace workload {
 
+    /**
+     * 将多模型事务发送给TaaS进行处理。
+     * 需要注意的是，client端只发送KV部分的数据给TaaS，GQL和SQL的事务数据由nebula和MOT进行发送。
+     */
     void SendTaasClientThreadMain(){
         zmq::context_t context(1);
         zmq::message_t reply(5);
@@ -29,6 +33,10 @@ namespace workload {
         }
     }
 
+    /**
+     * 接收TaaS对多模型事务的反馈，并将结果插入到client_listen_taas_message_queue中，
+     * 由DequeueClientListenTaasMessageQueue进行处理
+     */
     void ClientListenTaasThreadMain() {
         printf("ClientListenTaasThreadMain  5552 Start!\n");
         int queue_length = 0;
@@ -85,15 +93,18 @@ namespace workload {
                     } else {
                         printf("未找到 csn %lu \n", csn);
                     }
-                }
-                else {
+                } else {
                     printf("not kReplyTxnResultToClient \n");
                 }
             }
         }
     }
 
-    bool check(){
+    /**
+     * 检查SendTaasClientThreadMain、ClientListenTaasThreadMain、DequeueClientListenTaasMessageQueue
+     * 三个线程是否成功启动
+     */
+    bool IsThreadInitOK(){
         for(int i=0;i<3;i++) if(!MultiModelWorkload::isExe[i]) return false;
         return true;
     }
@@ -121,7 +132,8 @@ namespace workload {
         for(int i = 0; i < (int)MultiModelWorkload::ctx.multiModelContext.kClientNum; i ++) {
             MultiModelWorkload::thread_pool->push_task(MultiModelWorkload::RunMultiTxn);
         }
-        while(!check()) {
+        // 等待三个发送接收线程初始化完成
+        while(!IsThreadInitOK()) {
             usleep(10000);
         }
         uint64_t startTime = Taas::now_to_us();

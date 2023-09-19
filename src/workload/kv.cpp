@@ -100,6 +100,7 @@ namespace workload {
                         LOG(WARNING) <<"KV Read OP ERROR : " <<  cntl.ErrorText();
                     } else {
                         value = response.data(0).value();
+                        LOG(INFO) << "value is " << value << "\n";
                     }
                     row->set_op_type(proto::OpType::Read);
                 } else {
@@ -114,7 +115,6 @@ namespace workload {
                 row->set_data(value);
                 s += std::to_string(row->op_type()) + ", key:" + row->key() + ", data:" + row->data();
             }
-//            LOG(INFO) << s;
          }
     }
 

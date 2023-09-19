@@ -79,6 +79,9 @@ namespace workload {
         static void LoadGQLData();
         static void RunMultiTxn();
         static void SetTxnId(uint64_t value){ txn_id.store(value);}
+        /**
+         * txn_id为MultiModeWorkload中的全局变量，该函数使其自增1
+         */
         static uint64_t AddTxnId(){
             return txn_id.fetch_add(1);
         }
