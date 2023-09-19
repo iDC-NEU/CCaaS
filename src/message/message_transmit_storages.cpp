@@ -123,7 +123,7 @@ namespace Taas {
         zmq::socket_t socket_send(context, ZMQ_PUB);
         socket_send.set(zmq::sockopt::sndhwm, queue_length);
         socket_send.set(zmq::sockopt::rcvhwm, queue_length);
-        socket_send.bind("tcp://*:5556");//to server
+        socket_send.bind("tcp://*:5557");//to server
         printf("线程开始工作 SendStoragePUBServerThread ZMQ_PUB tcp:// ip + :5557\n");
         std::unique_ptr<send_params> params;
         std::unique_ptr<zmq::message_t> msg;

@@ -149,12 +149,12 @@ namespace workload {
     void MOT::InsertData(const uint64_t& tid) {
         if(tid > MultiModelWorkload::ctx.multiModelContext.kRecordCount) return;
         char genKey[100], sql[5000];
-        std::string data = Taas::RandomString(256);
+        std::string data = Taas::RandomString(32);
         sprintf(genKey, "usertable_key:%064lu", tid);
         auto keyName = std::string(genKey);
         utils::ByteIteratorMap values;
         MultiModelWorkload::buildValues(values);
-        sprintf(sql, R"(INSERT INTO usertable VALUES("%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s");)",
+        sprintf(sql, R"(INSERT INTO usertable VALUES('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s');)",
                 genKey, values["filed0"].c_str(), values["filed1"].c_str(), values["filed2"].c_str(),
                 values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(),
                 values["filed6"].c_str(), values["filed7"].c_str(), values["filed8"].c_str(),

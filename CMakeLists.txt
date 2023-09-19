@@ -71,11 +71,11 @@ CPMAddPackage(
 )
 
 ### Crypto support
-find_package(openssl_install
-        CONFIG
-        REQUIRED
-        PATHS ${PROJECT_SOURCE_DIR}/vendor
-        )
+# find_package(openssl_install
+#         CONFIG
+#         REQUIRED
+#         PATHS ${PROJECT_SOURCE_DIR}/vendor
+#         )
 
 ### Gflags support
 find_package(gflags_install
@@ -182,6 +182,7 @@ find_library(leveldb leveldb PATHS ${PROJECT_BINARY_DIR}/lib)
 
 #include
 include_directories(SYSTEM ${CMAKE_BINARY_DIR}/include)
+include_directories(${CMAME_SOURCE_DIR}/include)
 LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/lib)
 
 include_directories("${CMAKE_SOURCE_DIR}/rust/tikv_client/include")
@@ -215,9 +216,12 @@ SET(COMMON_DEPENDENCIES
         pthread
         zmq
         protobuf
-        tcmalloc
+	# tcmalloc会导致MOT ODBC运行的时候释放空指针，原因未找到，先不使用
+        # tcmalloc
         ${PROJECT_NAME}_proto
-        tikv_client
+	# 这里使用的是新的tikv库，需要重新下载安装client-cpp到/usr/local/lib
+        tikvcpp
+        tikvrust
         dl
         ssl
         crypto

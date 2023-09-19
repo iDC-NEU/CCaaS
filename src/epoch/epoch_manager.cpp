@@ -3,6 +3,7 @@
 //
 
 
+#include <stdarg.h>
 #include "tools/utilities.h"
 #include "epoch/epoch_manager.h"
 #include "message/message.h"
