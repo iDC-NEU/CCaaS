@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <root>
-    <multimodel_client>127.0.0.1</multimodel_client><!-- local ip addr-->
-    <taas_ip>127.0.0.1</taas_ip>
+    <multimodel_client>172.24.148.31</multimodel_client><!-- local ip addr-->
+    <taas_ip>172.24.148.31</taas_ip>
 
     <use_nebula>0</use_nebula>
     <nebula_ip>127.0.0.1:9669</nebula_ip>
@@ -9,14 +9,14 @@
     <nebula_pwd>nebula</nebula_pwd>
     <nebula_space>nebula</nebula_space>
 
-    <use_mot>0</use_mot>
-    <mot_ip>127.0.0.1</mot_ip>
+    <use_mot>1</use_mot>
+    <mot_ip>172.24.148.34</mot_ip>
     <mot_dsnname>MPPODBC</mot_dsnname>
     <mot_dsnuid>jack</mot_dsnuid>
     <mot_dsnpwd>Test@123</mot_dsnpwd>
 
-    <test_mode>2</test_mode> <!-- 1 : MultiModel, 2 : KV, 3 : SQL, 4 : GQL-->
-    <is_load_data>0</is_load_data>
+    <test_mode>3</test_mode> <!-- 1 : MultiModel, 2 : KV, 3 : SQL, 4 : GQL-->
+    <is_load_data>1</is_load_data>
     <record_count>1000</record_count>
     <txn_num>1000</txn_num>
     <write>90</write>

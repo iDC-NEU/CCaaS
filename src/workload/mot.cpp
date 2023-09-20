@@ -138,19 +138,19 @@ namespace workload {
     void MOT::Init() {
         MOTConnectionPool::Init();
         MOTConnectionPool::ExecSQL((SQLCHAR *)
-            "CREATE Foreign TABLE IF NOT EXISTS usertable(key VARCHAR(32) PRIMARY KEY, filed0 VARCHAR(32), filed1 VARCHAR(32), " \
-            "filed2 VARCHAR(32), filed3 VARCHAR(32), filed4 VARCHAR(32), filed5 VARCHAR(32), filed6 VARCHAR(32)" \
-            "filed7 VARCHAR(32), filed8 VARCHAR(32), filed9 VARCHAR(32), txnid VARCHAR(32));");
-        LOG(INFO) << "MOT Exec:" << "CREATE Foreign TABLE IF NOT EXISTS usertable(key VARCHAR(32) PRIMARY KEY, filed0 VARCHAR(32), filed1 VARCHAR(32), " \
-            "filed2 VARCHAR(32), filed3 VARCHAR(32), filed4 VARCHAR(32), filed5 VARCHAR(32), filed6 VARCHAR(32)" \
-            "filed7 VARCHAR(32), filed8 VARCHAR(32), filed9 VARCHAR(32), txnid VARCHAR(32));";
+            "CREATE Foreign TABLE IF NOT EXISTS usertable(key VARCHAR(64) PRIMARY KEY, filed0 VARCHAR(64), filed1 VARCHAR(64), " \
+            "filed2 VARCHAR(64), filed3 VARCHAR(64), filed4 VARCHAR(64), filed5 VARCHAR(64), filed6 VARCHAR(64), " \
+            "filed7 VARCHAR(64), filed8 VARCHAR(64), filed9 VARCHAR(64), txnid VARCHAR(64));");
+        LOG(INFO) << "MOT Exec:" << "CREATE Foreign TABLE IF NOT EXISTS usertable(key VARCHAR(64) PRIMARY KEY, filed0 VARCHAR(64), filed1 VARCHAR(64), " \
+            "filed2 VARCHAR(64), filed3 VARCHAR(64), filed4 VARCHAR(64), filed5 VARCHAR(64), filed6 VARCHAR(64), " \
+            "filed7 VARCHAR(64), filed8 VARCHAR(64), filed9 VARCHAR(64), txnid VARCHAR(64));";
     }
 
     void MOT::InsertData(const uint64_t& tid) {
         if(tid > MultiModelWorkload::ctx.multiModelContext.kRecordCount) return;
         char genKey[100], sql[5000];
         std::string data = Taas::RandomString(32);
-        sprintf(genKey, "usertable_key:%064lu", tid);
+        sprintf(genKey, "usertable_key:%032lu", tid);
         auto keyName = std::string(genKey);
         utils::ByteIteratorMap values;
         MultiModelWorkload::buildValues(values);
@@ -172,8 +172,7 @@ namespace workload {
         }
         else if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::SQL) {
             cnt = 9;
-        }
-        else {
+        } else {
             sunTxnNum->fetch_add(1);
             return ;
         }
@@ -184,7 +183,7 @@ namespace workload {
             for (i = 0; i < cnt; i++) {
                 auto opType = MultiModelWorkload::operationChooser->nextValue();
                 auto id = MultiModelWorkload::keyChooser[1]->nextValue();
-                sprintf(genKey, "usertable_key:%064lu", id);
+                sprintf(genKey, "usertable_key:%032lu", id);
                 auto keyName = std::string(genKey);
                 if (opType == Operation::READ) {
                     sprintf(sql, "SELECT * FROM usertable WHERE key = '%s';", genKey);
@@ -193,8 +192,7 @@ namespace workload {
                     is_read_only = false;
                     utils::ByteIteratorMap values;
                     MultiModelWorkload::buildValues(values);
-                    sprintf(sql, R"(update usertable set filed0="%s", filed1="%s", filed2="%s", filed3="%s", filed4="%s", filed5="%s", filed6="%s", filed7 = %s", \
-                                "filed8="%s", filed9="%s", txnid="%s" where key ="%s";)",
+                    sprintf(sql, R"(update usertable set filed0='%s', filed1='%s', filed2='%s', filed3='%s', filed4='%s', filed5='%s', filed6='%s', filed7 = '%s', filed8='%s', filed9='%s', txnid='%s' where key ='%s';)",
                             values["filed0"].c_str(), values["filed1"].c_str(), values["filed2"].c_str(),
                             values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(),
                             values["filed6"].c_str(), values["filed7"].c_str(), values["filed8"].c_str(),

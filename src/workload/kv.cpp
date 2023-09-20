@@ -20,7 +20,7 @@ namespace workload {
         auto message_txn = msg->mutable_txn();
         proto::Row *row = message_txn->add_row();
         char genKey[100];
-        sprintf(genKey, "usertable_key:%064lu", tid);
+        sprintf(genKey, "usertable_key:%032lu", tid);
         std::string data = Taas::RandomString(256);
         row->set_key(genKey);
         row->set_data(data);
@@ -83,7 +83,7 @@ namespace workload {
             for (i = 0; i < cnt; i++) {
                 auto opType = MultiModelWorkload::operationChooser->nextValue();
                 auto id = MultiModelWorkload::keyChooser[0]->nextValue();
-                sprintf(genKey, "usertable_key:%064lu", id);
+                sprintf(genKey, "usertable_key:%032lu", id);
                 auto keyName = std::string(genKey);
                 proto::Row *row = message_txn->add_row();
                 if (opType == Operation::READ) {

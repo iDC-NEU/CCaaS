@@ -45,7 +45,7 @@ namespace workload{
         for (int i = 0; i < 10; i ++) {
             // fill with random data
             auto fieldKey = field + std::to_string(i);
-            values[fieldKey] = utils::RandomString(256);
+            values[fieldKey] = utils::RandomString(32);
         }
     }
 

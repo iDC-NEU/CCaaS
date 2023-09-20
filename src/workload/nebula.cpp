@@ -45,7 +45,7 @@ namespace workload {
 //        char genKey[100], gql[5000];
 //        std::string data1 = Taas::RandomString(256);
 //        std::string data2 = Taas::RandomString(256);
-//        sprintf(genKey, "taas_nebula_key:%064lu", tid);
+//        sprintf(genKey, "taas_nebula_key:%032lu", tid);
 //        auto keyName = std::string(genKey);
 //        utils::ByteIteratorMap values;
 //        MultiModelWorkload::buildValues(values);
@@ -78,7 +78,7 @@ namespace workload {
             for (i = 0; i < cnt; i++) {
                 auto opType = MultiModelWorkload::operationChooser->nextValue();
                 auto id = MultiModelWorkload::keyChooser[2]->nextValue();
-                sprintf(genKey, "usertable_key:%064lu", id);
+                sprintf(genKey, "usertable_key:%032lu", id);
                 auto keyName = std::string(genKey);
                 if (opType == Operation::READ) {
                     sprintf(gql, R"(FETCH PROP ON usertable "%s" YIELD properties(VERTEX);)",genKey);
@@ -87,7 +87,7 @@ namespace workload {
                 } else {
                     std::string data1 = Taas::RandomString(256);
                     std::string data2 = Taas::RandomString(256);
-                    sprintf(genKey, "taas_nebula_key:%064lu", tid);
+                    sprintf(genKey, "taas_nebula_key:%032lu", tid);
                     utils::ByteIteratorMap values;
                     value = "";
                     MultiModelWorkload::buildValues(values);
