@@ -24,7 +24,7 @@ namespace Taas {
     prepare_abort = 6,      // redo log abort local to remote
     commit_req = 7,         // commit local to remote
     commit_info = 8,        // commit remote to local
-    commit_down = 9,        // commit has done completely
+    commit_done = 9,        // commit has done completely
     commit_abort = 10,      // commit abort
   };
 

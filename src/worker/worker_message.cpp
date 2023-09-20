@@ -31,7 +31,9 @@ namespace Taas {
                 }
                 case TaasMode::TwoPC : {
                     while(!EpochManager::IsTimerStop()) {
-                        twoPC.HandleReceivedMessage();
+                        twoPC.HandleClientMessage();        // test
+//                        twoPC.HandleReceivedMessage();
+
                     }
                     break;
                 }
@@ -59,7 +61,7 @@ namespace Taas {
                 }
                 case TaasMode::TwoPC : {
                     while(!EpochManager::IsTimerStop()) {
-//                        twoPC.HandleReceivedMessage();
+                        twoPC.HandleReceivedMessage();      // test
                     }
                     break;
                 }

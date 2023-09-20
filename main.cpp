@@ -94,7 +94,7 @@ namespace Taas {
                     threads.push_back(std::make_unique<std::thread>(WorkerFroHBaseStorageThreadMain, ctx, i)); cnt++;///tikv push down
                 }
             }
-
+//            for(int i = 0; i < 1; i ++) {
             for(int i = 0; i < (int)ctx.taasContext.kTestClientNum; i ++) {
                 if(ctx.storageContext.is_leveldb_enable) {
                     LOG(INFO) << "LevelDBClient inserting";
