@@ -12,7 +12,7 @@
 #include <proto/kvdb_server.pb.h>
 
 namespace workload{
-    std::atomic<uint64_t> MultiModelWorkload::txn_id(1), MultiModelWorkload::graph_vid(1), MultiModelWorkload::success_txn_num(1),
+    std::atomic<uint64_t> MultiModelWorkload::txn_id(0), MultiModelWorkload::graph_vid(1), MultiModelWorkload::success_txn_num(1),
             MultiModelWorkload::failed_txn_num(1), MultiModelWorkload::success_op_num(1), MultiModelWorkload::failed_op_num(1),
             MultiModelWorkload::subWorksNum(0);
 
@@ -166,6 +166,7 @@ namespace workload{
             txn_num->fetch_add(1);
             ///todo : block wait sql and gql send
             while (!is_mot_txn_finish || !is_nebula_txn_finish) {
+                LOG(INFO) << "mot:" << is_mot_txn_finish << ", nebula: " << is_nebula_txn_finish << "\n";
                 usleep(100);
             }
             message_txn->set_csn(txn_num->load());
@@ -173,6 +174,7 @@ namespace workload{
             message_txn->set_client_txn_id(txnId);
             message_txn->set_txn_type(proto::TxnType::ClientTxn);
             message_txn->set_storage_type("kv");
+            LOG(INFO) << "current txn id:" << txnId << "\n";
             std::unique_ptr<std::string> serialized_txn_str_ptr(new std::string());
             auto res = Taas::Gzip(msg.get(), serialized_txn_str_ptr.get());
             assert(res);
@@ -185,7 +187,7 @@ namespace workload{
             multiModelTxnConditionVariable.insert(txnId, cv_ptr);
             cv_ptr->wait(_lock);/// check commit state is commit / abort, otherwise block again
             /// todo : collect return result
-//                LOG(INFO) << "waiting for sub " << txnId << " txns execed";
+            LOG(INFO) << "waiting for sub " << txnId << " txns execed";
             while(sunTxnNum->load() < totalSubTxnNum) usleep(1000);
 //                LOG(INFO) << "sub " << txnId << " txns execed";
 //            LOG(INFO) << "txn " << txnId << " exec finished";

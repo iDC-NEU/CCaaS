@@ -161,7 +161,8 @@ namespace Taas {
             message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
                                                                message_ptr->size());
             msg_ptr = std::make_unique<proto::Message>();
-            res = UnGzip(msg_ptr.get(), message_string_ptr.get());
+            // res = UnGzip(msg_ptr.get(), message_string_ptr.get());
+            res = msg_ptr->ParseFromString(*message_string_ptr);
             assert(res);
             txn_ptr = std::make_shared<proto::Transaction>(msg_ptr->txn());
             HandleReceivedTxn();
@@ -319,13 +320,15 @@ namespace Taas {
             if (row.op_type() == proto::OpType::Read) {
                 continue;
             }
-            std::string tempData = txn_ptr->row(0).data();
-            std::string tempKey = txn_ptr->row(0).key();
-            uint64_t index = 4294967295;
+            std::string tempData = txn_ptr->row(i).data();
+            std::string tempKey = txn_ptr->row(i).key();
+            LOG(INFO) << "value is :" << tempData << "\n";
             if (tempData.length() > 0) {
-                index = tempData.find("tid:");
-                if (index < tempData.length()) {
-                    auto tid = std::strtoull(&tempData.at(index), NULL, 10);
+                auto index = tempData.find("tid:");
+                if (index != tempData.npos) {
+                    std::string substring = tempData.substr(index + 4);
+                    auto tid = std::stol(substring);
+                    LOG(INFO) << "get tid:" << tid;
                     return tid;
                 }
             }
@@ -352,23 +355,32 @@ namespace Taas {
         } else {
             txn_id = txn_ptr->client_txn_id();
         }
+        LOG(INFO) << "txn id is:" << txn_id << "\n";
         multiModelTxnMap.getValue(std::to_string(txn_id), multiModelTxn);
         if (multiModelTxn == nullptr) {
             // 首次接收到multiModelTxn，需要放到multiModelTxnMap中
             LOG(INFO) << "first receive multi model txn, txn id is " << txn_id;
             multiModelTxn = std::make_shared<MultiModelTxn>();
+            multiModelTxn->total_txn_num = 1000000;  // 没有意义的数，足够大就行，等着KV(client)的告诉总共有多少txn
+            multiModelTxn->received_txn_num = 0;
             multiModelTxnMap.insert(std::to_string(txn_id), multiModelTxn);
         }
         if(txn_ptr->storage_type() == "kv") {
+            LOG(INFO) << "multimodel kv, txn id is " << txn_id << "\n";
             multiModelTxn->total_txn_num = txn_ptr->csn(); // total sub txn num
+            LOG(INFO) << "total txn num is:" << multiModelTxn->total_txn_num << "\n";
             multiModelTxn->kv = txn_ptr;
         } else if (txn_ptr->storage_type() == "nebula") {
+            LOG(INFO) << "multimodel nebula, txn id is " << txn_id << "\n";
             multiModelTxn->gql = txn_ptr;
         } else if (txn_ptr->storage_type() == "mot") {
+            LOG(INFO) << "multimodel mot, txn id is " << txn_id << "\n";
             multiModelTxn->sql = txn_ptr;
         }
         multiModelTxn->received_txn_num += 1;
+        LOG(INFO) << "txn id:" << txn_id << ", total txn num: " << multiModelTxn->total_txn_num << ", received txn num:" << multiModelTxn->received_txn_num << "\n";
         if(multiModelTxn->total_txn_num == multiModelTxn->received_txn_num) {
+            LOG(INFO) << "start to process\n";
             message_epoch = EpochManager::GetPhysicalEpoch();
             sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);
             txn_ptr = multiModelTxn->kv;
