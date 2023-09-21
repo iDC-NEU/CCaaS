@@ -9,7 +9,7 @@
     <txn_node_num>1</txn_node_num>
     <txn_node_ip_index>0</txn_node_ip_index><!-- 0, 1, 2, ...-->
     <txn_node_ip>
-        <txn_ip>172.24.148.31</txn_ip>
+        <txn_ip>172.24.148.36</txn_ip>
     </txn_node_ip>
     <sync_start>0</sync_start>
     <epoch_size_us>10000</epoch_size_us><!-- us -->

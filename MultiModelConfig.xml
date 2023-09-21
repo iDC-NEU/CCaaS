@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <root>
-    <multimodel_client>172.24.148.31</multimodel_client><!-- local ip addr-->
-    <taas_ip>172.24.148.31</taas_ip>
+    <multimodel_client>172.24.148.36</multimodel_client><!-- local ip addr-->
+    <taas_ip>172.24.148.36</taas_ip>
 
     <use_nebula>0</use_nebula>
     <nebula_ip>127.0.0.1:9669</nebula_ip>
