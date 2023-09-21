@@ -61,6 +61,7 @@ namespace workload {
     }
 
     void Nebula::RunTxn(const uint64_t& tid, const std::shared_ptr<std::atomic<uint64_t>>& sunTxnNum, std::shared_ptr<std::atomic<uint64_t>>& txn_num) {///single op txn
+        extern std::atomic_bool is_nebula_txn_finish;
         char genKey[100], gql[5000];
         std::string value;
         int cnt, i;
@@ -100,6 +101,7 @@ namespace workload {
 //                            genKey, value.c_str(), ("tid:" + std::to_string(tid)).c_str());
                     txn_num->fetch_add(1);
                     /// todo : add a counter to notify RunMultiTxn sub txn gql send
+                    is_nebula_txn_finish = true;
                     auto resp = nebulaSessionPool->execute(gql);
                     LOG(INFO) << "Nebula Exec:" << gql;
                 }

@@ -28,6 +28,10 @@ namespace workload{
     std::vector<uint64_t> MultiModelWorkload::execTimes;
     Taas::concurrent_unordered_map<uint64_t ,bool> MultiModelWorkload::multiModelTxnMap;// (txn id,commit cnt)
     Taas::concurrent_unordered_map<uint64_t, std::shared_ptr<std::condition_variable>> MultiModelWorkload::multiModelTxnConditionVariable;
+    // 多模型事务MOT子事务是否完成
+    std::atomic_bool is_mot_txn_finish = true;
+    // 多模型事务nebula子事务是否完成
+    std::atomic_bool is_nebula_txn_finish = true;
 
     void MultiModelWorkload::StaticInit(const Taas::Context& ctx_) {
         ctx = ctx_;
@@ -145,11 +149,13 @@ namespace workload{
             totalSubTxnNum = 0;
             if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::GQL)) {
                 totalSubTxnNum ++;
+                is_nebula_txn_finish = false;
                 threads->push_task(Nebula::RunTxn, txnId, sunTxnNum, txn_num);
                 ///if a read only txn , txn_num should not be added
             }
             if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::SQL)) {
                 totalSubTxnNum ++;
+                is_mot_txn_finish = false;
                 threads->push_task(MOT::RunTxn, txnId, sunTxnNum, txn_num);
                 ///if a read only txn , txn_num should not be added
             }
@@ -159,6 +165,9 @@ namespace workload{
             }
             txn_num->fetch_add(1);
             ///todo : block wait sql and gql send
+            while (!is_mot_txn_finish || !is_nebula_txn_finish) {
+                usleep(100);
+            }
             message_txn->set_csn(txn_num->load());
             message_txn->set_client_ip(ctx.multiModelContext.kMultiModelClientIP);
             message_txn->set_client_txn_id(txnId);

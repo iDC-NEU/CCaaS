@@ -103,19 +103,25 @@ namespace workload {
             return;
         }
         // Prepare Statement
-        retcode = SQLPrepare(hstmt, (SQLCHAR*) sql, SQL_NTS);
-        if (!SQL_SUCCEEDED(retcode)) {
-            printf("SQLPrepare(hstmt, (SQLCHAR*) sql, SQL_NTS) failed");
-            return;
-        }
+        // retcode = SQLPrepare(hstmt, (SQLCHAR*) sql, SQL_NTS);
+        // if (!SQL_SUCCEEDED(retcode)) {
+        //     printf("SQLPrepare(hstmt, (SQLCHAR*) sql, SQL_NTS) failed");
+        //     return;
+        // }
         // Execute Statement
-        retcode = SQLExecute(hstmt);
+        // retcode = SQLExecute(hstmt);
+        // if (!SQL_SUCCEEDED(retcode)) {
+        //     std::cout<<"SQLExecute(hstmt) failed"<<sql<<std::endl;
+        //     printf("SQLExecute(hstmt) failed \n");
+        //     return;
+        // }
+        // Free Handle
+        retcode = SQLExecDirect(hstmt, sql, SQL_NTS);
         if (!SQL_SUCCEEDED(retcode)) {
-            std::cout<<"SQLExecute(hstmt) failed"<<sql<<std::endl;
-            printf("SQLExecute(hstmt) failed \n");
+            LOG(INFO) << "failed to exec:" << sql << "\n";
             return;
         }
-        // Free Handle
+
         retcode = SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
         if (!SQL_SUCCEEDED(retcode)) {
             printf("SQLFreeHandle(SQL_HANDLE_STMT, hstmt) failed");
@@ -139,10 +145,10 @@ namespace workload {
         MOTConnectionPool::Init();
         MOTConnectionPool::ExecSQL((SQLCHAR *)
             "CREATE Foreign TABLE IF NOT EXISTS usertable(key VARCHAR(64) PRIMARY KEY, filed0 VARCHAR(64), filed1 VARCHAR(64), " \
-            "filed2 VARCHAR(64), filed3 VARCHAR(64), filed4 VARCHAR(64), filed5 VARCHAR(64), filed6 VARCHAR(64), " \
+            "filed2 VARCHAR(64), filed3 VARCHAR(64), filed4 VARCHAR(64), filed5 VARCHAR(64), filed6 VARCHAR(64)," \
             "filed7 VARCHAR(64), filed8 VARCHAR(64), filed9 VARCHAR(64), txnid VARCHAR(64));");
         LOG(INFO) << "MOT Exec:" << "CREATE Foreign TABLE IF NOT EXISTS usertable(key VARCHAR(64) PRIMARY KEY, filed0 VARCHAR(64), filed1 VARCHAR(64), " \
-            "filed2 VARCHAR(64), filed3 VARCHAR(64), filed4 VARCHAR(64), filed5 VARCHAR(64), filed6 VARCHAR(64), " \
+            "filed2 VARCHAR(64), filed3 VARCHAR(64), filed4 VARCHAR(64), filed5 VARCHAR(64), filed6 VARCHAR(64)," \
             "filed7 VARCHAR(64), filed8 VARCHAR(64), filed9 VARCHAR(64), txnid VARCHAR(64));";
     }
 
@@ -172,7 +178,8 @@ namespace workload {
         }
         else if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::SQL) {
             cnt = 9;
-        } else {
+        }
+        else {
             sunTxnNum->fetch_add(1);
             return ;
         }
