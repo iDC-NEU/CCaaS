@@ -32,7 +32,7 @@ namespace Taas {
             HBase::StaticInit(ctx);
         }
         MOT::StaticInit(ctx);
-        Nebula::StaticInit(ctxn);
+        Nebula::StaticInit(ctx);
     }
 
     void RedoLoger::ClearRedoLog(uint64_t& epoch) {

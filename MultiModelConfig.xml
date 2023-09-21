@@ -3,8 +3,8 @@
     <multimodel_client>172.24.148.36</multimodel_client><!-- local ip addr-->
     <taas_ip>172.24.148.36</taas_ip>
 
-    <use_nebula>0</use_nebula>
-    <nebula_ip>127.0.0.1:9669</nebula_ip>
+    <use_nebula>1</use_nebula>
+    <nebula_ip>172.24.148.35:9669</nebula_ip>
     <nebula_user>root</nebula_user>
     <nebula_pwd>nebula</nebula_pwd>
     <nebula_space>nebula</nebula_space>
@@ -15,8 +15,8 @@
     <mot_dsnuid>jack</mot_dsnuid>
     <mot_dsnpwd>Test@123</mot_dsnpwd>
 
-    <test_mode>3</test_mode> <!-- 1 : MultiModel, 2 : KV, 3 : SQL, 4 : GQL-->
-    <is_load_data>0</is_load_data>
+    <test_mode>4</test_mode> <!-- 1 : MultiModel, 2 : KV, 3 : SQL, 4 : GQL-->
+    <is_load_data>1</is_load_data>
     <record_count>1000</record_count>
     <txn_num>1000</txn_num>
     <write>90</write>

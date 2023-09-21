@@ -31,9 +31,9 @@ namespace workload {
         nebulaSessionPoolConfig.maxSize_ = ctx.multiModelContext.kClientNum;
         nebulaSessionPool = std::make_unique<nebula::SessionPool>(nebulaSessionPoolConfig);
         nebulaSessionPool->init();
-        resp = nebulaSessionPool->execute("CREATE TAG IF NOT EXISTS usertable (key string, filed string, tid string);");
+        resp = nebulaSessionPool->execute("CREATE TAG IF NOT EXISTS usertable (key string, filed string, txnid string);");
         assert(resp.errorCode == nebula::ErrorCode::SUCCEEDED);
-        LOG(INFO) << "Nebula Exec:" << "CREATE TAG IF NOT EXISTS usertable (key string, filed string, tid string);";
+        LOG(INFO) << "Nebula Exec:" << "CREATE TAG IF NOT EXISTS usertable (key string, filed string, txnid string);";
         resp = nebulaSessionPool->execute("CREATE TAG INDEX IF NOT EXISTS usertable_index on usertable(key(10));");
         assert(resp.errorCode == nebula::ErrorCode::SUCCEEDED);
         LOG(INFO) << "Nebula Exec:" << "CREATE TAG INDEX IF NOT EXISTS usertable_index on usertable(key(10));";
@@ -95,7 +95,7 @@ namespace workload {
                     for (const auto &it: values) {
                         value += it.second + ",";
                     }
-                    sprintf(gql, R"(INSERT VERTEX IF NOT EXISTS usertable(key, filed, txnid) VALUES "%s" :("%s","%s","%s");)",
+                    sprintf(gql, R"(INSERT VERTEX usertable(key, filed, txnid) VALUES "%s" :("%s","%s","%s");)",
                             genKey, genKey, value.c_str(), ("tid:" + std::to_string(tid)).c_str());
 //                    sprintf(gql, R"(UPDATE VERTEX on usertable "%s" set filed = "%s", txnid = "%s";)",
 //                            genKey, value.c_str(), ("tid:" + std::to_string(tid)).c_str());
