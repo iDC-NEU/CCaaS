@@ -174,7 +174,6 @@ namespace workload{
             message_txn->set_client_txn_id(txnId);
             message_txn->set_txn_type(proto::TxnType::ClientTxn);
             message_txn->set_storage_type("kv");
-            LOG(INFO) << "current txn id:" << txnId << "\n";
             std::unique_ptr<std::string> serialized_txn_str_ptr(new std::string());
             auto res = Taas::Gzip(msg.get(), serialized_txn_str_ptr.get());
             assert(res);
@@ -188,9 +187,10 @@ namespace workload{
             cv_ptr->wait(_lock);/// check commit state is commit / abort, otherwise block again
             /// todo : collect return result
             LOG(INFO) << "waiting for sub " << txnId << " txns execed";
-            while(sunTxnNum->load() < totalSubTxnNum) usleep(1000);
-//                LOG(INFO) << "sub " << txnId << " txns execed";
-//            LOG(INFO) << "txn " << txnId << " exec finished";
+            while(sunTxnNum->load() < totalSubTxnNum) {
+                usleep(1000);
+            }
+           LOG(INFO) << "txn " << txnId << " exec finished";
             auto edTime = Taas::now_to_us();
             execTimes[txnId] = (edTime - stTime);
         }

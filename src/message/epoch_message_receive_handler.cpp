@@ -379,7 +379,7 @@ namespace Taas {
         }
         multiModelTxn->received_txn_num += 1;
         LOG(INFO) << "txn id:" << txn_id << ", total txn num: " << multiModelTxn->total_txn_num << ", received txn num:" << multiModelTxn->received_txn_num << "\n";
-        if(multiModelTxn->total_txn_num == multiModelTxn->received_txn_num) {
+        if(multiModelTxn->total_txn_num <= multiModelTxn->received_txn_num) {
             LOG(INFO) << "start to process\n";
             message_epoch = EpochManager::GetPhysicalEpoch();
             sharding_should_handle_local_txn_num.IncCount(message_epoch, thread_id, 1);

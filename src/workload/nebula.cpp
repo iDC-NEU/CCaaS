@@ -21,7 +21,7 @@ namespace workload {
         auto session = pool.getSession(ctx.multiModelContext.kNebulaUser, ctx.multiModelContext.kNebulaPwd);
         assert(session.valid());
         auto resp = session.execute(
-                "CREATE SPACE IF NOT EXISTS " + ctx.multiModelContext.kNebulaSpace +" (vid_type = FIXED_STRING(30));");
+                "CREATE SPACE IF NOT EXISTS " + ctx.multiModelContext.kNebulaSpace +" (vid_type = FIXED_STRING(64));");
         assert(resp.errorCode == nebula::ErrorCode::SUCCEEDED);
 
         nebulaSessionPoolConfig.username_ = ctx.multiModelContext.kNebulaUser;
@@ -62,52 +62,51 @@ namespace workload {
 
     void Nebula::RunTxn(const uint64_t& tid, const std::shared_ptr<std::atomic<uint64_t>>& sunTxnNum, std::shared_ptr<std::atomic<uint64_t>>& txn_num) {///single op txn
         extern std::atomic_bool is_nebula_txn_finish;
+        bool is_read_only = true;
         char genKey[100], gql[5000];
         std::string value;
-        int cnt, i;
-        if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::MultiModelTest) {
-            cnt = 1;
+        int cnt;
+        switch (MultiModelWorkload::ctx.multiModelContext.kTestMode) {
+            case Taas::MultiModelTest:
+                cnt = 1;
+                break;
+            case Taas::GQL:
+                cnt = 9;
+                break;
+            default:
+                sunTxnNum->fetch_add(1);
+                return;
         }
-        else if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::GQL) {
-            cnt = 9;
-        }
-        else {
-            sunTxnNum->fetch_add(1);
-            return ;
-        }
-        {
-            for (i = 0; i < cnt; i++) {
-                auto opType = MultiModelWorkload::operationChooser->nextValue();
-                auto id = MultiModelWorkload::keyChooser[2]->nextValue();
-                sprintf(genKey, "usertable_key:%032lu", id);
-                auto keyName = std::string(genKey);
-                if (opType == Operation::READ) {
-                    sprintf(gql, R"(FETCH PROP ON usertable "%s" YIELD properties(VERTEX);)",genKey);
-                    auto resp = nebulaSessionPool->execute(gql);
-                    LOG(INFO) << "Nebula Exec:" << gql;
-                } else {
-                    std::string data1 = Taas::RandomString(256);
-                    std::string data2 = Taas::RandomString(256);
-                    sprintf(genKey, "taas_nebula_key:%032lu", tid);
-                    utils::ByteIteratorMap values;
-                    value = "";
-                    MultiModelWorkload::buildValues(values);
-                    for (const auto &it: values) {
-                        value += it.second + ",";
-                    }
-                    sprintf(gql, R"(INSERT VERTEX usertable(key, filed, txnid) VALUES "%s" :("%s","%s","%s");)",
-                            genKey, genKey, value.c_str(), ("tid:" + std::to_string(tid)).c_str());
-//                    sprintf(gql, R"(UPDATE VERTEX on usertable "%s" set filed = "%s", txnid = "%s";)",
-//                            genKey, value.c_str(), ("tid:" + std::to_string(tid)).c_str());
-                    txn_num->fetch_add(1);
-                    /// todo : add a counter to notify RunMultiTxn sub txn gql send
-                    is_nebula_txn_finish = true;
-                    auto resp = nebulaSessionPool->execute(gql);
-                    LOG(INFO) << "Nebula Exec:" << gql;
+        for (int i = 0; i < cnt; i++) {
+            auto opType = MultiModelWorkload::operationChooser->nextValue();
+            auto id = MultiModelWorkload::keyChooser[2]->nextValue();
+            sprintf(genKey, "usertable_key:%016lu", id);
+            auto keyName = std::string(genKey);
+            if (opType == Operation::READ) {
+                sprintf(gql, R"(FETCH PROP ON usertable "%s" YIELD properties(VERTEX);)",genKey);
+                auto resp = nebulaSessionPool->execute(gql);
+                LOG(INFO) << "Nebula Exec:" << gql;
+            } else {
+                is_read_only = false;
+                sprintf(genKey, "taas_nebula_key:%016lu", tid);
+                utils::ByteIteratorMap values;
+                value = "";
+                MultiModelWorkload::buildValues(values);
+                for (const auto &it: values) {
+                    value += it.second + ",";
                 }
+                sprintf(gql, R"(INSERT VERTEX usertable(key, filed, txnid) VALUES "%s" :("%s","%s","%s");)",
+                        genKey, genKey, value.c_str(), ("tid:" + std::to_string(tid)).c_str());
+                auto resp = nebulaSessionPool->execute(gql);
+                LOG(INFO) << "Nebula Exec:" << gql;
             }
         }
+        if (!is_read_only) {
+            txn_num->fetch_add(1);
+        }
+        /// todo : add a counter to notify RunMultiTxn sub txn gql send
+        is_nebula_txn_finish = true;
         sunTxnNum->fetch_add(1);
     }
-}
+}  // namespace workload
 

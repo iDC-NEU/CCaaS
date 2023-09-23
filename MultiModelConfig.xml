@@ -15,7 +15,7 @@
     <mot_dsnuid>jack</mot_dsnuid>
     <mot_dsnpwd>Test@123</mot_dsnpwd>
 
-    <test_mode>4</test_mode> <!-- 1 : MultiModel, 2 : KV, 3 : SQL, 4 : GQL-->
+    <test_mode>1</test_mode> <!-- 1 : MultiModel, 2 : KV, 3 : SQL, 4 : GQL-->
     <is_load_data>1</is_load_data>
     <record_count>1000</record_count>
     <txn_num>1000</txn_num>
