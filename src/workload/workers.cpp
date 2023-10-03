@@ -146,13 +146,15 @@ namespace workload {
             usleep(10000);
         }
         uint64_t consumeTime = Taas::now_to_us() - startTime;
+        double total_txn_time = 0;
+        for (int i = 0; i < (int)ctx.multiModelContext.kTxnNum; ++i) {
+            total_txn_time += (double)MultiModelWorkload::execTimes[i];
+        }
+        double avg_txn_time = total_txn_time / ctx.multiModelContext.kTxnNum;
         std::cout<<"Total consume time(ms) : "<<1.0 * (double)consumeTime / 1000.0<<std::endl;
         double avgTime = 1.0 * (double)MultiModelWorkload::execTimes[0];
-        for(int i = 1; i < (int)ctx.multiModelContext.kTxnNum; i++){
-            avgTime = (avgTime + (double)MultiModelWorkload::execTimes[i]) / 2.0;
-        }
         std::cout << "Commit txn number : " << MultiModelWorkload::execTimes.size() <<std::endl;
-        std::cout << "Per txn consume time(us) : " << avgTime << std::endl;
+        std::cout << "Per txn consume time(us) : " << avg_txn_time << std::endl;
         std::cout << "============================================================================" << std::endl;
         std::cout << "=====================              END                 =====================" << std::endl;
         std::cout << "============================================================================" << std::endl;

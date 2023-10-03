@@ -169,7 +169,61 @@ namespace workload {
 //        LOG(INFO) << "MOT Exec:" << sql;
     }
 
+    // void MOT::RunTxn(const uint64_t& tid, const std::shared_ptr<std::atomic<uint64_t>>& sunTxnNum, std::shared_ptr<std::atomic<uint64_t>>& txn_num) {
+    //     auto start_time = Taas::now_to_us();
+    //     char genKey[100], sql[5000];
+    //     std::string value;
+    //     int cnt = 4;
+    //     bool is_read_only = true;
+    //     std::string txn = "start transaction;";
+    //     // 多模型事务MOT子事务是否完成
+    //     extern std::atomic_bool is_mot_txn_finish;
+    //     switch (MultiModelWorkload::ctx.multiModelContext.kTestMode) {
+    //         case Taas::MultiModelTest:
+    //             cnt = 4;
+    //             break;
+    //         case Taas::SQL:
+    //             cnt = 9;
+    //             break;
+    //         default:
+    //             sunTxnNum->fetch_add(1);
+    //             return;
+    //     }
+
+    //     for (int i = 0; i < cnt; i++) {
+    //         auto opType = MultiModelWorkload::operationChooser->nextValue();
+    //         auto id = MultiModelWorkload::keyChooser[1]->nextValue();
+    //         sprintf(genKey, "usertable_key:%032lu", id);
+    //         auto keyName = std::string(genKey);
+    //         if (opType == Operation::READ) {
+    //             sprintf(sql, "SELECT * FROM usertable WHERE key = '%s';", genKey);
+    //             txn += std::string(sql);
+    //         } else {
+    //             is_read_only = false;
+    //             utils::ByteIteratorMap values;
+    //             MultiModelWorkload::buildValues(values);
+    //             std::string txn_id_str = "tid:" + std::to_string(tid);
+    //             sprintf(sql, R"(update usertable set filed0='%s', filed1='%s', filed2='%s', filed3='%s', filed4='%s', filed5='%s', filed6='%s', filed7 = '%s', filed8='%s', filed9='%s', txnid='%s' where txnid ='%s';)",
+    //                     values["filed0"].c_str(), values["filed1"].c_str(), values["filed2"].c_str(),
+    //                     values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(),
+    //                     values["filed6"].c_str(), values["filed7"].c_str(), values["filed8"].c_str(),
+    //                     values["filed9"].c_str(), (txn_id_str).c_str(), txn_id_str.c_str());
+    //             txn += std::string(sql);
+    //         }
+    //     }
+    //     txn += "commit;";
+    //     if(!is_read_only) txn_num->fetch_add(1);
+    //     LOG(INFO) << "sql is " << txn << "\n";
+    //     /// todo : add a counter to notify RunMultiTxn sub txn gql send
+    //     is_mot_txn_finish = true;
+    //     auto end_time = Taas::now_to_us();
+    //     LOG(INFO) << "MOT spend time:" << end_time - start_time << "\n";
+    //     MOTConnectionPool::ExecSQL((SQLCHAR *)txn.c_str());
+    //     sunTxnNum->fetch_add(1);
+    // }
+
     void MOT::RunTxn(const uint64_t& tid, const std::shared_ptr<std::atomic<uint64_t>>& sunTxnNum, std::shared_ptr<std::atomic<uint64_t>>& txn_num) {
+        auto start_time = Taas::now_to_us();
         char genKey[100], sql[5000];
         std::string value;
         int cnt = 4;
@@ -189,32 +243,25 @@ namespace workload {
                 return;
         }
 
-        for (int i = 0; i < cnt; i++) {
-            auto opType = MultiModelWorkload::operationChooser->nextValue();
-            auto id = MultiModelWorkload::keyChooser[1]->nextValue();
-            sprintf(genKey, "usertable_key:%032lu", id);
-            auto keyName = std::string(genKey);
-            if (opType == Operation::READ) {
-                sprintf(sql, "SELECT * FROM usertable WHERE key = '%s';", genKey);
-                txn += std::string(sql);
-            } else {
-                is_read_only = false;
-                utils::ByteIteratorMap values;
-                MultiModelWorkload::buildValues(values);
-                std::string txn_id_str = "tid:" + std::to_string(tid);
-                sprintf(sql, R"(update usertable set filed0='%s', filed1='%s', filed2='%s', filed3='%s', filed4='%s', filed5='%s', filed6='%s', filed7 = '%s', filed8='%s', filed9='%s', txnid='%s' where txnid ='%s';)",
-                        values["filed0"].c_str(), values["filed1"].c_str(), values["filed2"].c_str(),
-                        values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(),
-                        values["filed6"].c_str(), values["filed7"].c_str(), values["filed8"].c_str(),
-                        values["filed9"].c_str(), (txn_id_str).c_str(), txn_id_str.c_str());
-                txn += std::string(sql);
-            }
-        }
+        auto id = MultiModelWorkload::keyChooser[1]->nextValue();
+        sprintf(genKey, "usertable_key:%032lu", id);
+        auto keyName = std::string(genKey);
+        utils::ByteIteratorMap values;
+        MultiModelWorkload::buildValues(values);
+        std::string txn_id_str = "tid:" + std::to_string(tid);
+        sprintf(sql, R"(update usertable set filed0='%s', filed1='%s', filed2='%s', filed3='%s', filed4='%s', filed5='%s', filed6='%s', filed7 = '%s', filed8='%s', filed9='%s', txnid='%s' where txnid ='%s';)",
+                values["filed0"].c_str(), values["filed1"].c_str(), values["filed2"].c_str(),
+                values["filed3"].c_str(), values["filed4"].c_str(), values["filed5"].c_str(),
+                values["filed6"].c_str(), values["filed7"].c_str(), values["filed8"].c_str(),
+                values["filed9"].c_str(), (txn_id_str).c_str(), txn_id_str.c_str());
+        txn += std::string(sql);
         txn += "commit;";
         if(!is_read_only) txn_num->fetch_add(1);
-        LOG(INFO) << "sql is " << sql << "\n";
+        LOG(INFO) << "sql is " << txn << "\n";
         /// todo : add a counter to notify RunMultiTxn sub txn gql send
         is_mot_txn_finish = true;
+        auto end_time = Taas::now_to_us();
+        LOG(INFO) << "MOT spend time:" << end_time - start_time << "\n";
         MOTConnectionPool::ExecSQL((SQLCHAR *)txn.c_str());
         sunTxnNum->fetch_add(1);
     }

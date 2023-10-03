@@ -64,58 +64,58 @@ namespace workload {
     void KV::RunTxn(proto::Transaction* message_txn) {
         char genKey[100];
         std::string value;
-        int cnt, i;
-        if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::MultiModelTest) {
-            cnt = 4;
+        int cnt;
+        brpc::Channel chan;
+        brpc::ChannelOptions options;
+        std::unique_ptr<proto::KvDBGetService_Stub> get_stub;
+        switch (MultiModelWorkload::ctx.multiModelContext.kTestMode) {
+            case Taas::MultiModelTest:
+                cnt = 4;
+                break;
+            case Taas::KV:
+                cnt = 9;
+                break;
+            default:
+                return;
         }
-        else if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::KV) {
-            cnt = 9;
-        }
-        else return ;
-
-         {
-            brpc::Channel chan;
-            brpc::ChannelOptions options;
-            std::unique_ptr<proto::KvDBGetService_Stub> get_stub;
-            chan.Init(MultiModelWorkload::ctx.storageContext.kLevelDBIP.c_str(), &options);
-            get_stub = std::make_unique<proto::KvDBGetService_Stub>(&chan);
-            auto s = std::string("KV exec :");
-            for (i = 0; i < cnt; i++) {
-                auto opType = MultiModelWorkload::operationChooser->nextValue();
-                auto id = MultiModelWorkload::keyChooser[0]->nextValue();
-                sprintf(genKey, "usertable_key:%032lu", id);
-                auto keyName = std::string(genKey);
-                proto::Row *row = message_txn->add_row();
-                if (opType == Operation::READ) {
-                    proto::KvDBRequest request;
-                    proto::KvDBResponse response;
-                    brpc::Controller cntl;
-                    cntl.set_timeout_ms(500);
-                    auto data = request.add_data();
-                    data->set_op_type(proto::OpType::Read);
-                    data->set_key(keyName);
-                    get_stub->Get(&cntl, &request, &response, nullptr);
-                    if (cntl.Failed()) {
-                        value = "";
-                        LOG(WARNING) <<"KV Read OP ERROR : " <<  cntl.ErrorText();
-                    } else {
-                        value = response.data(0).value();
-                        LOG(INFO) << "value is " << value << "\n";
-                    }
-                    row->set_op_type(proto::OpType::Read);
+        chan.Init(MultiModelWorkload::ctx.storageContext.kLevelDBIP.c_str(), &options);
+        get_stub = std::make_unique<proto::KvDBGetService_Stub>(&chan);
+        auto s = std::string("KV exec :");
+        for (int i = 0; i < cnt; i++) {
+            auto opType = MultiModelWorkload::operationChooser->nextValue();
+            auto id = MultiModelWorkload::keyChooser[0]->nextValue();
+            sprintf(genKey, "usertable_key:%032lu", id);
+            auto keyName = std::string(genKey);
+            proto::Row *row = message_txn->add_row();
+            if (opType == Operation::READ) {
+                proto::KvDBRequest request;
+                proto::KvDBResponse response;
+                brpc::Controller cntl;
+                cntl.set_timeout_ms(500);
+                auto data = request.add_data();
+                data->set_op_type(proto::OpType::Read);
+                data->set_key(keyName);
+                get_stub->Get(&cntl, &request, &response, nullptr);
+                if (cntl.Failed()) {
+                    value = "";
+                    LOG(WARNING) <<"KV Read OP ERROR : " <<  cntl.ErrorText();
                 } else {
-                    utils::ByteIteratorMap values;
-                    MultiModelWorkload::buildValues(values);
-                    for (const auto &it: values) {
-                        value += it.second + ",";
-                    }
-                    row->set_op_type(proto::OpType::Update);
+                    value = response.data(0).value();
+                    LOG(INFO) << "value is " << value << "\n";
                 }
-                row->set_key(keyName);
-                row->set_data(value);
-                s += std::to_string(row->op_type()) + ", key:" + row->key() + ", data:" + row->data();
+                row->set_op_type(proto::OpType::Read);
+            } else {
+                utils::ByteIteratorMap values;
+                MultiModelWorkload::buildValues(values);
+                for (const auto &it: values) {
+                    value += it.second + ",";
+                }
+                row->set_op_type(proto::OpType::Update);
             }
-         }
+            row->set_key(keyName);
+            row->set_data(value);
+            s += std::to_string(row->op_type()) + ", key:" + row->key() + ", data:" + row->data();
+        }
     }
 
 }
