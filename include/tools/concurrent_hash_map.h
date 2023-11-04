@@ -242,23 +242,20 @@ namespace Taas {
             map_iterator iter = _map_temp.find(k);
             if(iter != _map_temp.end()){
                 if(_map_temp[k] == v) { /// locked already by itself
-                    lock.unlock();
                     return true;
                 }
                 else if(_map_temp[k] == "" || _map_temp[k] == "0"){
                     _map_temp[k] = v;
-                    lock.unlock();
                     return true;
                 }
                 else { /// locked already by others
-                    lock.unlock();
                     return false;
                 }
             }
             _map_temp[k] = v;
-            lock.unlock();
             return true;
         }
+
 
         value unlock(const key &k, value &v) {
             std::unordered_map<key, value>& _map_temp = GetMapRef(k);

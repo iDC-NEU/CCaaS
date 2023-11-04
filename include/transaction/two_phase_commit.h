@@ -14,6 +14,7 @@
 #include "proto/message.pb.h"
 #include "tools/concurrent_hash_map.h"
 #include "tools/utilities.h"
+#include "merge.h"
 
 namespace Taas {
   
@@ -26,7 +27,13 @@ namespace Taas {
     static concurrent_unordered_map<std::string, std::shared_ptr<TwoPCTxnStateStruct>>
         txn_state_map;  /// tid, txn struct
 
-    // 工具
+    static concurrent_unordered_map<std::string, std::string>
+        row_map_csn;      /// tid, csn
+
+    static concurrent_unordered_map<std::string, std::string>
+        row_map_data;            /// tid, changed data
+
+      // 工具
     struct Comparator {
       bool operator()(const std::string& x1, const std::string& x2) const{
         int int_a = std::stoi(x1);
@@ -39,17 +46,59 @@ namespace Taas {
         uint64_t hash_value = _hash(key);
         return hash_value % sharding_num;
     }
-    // 生成key_sorted
+    // 生成key_sorted, map[key] = changed_data
     void GetKeySorted(proto::Transaction& txn) {
         key_sorted.clear();
+        // k-v : row_key txn
       for (uint64_t i = 0; i < (uint64_t) txn.row_size(); i++) {
-        key_sorted[txn.row(i).key()] =  i;
+          key_sorted[txn.row(i).key()] =  i;
       }
+    }
+
+    // validate set
+    bool ValidateReadSet(proto::Transaction& txn){
+        std::string version;
+        for(auto i = 0; i < txn_ptr->row_size(); i ++) {
+            const auto& row = txn_ptr->row(i);
+            auto key = txn_ptr->storage_type() + ":" + row.key();
+            if(row.op_type() != proto::OpType::Read) {
+                continue;
+            }
+            /// indeed, we should use the csn to check the read version,
+            /// but there are some bugs in updating the csn to the storage(tikv).
+            if (!row_map_data.getValue(key, version)) {
+                /// should be abort, but Taas do not connect load data,
+                /// so read the init snap will get empty in read_version_map
+                continue;
+            }
+            /// data out of date
+            if (version != row.data()) {
+//                return false;
+                return true;            /// test
+            }
+        }
+        return true;
+    }
+
+    // update set
+    bool UpdateReadSet(proto::Transaction& txn){
+        tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
+        for(auto i = 0; i < txn_ptr->row_size(); i ++) {
+            const auto& row = txn_ptr->row(i);
+            auto key = txn_ptr->storage_type() + ":" + row.key();
+            if(row.op_type() == proto::OpType::Read) {
+                continue;
+            }
+            row_map_data.insert(key, row.data());
+            row_map_csn.insert(key, tid);
+        }
+        return true;
     }
 
     void ClientTxn_Init();
     bool Sharding_2PL();
     bool Two_PL_LOCK(proto::Transaction& txn);
+    bool Two_PL_LOCK_WAIT(proto::Transaction& txn);
     bool Two_PL_UNLOCK(proto::Transaction& txn);
     bool Check_2PL_complete(proto::Transaction& txn, std::shared_ptr<TwoPCTxnStateStruct>);
     bool Check_2PC_Prepare_complete(proto::Transaction& txn, std::shared_ptr<TwoPCTxnStateStruct>);
@@ -68,13 +117,18 @@ namespace Taas {
 
     // debug map
     static std::mutex mutex;
-    void printSorted(){
+    void printSorted(int type){
         std::unique_lock<std::mutex> lock(mutex);
         std::cout << "current tid : " << tid << " === ";
         std::string tmp = "-1";
+        if (type == 1) {
+            std::cout << "Lock  ";
+        } else {
+            std::cout << "Unlock  ";
+        }
         for (auto iter = key_sorted.begin(); iter!=key_sorted.end();iter++) {
             row_lock_map.getValue(iter->first, tmp);
-            if (tmp != "" && tmp != "0" && tmp != "-1"){
+            if (tmp != "" && tmp != "0" && tmp != "-1" && tmp != tid){
                 std::cout <<"{ key : "<< iter->first <<" tid :" << tmp <<"} ";
             }
         }
@@ -95,7 +149,7 @@ namespace Taas {
     static uint64_t  sharding_num;
     static Context ctx;
     std::string tid;  // 记录当前tid
-    std::map<std::string, uint64_t, Comparator> key_sorted; // first is the key/row
+    std::map<std::string, uint64_t , Comparator> key_sorted; // first is the key/row
 
     bool res, sleep_flag;
 
@@ -110,7 +164,7 @@ namespace Taas {
     uint64_t sharding_num_struct_progressing, two_pl_num_progressing,
         two_pc_prepare_num_progressing, two_pc_commit_num_progressing;
     static std::atomic<uint64_t> successTxnNumber , totalTxnNumber, failedTxnNumber,
-        lockFailed, unlockFailed;
+        lockFailed, validateFailed;
   };
 
 }  // namespace Taas
