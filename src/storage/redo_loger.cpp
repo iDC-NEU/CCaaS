@@ -19,6 +19,7 @@ namespace Taas {
         auto max_length = ctx.taasContext.kCacheMaxLength;
         epoch_log_lsn.Init(max_length);
         committed_txn_cache.resize(max_length);
+
         for(int i = 0; i < static_cast<int>(max_length); i ++) {
             committed_txn_cache[i] = std::make_unique<concurrent_unordered_map<std::string, std::shared_ptr<proto::Transaction>>>();
         }

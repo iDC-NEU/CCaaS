@@ -72,9 +72,9 @@ namespace Taas {
                 continue;
             }
             /// data out of date
-            if (version != row.data()) {
-//                return false;
-                return true;            /// test
+            if (!version.empty() && version != row.data()) {
+                return false;
+//                return true;            /// test
             }
         }
         return true;
@@ -114,6 +114,8 @@ namespace Taas {
     bool HandleReceivedTxn();      // 处理接收到的事务（coordinator/applicant）
     bool SetMessageRelatedCountersInfo();
 
+    void OUTPUTLOG(const std::string& s); // print logs
+
 
     // debug map
     static std::mutex mutex;
@@ -139,7 +141,7 @@ namespace Taas {
     std::unique_ptr<zmq::message_t> message_ptr;
     std::unique_ptr<std::string> message_string_ptr;
     std::unique_ptr<proto::Message> msg_ptr;
-    std::unique_ptr<proto::Transaction> txn_ptr;
+    std::shared_ptr<proto::Transaction> txn_ptr;
     std::unique_ptr<proto::Transaction> local_txn_ptr;
     std::unique_ptr<pack_params> pack_param;
     std::string csn_temp, key_temp, key_str, table_name, csn_result;

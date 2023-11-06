@@ -7,6 +7,7 @@
 #include "epoch/epoch_manager.h"
 #include "tools/utilities.h"
 #include "proto/transaction.pb.h"
+#include "storage/redo_loger.h"
 
 namespace Taas {
     Context TwoPC::ctx;
@@ -30,10 +31,11 @@ namespace Taas {
       txn_ptr->set_csn(now_to_us());
       txn_ptr->set_server_id(ctx.taasContext.txn_node_ip_index);
     tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
-//      LOG(INFO)<<"ClientTxn_Init() -- tid : " << tid;
     txn_state_map.insert(tid, std::make_shared<Taas::TwoPCTxnStateStruct>(sharding_num, 0, 0, 0, 0, 0, 0,
                                                                           client_txn));
-  }
+    if (totalTxnNumber % 1000 == 0) OUTPUTLOG("============= 2PC + 2PL INFO =============");
+
+    }
 
   // 事务进行分片
   bool TwoPC::Sharding_2PL() {
@@ -74,10 +76,8 @@ namespace Taas {
 //    auto tmp_tid = tid;
 //      printSorted(1);
     for (auto iter = key_sorted.begin(); iter != key_sorted.end(); iter++) {
-        /// read doesn't need locks?
-        if (txn.row(iter->second).op_type() == proto::OpType::Read) {
-            key_lock_num.fetch_add(1);
-        } else if (row_lock_map.try_lock(iter->first, tid)){
+        /// read needs lock
+        if (row_lock_map.try_lock(iter->first, tid)){
             key_lock_num.fetch_add(1);
         } else {
             lockFailed.fetch_add(1);
@@ -86,13 +86,13 @@ namespace Taas {
             return false;
         }
     }
-      if (!ValidateReadSet(txn)){
-//          LOG(INFO) <<"Txn ValidateReadSet check failed";
-          validateFailed.fetch_add(1);
-          Two_PL_UNLOCK(txn);
-          return false;
-      }
-
+    // TODO: Validate readset
+    if (!ValidateReadSet(txn)){
+    //          LOG(INFO) <<"Txn ValidateReadSet check failed";
+       validateFailed.fetch_add(1);
+       Two_PL_UNLOCK(txn);
+       return false;
+    }
 //      printSorted();
     return key_lock_num.load() == key_sorted.size();
   }
@@ -207,13 +207,12 @@ namespace Taas {
     // 不是本地事务不进行回复
       if (txn_state == proto::TxnState::Commit){
           successTxnNumber.fetch_add(1);
-          LOG(INFO) << "\n************************ 2PL + 2PC ************************ \n" <<
-                    "totalTxnNumber: " << totalTxnNumber << "\t\tfailedTxnNumber: " << failedTxnNumber<<"\t\tsuccessTxnNumber: " << successTxnNumber <<
-                    "\nlockFailed: " << lockFailed << "\t\tvalidateFailed: " << validateFailed <<
-                    "\n************************************************ ";
       } else {
           failedTxnNumber.fetch_add(1);
       }
+
+//      if (totalTxnNumber % ctx.taasContext.print_mode_size == 0) OUTPUTLOG("============= 2PC + 2PL INFO =============");
+
 
       // only coordinator can send to client
     if (txn.server_id() != ctx.taasContext.txn_node_ip_index) return true;
@@ -276,28 +275,28 @@ namespace Taas {
       return true;
   }
 
-    // 处理接收到的消息 from server
-    // change queue to listen_message_epoch_queue
-    bool TwoPC::HandleReceivedMessage() {
-        while(!EpochManager::IsTimerStop()) {
-            MessageQueue::listen_message_epoch_queue->wait_dequeue(message_ptr);
-            if (message_ptr == nullptr || message_ptr->empty()) continue;
-            message_string_ptr = std::make_unique<std::string>(
-                    static_cast<const char*>(message_ptr->data()), message_ptr->size());
-            msg_ptr = std::make_unique<proto::Message>();
-            res = UnGzip(msg_ptr.get(), message_string_ptr.get());
-            assert(res);
-            if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
-                txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
-                SetMessageRelatedCountersInfo();
-                HandleReceivedTxn();
-            } else {
-                MessageQueue::request_queue->enqueue(std::move(msg_ptr));
-                MessageQueue::request_queue->enqueue(nullptr);
-            }
+  // 处理接收到的消息 from server
+  // change queue to listen_message_epoch_queue
+  bool TwoPC::HandleReceivedMessage() {
+    while(!EpochManager::IsTimerStop()) {
+        MessageQueue::listen_message_epoch_queue->wait_dequeue(message_ptr);
+        if (message_ptr == nullptr || message_ptr->empty()) continue;
+        message_string_ptr = std::make_unique<std::string>(
+                static_cast<const char*>(message_ptr->data()), message_ptr->size());
+        msg_ptr = std::make_unique<proto::Message>();
+        res = UnGzip(msg_ptr.get(), message_string_ptr.get());
+        assert(res);
+        if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
+            txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
+            SetMessageRelatedCountersInfo();
+            HandleReceivedTxn();
+        } else {
+            MessageQueue::request_queue->enqueue(std::move(msg_ptr));
+            MessageQueue::request_queue->enqueue(nullptr);
         }
-        return true;
     }
+    return true;
+  }
 
 
     // 核心：根据txn type操作
@@ -332,9 +331,9 @@ namespace Taas {
       }
       case proto::TxnType::Lock_ok: {
         // 修改元数据
-          tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
-          std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
-          txn_state_map.getValue(tid, txn_state_struct);
+        tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
+        std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
+        txn_state_map.getValue(tid, txn_state_struct);
 
         txn_state_struct->two_pl_reply.fetch_add(1);
         txn_state_struct->two_pl_num.fetch_add(1);
@@ -426,16 +425,23 @@ namespace Taas {
         txn_state_map.getValue(tid, txn_state_struct);
         txn_state_struct->two_pc_commit_reply.fetch_add(1);
         txn_state_struct->two_pc_commit_num.fetch_add(1);
+
         // 当所有应答已经收到，并且commit阶段未完成
         if (txn_state_struct->two_pc_commit_reply.load() == txn_state_struct->txn_sharding_num) {
             if (Check_2PC_Commit_complete(*txn_ptr, txn_state_struct)) {
-            for (uint64_t i = 0; i < sharding_num; i++) {
-              // 解锁
-              Send(ctx, epoch, i, *txn_ptr, proto::TxnType::Abort_txn);
-            }
-            txn_state_struct->txn_state = commit_done;
-            SendToClient(ctx, *txn_ptr, proto::TxnType::CommittedTxn, proto::TxnState::Commit);
-            UpdateReadSet(*txn_ptr);
+                for (uint64_t i = 0; i < sharding_num; i++) {
+                  // 解锁 use Abort_xtn type to unlock
+                  Send(ctx, epoch, i, *txn_ptr, proto::TxnType::Abort_txn);
+                }
+                txn_state_struct->txn_state = commit_done;
+                SendToClient(ctx, *txn_ptr, proto::TxnType::CommittedTxn, proto::TxnState::Commit);
+                if(txn_ptr->server_id() == ctx.taasContext.txn_node_ip_index) {
+                    // TODO: refering to RedoLoger::RedoLog(txn_ptr);
+                    txn_ptr->set_commit_epoch(0);
+                    RedoLoger::RedoLog(txn_ptr);
+                }
+                // TODO: ValidateReadSet
+                UpdateReadSet(*txn_ptr);
         } else {
             // 统一处理abort
             for (uint64_t i = 0; i < sharding_num; i++) {
@@ -478,6 +484,14 @@ namespace Taas {
     message_server_id = txn_ptr->server_id();
     txn_ptr->sharding_id();
     return true;
+  }
+
+  void TwoPC::OUTPUTLOG(const std::string& s){
+      LOG(INFO) << s.c_str() <<
+                "\ntotalTxnNumber: " << totalTxnNumber << "\t\tfailedTxnNumber: " << failedTxnNumber<<"\t\tsuccessTxnNumber: " << successTxnNumber <<
+                "\nlockFailed: " << lockFailed << "\t\tvalidateFailed: " << validateFailed << "\t\ttime:" << now_to_us()<<
+                "\n************************************************ ";
+
   }
 
 }  // namespace Taas

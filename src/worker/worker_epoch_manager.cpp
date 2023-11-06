@@ -13,7 +13,24 @@ namespace Taas {
         std::string name = "EpochPhysical";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         SetCPU();
-        EpochPhysicalTimerManagerThreadMain(ctx);
+        switch(ctx.taasContext.taasMode) {
+            case TaasMode::MultiModel :
+            case TaasMode::MultiMaster : {
+                EpochPhysicalTimerManagerThreadMain(ctx);
+                break;
+            }
+            case TaasMode::Sharding : {
+                EpochPhysicalTimerManagerThreadMain(ctx);
+                break;
+            }
+            case TaasMode::TwoPC : {
+                EpochPhysicalTimerManagerThreadMain(ctx);
+//                MultiMasterEpochManager::EpochLogicalTimerManagerThreadMain(ctx);
+            }
+        }
+//        EpochPhysicalTimerManagerThreadMain(ctx);
+        return ;
+
     }
 
     void WorkerForLogicalThreadMain(const Context& ctx) {

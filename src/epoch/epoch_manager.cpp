@@ -293,7 +293,7 @@ namespace Taas {
                 LOG(INFO) << "============= Start Physical Epoch : " << epoch_ << ", logical : " << logical << "Time : " << now_to_us() - startTime << "=============\n";
                 OUTPUTLOG("============= Epoch INFO ============= ", logical);
             }
-            EpochManager::EpochCacheSafeCheck();
+//            EpochManager::EpochCacheSafeCheck();
         }
         OUTPUTLOG("============= Epoch INFO ============= ", logical);
         LOG(INFO) << "Start Physical epoch : " << epoch_ << ", logical : " << logical << "Time : " << now_to_us() - startTime;
