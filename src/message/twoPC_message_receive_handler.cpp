@@ -26,28 +26,20 @@ namespace Taas {
             TwoPCMessageReceiveHandler::backup_insert_set_send_ack_epoch_num,
             TwoPCMessageReceiveHandler::abort_set_send_ack_epoch_num; /// check and reply ack
 
-    std::vector<std::unique_ptr<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>>
-            TwoPCMessageReceiveHandler::epoch_remote_sharding_txn,
-            TwoPCMessageReceiveHandler::epoch_local_sharding_txn,
-            TwoPCMessageReceiveHandler::epoch_local_txn,
-            TwoPCMessageReceiveHandler::epoch_backup_txn,
-            TwoPCMessageReceiveHandler::epoch_insert_set,
-            TwoPCMessageReceiveHandler::epoch_abort_set;
-
     bool TwoPCMessageReceiveHandler::Init(const Context& ctx_, uint64_t id) {
         message_ptr = nullptr;
-        txn_ptr = nullptr;
+        txn_ptr.reset();
         thread_id = id;
         ctx = ctx_;
 //        max_length = ctx_.kCacheMaxLength;
-        sharding_num = ctx_.kTxnNodeNum;
+        sharding_num = ctx_.taasContext.kTxnNodeNum;
 
         return true;
     }
 
     bool TwoPCMessageReceiveHandler::StaticInit(const Context& context) {
-        auto max_length = context.kCacheMaxLength;
-        auto sharding_num = context.kTxnNodeNum;
+        auto max_length = context.taasContext.kCacheMaxLength;
+        auto sharding_num = context.taasContext.kTxnNodeNum;
 
         sharding_send_ack_epoch_num.resize(sharding_num + 1);
         backup_send_ack_epoch_num.resize(sharding_num + 1);
@@ -59,22 +51,10 @@ namespace Taas {
             backup_insert_set_send_ack_epoch_num[i] = 1;
             abort_set_send_ack_epoch_num[i] = 1;
         }
-
-        epoch_remote_sharding_txn.resize(max_length);
-        epoch_local_sharding_txn.resize(max_length);
-        epoch_local_txn.resize(max_length);
         epoch_backup_txn.resize(max_length);
         epoch_insert_set.resize(max_length);
         epoch_abort_set.resize(max_length);
 
-        for(int i = 0; i < static_cast<int>(max_length); i ++) {
-            epoch_remote_sharding_txn[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-            epoch_local_sharding_txn[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-            epoch_local_txn[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-            epoch_backup_txn[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-            epoch_insert_set[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-            epoch_abort_set[i] = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<proto::Transaction>>>();
-        }
         return true;
     }
 
@@ -108,7 +88,7 @@ namespace Taas {
         if(txn_ptr->txn_type() == proto::TxnType::ClientTxn) {
             txn_ptr->set_commit_epoch(EpochManager::GetPhysicalEpoch());
             txn_ptr->set_csn(now_to_us());
-            txn_ptr->set_server_id(ctx.txn_node_ip_index);
+            txn_ptr->set_server_id(ctx.taasContext.txn_node_ip_index);
         }
         SetMessageRelatedCountersInfo();
         switch (txn_ptr->txn_type()) {
@@ -117,62 +97,39 @@ namespace Taas {
                 HandleClientTxn();
                 break;
             }
-            case proto::TxnType::RemoteServerTxn : {
-
-                break;
-            }
-            case proto::TxnType::EpochEndFlag : {
-
-                break;
-            }
-            case proto::TxnType::BackUpTxn : {
-
-                break;
-            }
-            case proto::TxnType::BackUpEpochEndFlag : {
-
-                break;
-            }
-            case proto::TxnType::AbortSet : {
-
-                break;
-            }
-            case proto::TxnType::InsertSet : {
-
-                break;
-            }
-            case proto::TxnType::EpochShardingACK : {
-
-                break;
-            }
-            case proto::TxnType::BackUpACK : {
-
-            }
-            case proto::TxnType::AbortSetACK : {
-
-                break;
-            }
-            case proto::TxnType::InsertSetACK : {
-
-                break;
-            }
-            case proto::TxnType::EpochLogPushDownComplete : {
-
-                break;
-            }
-            case proto::NullMark:
-            case proto::TxnType_INT_MIN_SENTINEL_DO_NOT_USE_:
-            case proto::TxnType_INT_MAX_SENTINEL_DO_NOT_USE_:
-            case proto::CommittedTxn:
+            case proto::TxnType::RemoteServerTxn :
+            case proto::TxnType::EpochEndFlag :
+            case proto::TxnType::BackUpTxn :
+            case proto::TxnType::BackUpEpochEndFlag :
+            case proto::TxnType::AbortSet :
+            case proto::TxnType::InsertSet :
+            case proto::TxnType::EpochShardingACK :
+            case proto::TxnType::BackUpACK :
+            case proto::TxnType::AbortSetACK :
+            case proto::TxnType::InsertSetACK :
+            case proto::TxnType::EpochLogPushDownComplete :
+            case proto::NullMark :
+            case proto::TxnType_INT_MIN_SENTINEL_DO_NOT_USE_ :
+            case proto::TxnType_INT_MAX_SENTINEL_DO_NOT_USE_ :
+            case proto::CommittedTxn :
+            case proto::Lock_ok :
+            case proto::Lock_abort :
+            case proto::Prepare_req :
+            case proto::Prepare_ok :
+            case proto::Prepare_abort :
+            case proto::Commit_req :
+            case proto::Commit_ok :
+            case proto::Commit_abort :
+            case proto::Abort_txn :
                 break;
         }
         return true;
     }
 
     bool TwoPCMessageReceiveHandler::HandleClientTxn() {
-        std::vector<std::unique_ptr<proto::Transaction>> sharding_row_vector;
+        std::vector<std::shared_ptr<proto::Transaction>> sharding_row_vector;
         for(uint64_t i = 0; i < sharding_num; i ++) {
-            sharding_row_vector.emplace_back(std::make_unique<proto::Transaction>());
+            sharding_row_vector.emplace_back(std::make_shared<proto::Transaction>());
             sharding_row_vector[i]->set_csn(txn_ptr->csn());
             sharding_row_vector[i]->set_commit_epoch(txn_ptr->commit_epoch());
             sharding_row_vector[i]->set_server_id(txn_ptr->server_id());
@@ -193,7 +150,7 @@ namespace Taas {
             if(sharding_row_vector[i]->row_size() > 0) {
                 txn_sharding_num |= 1<<i;
                 ///sharding sending
-                if(i == ctx.txn_node_ip_index) {
+                if(i == ctx.taasContext.txn_node_ip_index) {
                     continue;
                 }
                 else {
@@ -202,7 +159,7 @@ namespace Taas {
             }
         }
         auto txn_state = std::make_unique<TwoPCTxnStateStruct>();
-        if(sharding_row_vector[ctx.txn_node_ip_index]->row_size() > 0) {
+        if(sharding_row_vector[ctx.taasContext.txn_node_ip_index]->row_size() > 0) {
             ///read version check need to wait until last epoch has committed.
 
         }

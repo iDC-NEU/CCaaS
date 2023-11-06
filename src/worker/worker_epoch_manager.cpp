@@ -13,12 +13,32 @@ namespace Taas {
         std::string name = "EpochPhysical";
         pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         SetCPU();
-        EpochPhysicalTimerManagerThreadMain(ctx);
+        switch(ctx.taasContext.taasMode) {
+            case TaasMode::MultiModel :
+            case TaasMode::MultiMaster : {
+                EpochPhysicalTimerManagerThreadMain(ctx);
+                break;
+            }
+            case TaasMode::Sharding : {
+                EpochPhysicalTimerManagerThreadMain(ctx);
+                break;
+            }
+            case TaasMode::TwoPC : {
+                EpochPhysicalTimerManagerThreadMain(ctx);
+//                MultiMasterEpochManager::EpochLogicalTimerManagerThreadMain(ctx);
+            }
+        }
+//        EpochPhysicalTimerManagerThreadMain(ctx);
+        return ;
+
     }
 
     void WorkerForLogicalThreadMain(const Context& ctx) {
+        std::string name = "EpochLogical";
+        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
         SetCPU();
-        switch(ctx.taas_mode) {
+        switch(ctx.taasContext.taasMode) {
+            case TaasMode::MultiModel :
             case TaasMode::MultiMaster : {
                 MultiMasterEpochManager::EpochLogicalTimerManagerThreadMain(ctx);
                 break;
@@ -28,214 +48,9 @@ namespace Taas {
                 break;
             }
             case TaasMode::TwoPC : {
-                goto end;
+                MultiMasterEpochManager::EpochLogicalTimerManagerThreadMain(ctx);
             }
         }
-        end:
-        return ;
-    }
-
-    void WorkerForLogicalTxnMergeCheckThreadMain(const Context& ctx) {
-        std::string name = "EpochTxnMergeCheck";
-        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
-        SetCPU();
-        while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        while(!EpochManager::IsTimerStop()){
-            switch(ctx.taas_mode) {
-                case TaasMode::MultiMaster : {
-                    while(!EpochManager::IsTimerStop()) {
-                        while (EpochManager::GetPhysicalEpoch() <=
-                               EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum ||
-                               !MultiMasterEpochManager::CheckEpochMergeState(ctx)) {
-                            usleep(logical_sleep_timme);
-                        }
-                    }
-                    break;
-                }
-                case TaasMode::Sharding : {
-                    while(!EpochManager::IsTimerStop()) {
-                        while (EpochManager::GetPhysicalEpoch() <=
-                               EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum ||
-                               !ShardingEpochManager::CheckEpochMergeState(ctx)) {
-                            usleep(logical_sleep_timme);
-                        }
-                    }
-                    break;
-                }
-                case TaasMode::TwoPC : {
-                    goto end;
-                }
-            }
-
-        }
-        end:
-        return ;
-    }
-
-    void WorkerForLogicalAbortSetMergeCheckThreadMain(const Context& ctx) {
-        std::string name = "EpochAbortSetMergeCheck";
-        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
-        SetCPU();
-        while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        while(!EpochManager::IsTimerStop()){
-            switch(ctx.taas_mode) {
-                case TaasMode::MultiMaster : {
-                    while(!EpochManager::IsTimerStop()) {
-                        while (!MultiMasterEpochManager::CheckEpochAbortMergeState(ctx)) {
-                            usleep(logical_sleep_timme);
-                        }
-                    }
-                    break;
-                }
-                case TaasMode::Sharding : {
-                    while(!EpochManager::IsTimerStop()) {
-                        while(!ShardingEpochManager::CheckEpochAbortMergeState(ctx)) {
-                            usleep(logical_sleep_timme);
-                        }
-                    }
-                    break;
-                }
-                case TaasMode::TwoPC : {
-                    goto end;
-                }
-            }
-
-        }
-        end:
-        return ;
-    }
-
-    void WorkerForLogicalCommitCheckThreadMain(const Context& ctx) {
-        std::string name = "EpochCommitCheck";
-        pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
-        SetCPU();
-        while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        while(!EpochManager::IsTimerStop()){
-            switch(ctx.taas_mode) {
-                case TaasMode::MultiMaster : {
-                    while(!EpochManager::IsTimerStop()) {
-                        while (!MultiMasterEpochManager::CheckEpochCommitState(ctx)) {
-                            usleep(logical_sleep_timme);
-                        }
-                    }
-                    break;
-                }
-                case TaasMode::Sharding : {
-                    while(!EpochManager::IsTimerStop()) {
-                        while (!ShardingEpochManager::CheckEpochCommitState(ctx)) {
-                            usleep(logical_sleep_timme);
-                        }
-                    }
-                    break;
-                }
-                case TaasMode::TwoPC : {
-                    goto end;
-                }
-            }
-
-        }
-        end:
-        return ;
-    }
-
-    void WorkerForLogicalReceiveAndReplyCheckThreadMain(const Context& ctx) {
-        SetCPU();
-        EpochMessageReceiveHandler receiveHandler;
-        receiveHandler.Init(ctx, 0);
-        while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        while(!EpochManager::IsTimerStop()){
-            switch(ctx.taas_mode) {
-                case TaasMode::MultiMaster :
-                case TaasMode::Sharding :{
-                    while(!EpochManager::IsTimerStop()) {
-                        while(!receiveHandler.CheckReceivedStatesAndReply()) {/// check and send EpochTxnACK BackUpACK ack /// check and send EpochLogPushDownComplete ack
-                            usleep(sleep_time);
-                        }
-                    }
-                    break;
-                }
-                case TaasMode::TwoPC : {
-                    goto end;
-                }
-            }
-
-        }
-        end:
-        return ;
-    }
-
-    void WorkerForEpochAbortSendThreadMain(const Context& ctx) {
-        SetCPU();
-        EpochMessageReceiveHandler receiveHandler;
-        receiveHandler.Init(ctx, 0);
-        while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        while(!EpochManager::IsTimerStop()){
-            switch(ctx.taas_mode) {
-                case TaasMode::MultiMaster :
-                case TaasMode::TwoPC :{
-                    goto end;
-                }
-                case TaasMode::Sharding : {
-                    while(!EpochManager::IsTimerStop()) {
-                        while(!EpochMessageSendHandler::SendAbortSet(ctx)) { ///check and send abort set
-                            usleep(sleep_time);
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-        end:
-        return ;
-    }
-
-    void WorkerForEpochEndFlagSendThreadMain(const Context& ctx) {
-        SetCPU();
-        EpochMessageReceiveHandler receiveHandler;
-        receiveHandler.Init(ctx, 0);
-        while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        while(!EpochManager::IsTimerStop()){
-            switch(ctx.taas_mode) {
-                case TaasMode::MultiMaster :
-                case TaasMode::Sharding :{
-                    while(!EpochManager::IsTimerStop()) {
-                        while(!EpochMessageSendHandler::SendEpochEndMessage(ctx)) { ///send epoch end flag
-                            usleep(sleep_time);
-                        }
-                    }
-                    break;
-                }
-                case TaasMode::TwoPC : {
-                    goto end;
-                }
-            }
-        }
-        end:
-        return ;
-    }
-
-    void WorkerForEpochBackUpEndFlagSendThreadMain(const Context& ctx) {
-        SetCPU();
-        EpochMessageReceiveHandler receiveHandler;
-        receiveHandler.Init(ctx, 0);
-        while(!EpochManager::IsInitOK()) usleep(sleep_time);
-        while(!EpochManager::IsTimerStop()){
-            switch(ctx.taas_mode) {
-                case TaasMode::MultiMaster :
-                case TaasMode::Sharding :{
-                    while(!EpochManager::IsTimerStop()) {
-                        while(! EpochMessageSendHandler::SendBackUpEpochEndMessage(ctx)) { ///send epoch backup end message
-                            usleep(sleep_time);
-                        }
-                    }
-                    break;
-                }
-                case TaasMode::TwoPC : {
-                    goto end;
-                }
-            }
-        }
-        end:
         return ;
     }
 
@@ -243,10 +58,7 @@ namespace Taas {
         SetCPU();
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while(!EpochManager::IsTimerStop()){
-            while(EpochManager::GetPhysicalEpoch() <= EpochManager::GetLogicalEpoch() + ctx.kDelayEpochNum ||
-                  !CheckRedoLogPushDownState(ctx)) { //this check do in mot push down
-                usleep(logical_sleep_timme);
-            }
+            CheckRedoLogPushDownState(ctx);
         }
     }
 

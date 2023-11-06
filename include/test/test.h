@@ -15,5 +15,6 @@
 
 namespace Taas {
     void Client(const Context& ctx, uint64_t id);
+    void LevelDBClient(const Context& ctx, uint64_t id);
 }
 #endif //TAAS_TEST_H

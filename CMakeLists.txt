@@ -53,6 +53,14 @@ CPMAddPackage(
         GIT_SHALLOW TRUE
 )
 
+### greg7mdp/gtl gel template repo
+CPMAddPackage(
+        NAME gtl  ## include the project name
+        GITHUB_REPOSITORY greg7mdp/gtl
+        VERSION 1.1.5
+#        GIT_TAG 0f8cecf52c91bb8f265d6ff2fc32cd8144c987a6
+)
+
 CPMAddPackage(
         NAME yaml-cpp
         GITHUB_REPOSITORY jbeder/yaml-cpp
@@ -129,7 +137,24 @@ find_package(brpc_install
 find_package(thrift_install
         CONFIG
         REQUIRED
-        PATHS ${PROJECT_SOURCE_DIR}/vendor        )
+        PATHS ${PROJECT_SOURCE_DIR}/vendor
+ )
+
+### Gtest odbc
+find_package(odbc_install
+        CONFIG
+        REQUIRED
+        PATHS ${PROJECT_SOURCE_DIR}/vendor
+)
+
+### Gtest nebula
+find_package(nebula_install
+        CONFIG
+        REQUIRED
+        PATHS ${PROJECT_SOURCE_DIR}/vendor
+)
+
+
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/vendor/tools.cmake)
 
@@ -172,7 +197,7 @@ add_library(
         ${PROJECT_NAME}
         ${headers}
         ${sources}
-        )
+)
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 
 
@@ -198,6 +223,9 @@ SET(COMMON_DEPENDENCIES
         crypto
         # Use thrift2 to connect HBase
         thriftd
+        gtl
+        nebula_graph_client
+        odbc
         )
 
 # Link dependencies

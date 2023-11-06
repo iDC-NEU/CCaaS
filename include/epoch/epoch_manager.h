@@ -10,8 +10,9 @@
 #include "tools/atomic_counters.h"
 #include "tools/context.h"
 
-#include <unistd.h>
+#include "proto/transaction.pb.h"
 
+#include <unistd.h>
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -23,7 +24,7 @@
 
 namespace Taas {
 
-    extern uint64_t sleep_time, logical_sleep_timme;
+    extern const uint64_t sleep_time, logical_sleep_timme, storage_sleep_time, merge_sleep_time, message_sleep_time;
     extern uint64_t cache_server_available, total_commit_txn_num;
     extern std::atomic<uint64_t> merge_epoch , abort_set_epoch ,
             commit_epoch , redo_log_epoch , clear_epoch ;
@@ -34,7 +35,14 @@ namespace Taas {
     extern void EpochLogicalTimerManagerThreadMain(const Context& ctx);
     extern void EpochPhysicalTimerManagerThreadMain(Context ctx);
     std::string PrintfToString(const char* format, ...);
-    void OUTPUTLOG(const Context& ctx, const std::string& s, uint64_t& epoch);
+    void OUTPUTLOG(const std::string& s, uint64_t& epoch);
+
+    class MultiModelTxn{
+    public:
+        uint64_t total_txn_num, received_txn_num;
+        std::shared_ptr<proto::Transaction> kv, sql, gql;
+    };
+
     class EpochManager {
     private:
         static bool timerStop;
@@ -102,10 +110,10 @@ namespace Taas {
         }
 
         static void EpochCacheSafeCheck() {
-            if(((GetLogicalEpoch() % ctx.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength)) ||
-                    ((GetPushDownEpoch() % ctx.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.kCacheMaxLength))) {
+            if(((GetLogicalEpoch() % ctx.taasContext.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.taasContext.kCacheMaxLength)) ||
+                    ((GetPushDownEpoch() % ctx.taasContext.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.taasContext.kCacheMaxLength))) {
                 uint64_t i = 0;
-                OUTPUTLOG(ctx, "Assert", reinterpret_cast<uint64_t &>(i));
+                OUTPUTLOG("Assert", reinterpret_cast<uint64_t &>(i));
                 printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
                 printf("+++++++++++++++Fata : Cache Size exceeded!!! +++++++++++++++++++++\n");
                 printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");

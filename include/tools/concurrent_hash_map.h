@@ -1,7 +1,6 @@
 //
 // Created by 周慰星 on 11/8/22.
 //
-
 #ifndef TAAS_CONCURRENT_HASH_MAP_H
 #define TAAS_CONCURRENT_HASH_MAP_H
 
@@ -233,8 +232,52 @@ namespace Taas {
                 v = _map_temp[k];
                 return true;
             }
+            v = value();
             return false;
         }
+
+        bool try_lock(const key &k, value &v) {
+            std::unordered_map<key, value>& _map_temp = GetMapRef(k);
+            std::unique_lock<std::mutex> lock(GetMutexRef(k));
+            map_iterator iter = _map_temp.find(k);
+            if(iter != _map_temp.end()){
+                if(_map_temp[k] == v) { /// locked already by itself
+                    return true;
+                }
+                else if(_map_temp[k] == "" || _map_temp[k] == "0"){
+                    _map_temp[k] = v;
+                    return true;
+                }
+                else { /// locked already by others
+                    return false;
+                }
+            }
+            _map_temp[k] = v;
+            return true;
+        }
+
+
+        value unlock(const key &k, value &v) {
+            std::unordered_map<key, value>& _map_temp = GetMapRef(k);
+            std::unique_lock<std::mutex> lock(GetMutexRef(k));
+            map_iterator iter = _map_temp.find(k);
+            if(iter != _map_temp.end()){
+                if(_map_temp[k] == v) { /// locked already by itself
+                    _map_temp[k] = "";
+                }
+                else if(_map_temp[k] == "" || _map_temp[k] == "0" || _map_temp[k] == "-1"){
+                    _map_temp[k] = "";
+                }
+                else { /// locked already by others
+                    /// do nothing
+                }
+            }
+            value tmp = _map_temp[k];
+            lock.unlock();
+            return tmp;
+        }
+
+
 
         bool contain(const key &k){
             std::mutex& _mutex_temp = GetMutexRef(k);
@@ -267,7 +310,7 @@ namespace Taas {
             return ans;
         }
 
-        bool getValue(std::vector<key> &keys, std::vector<value> &values) {
+        bool getValue(std::basic_string<char> keys, std::vector<value> &values) {
             for(uint64_t i = 0; i < _N; i ++){
                 std::unique_lock<std::mutex> lock(_mutex[i]);
             }
