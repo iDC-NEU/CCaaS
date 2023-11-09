@@ -378,7 +378,7 @@ namespace Taas {
       case proto::TxnType::Prepare_ok: {
         // 修改元数据
           tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
-          std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
+          auto txn_state_struct = std::make_shared<TwoPCTxnStateStruct>();
           txn_state_map.getValue(tid, txn_state_struct);
         txn_state_struct->two_pc_prepare_reply.fetch_add(1);
         txn_state_struct->two_pc_prepare_num.fetch_add(1);
