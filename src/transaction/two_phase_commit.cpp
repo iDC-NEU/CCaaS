@@ -173,7 +173,6 @@ namespace Taas {
   bool TwoPC::Send(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn,
                    proto::TxnType txn_type) {
     // assert(to_whom != ctx.txn_node_ip_index);
-    txn.set_server_id(ctx.taasContext.txn_node_ip_index);
     if (to_whom == ctx.taasContext.txn_node_ip_index){
         auto msg = std::make_unique<proto::Message>();
         auto* txn_temp = msg->mutable_txn();
@@ -322,11 +321,10 @@ namespace Taas {
 //          if (Two_PL_LOCK_WAIT(*txn_ptr)) {
           // 发送lock ok
          auto to_whom = static_cast<uint64_t >(txn_ptr->server_id());
-//          Send(ctx, epoch, ctx.taasContext.txn_node_ip_index, *txn_ptr, proto::TxnType::Lock_ok);
-            Send(ctx, epoch, to_whom, *txn_ptr, proto::TxnType::Lock_ok);
+         Send(ctx, epoch, to_whom, *txn_ptr, proto::TxnType::Lock_ok);
         } else {
           // 发送lock abort
-            auto to_whom = static_cast<uint64_t >(txn_ptr->server_id());
+          auto to_whom = static_cast<uint64_t >(txn_ptr->server_id());
           Send(ctx, epoch, to_whom, *txn_ptr, proto::TxnType::Lock_abort);
         }
         break;
@@ -348,7 +346,7 @@ namespace Taas {
         txn_state_struct->two_pl_num.fetch_add(1);
 
         // 所有应答收到
-          LOG(INFO) << "two_pl_reply = " << txn_state_struct->two_pl_reply.load() << "\ttxn_sharding_num = " << txn_state_struct->txn_sharding_num;
+        LOG(INFO) << "two_pl_reply = " << txn_state_struct->two_pl_reply.load() << "\ttxn_sharding_num = " << txn_state_struct->txn_sharding_num;
         if (txn_state_struct->two_pl_reply.load() == txn_state_struct->txn_sharding_num) {
             LOG(INFO) << "Lock_ok two_pl_reply.load()" ;
             if (Check_2PL_complete(*txn_ptr, txn_state_struct)) {
