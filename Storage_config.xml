@@ -5,12 +5,12 @@
     <mot_thread_num>1</mot_thread_num><!--MOT port 5556 & Nebula port 5557-->
 
     <!--    tikv config -->
-    <is_tikv_enable>0</is_tikv_enable>
-    <tikv_ip>47.92.250.79:2379</tikv_ip>
+    <is_tikv_enable>1</is_tikv_enable>
+    <tikv_ip>202.199.6.123:2379</tikv_ip>
     <tikv_thread_num>5</tikv_thread_num>
 
     <!--    leveldb config -->
-    <is_leveldb_enable>1</is_leveldb_enable>
+    <is_leveldb_enable>0</is_leveldb_enable>
     <leveldb_ip>127.0.0.1:2379</leveldb_ip>
 <!--    <leveldb_ip>202.199.6.181:2379</leveldb_ip>-->
     <leveldb_thread_num>1</leveldb_thread_num>

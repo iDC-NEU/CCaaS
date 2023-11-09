@@ -23,11 +23,11 @@
     <epoch_message_thread_num>4</epoch_message_thread_num> <!--handle remote server message, be same as the core num-->
 
     <glog_path>/tmp</glog_path>
-    <print_mode_size>10000</print_mode_size>
+    <print_mode_size>500</print_mode_size>
 <!-- end TaaS config-->
 <!-- test config   -->
     <duration_time_us>0</duration_time_us>
-    <test_client_num>5</test_client_num>
+    <test_client_num>0</test_client_num>
     <test_key_range>10000</test_key_range>
     <test_txn_op_num>50</test_txn_op_num>
 <!-- end test config   -->

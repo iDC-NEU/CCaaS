@@ -283,20 +283,28 @@ namespace Taas {
         is_epoch_advance_started.store(true);
 
         printf("=============  EpochTimerManager 同步完成，数据库开始正常运行 ============= \n");
+
         auto startTime = now_to_us();
-        while(!EpochManager::IsTimerStop()){
-            usleep(GetSleeptime(ctx));
-            EpochManager::AddPhysicalEpoch();
-            epoch_ ++;
-            logical = EpochManager::GetLogicalEpoch();
-            if(epoch_ % ctx.taasContext.print_mode_size == 0) {
-                LOG(INFO) << "============= Start Physical Epoch : " << epoch_ << ", logical : " << logical << "Time : " << now_to_us() - startTime << "=============\n";
-                OUTPUTLOG("============= Epoch INFO ============= ", logical);
+        if(ctx.taasContext.taasMode == TaasMode::TwoPC) {
+            while(!EpochManager::IsTimerStop()){
+                usleep(10000);
             }
-//            EpochManager::EpochCacheSafeCheck();
         }
-        OUTPUTLOG("============= Epoch INFO ============= ", logical);
-        LOG(INFO) << "Start Physical epoch : " << epoch_ << ", logical : " << logical << "Time : " << now_to_us() - startTime;
+        else {
+            while(!EpochManager::IsTimerStop()){
+                usleep(GetSleeptime(ctx));
+                EpochManager::AddPhysicalEpoch();
+                epoch_ ++;
+                logical = EpochManager::GetLogicalEpoch();
+                if(epoch_ % ctx.taasContext.print_mode_size == 0) {
+                    LOG(INFO) << "============= Start Physical Epoch : " << epoch_ << ", logical : " << logical << "Time : " << now_to_us() - startTime << "=============\n";
+                    OUTPUTLOG("============= Epoch INFO ============= ", logical);
+                }
+                EpochManager::EpochCacheSafeCheck();
+            }
+            OUTPUTLOG("============= Epoch INFO ============= ", logical);
+            LOG(INFO) << "Start Physical epoch : " << epoch_ << ", logical : " << logical << "Time : " << now_to_us() - startTime;
+        }
         printf("EpochTimerManager End!!!\n");
     }
 

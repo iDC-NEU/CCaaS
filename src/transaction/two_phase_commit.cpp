@@ -28,8 +28,8 @@ namespace Taas {
   void TwoPC::ClientTxn_Init() {
     // txn_state_struct 记录当前事务的分片个数，完成个数
     totalTxnNumber.fetch_add(1);
-      txn_ptr->set_csn(now_to_us());
-      txn_ptr->set_server_id(ctx.taasContext.txn_node_ip_index);
+    txn_ptr->set_csn(now_to_us());
+    txn_ptr->set_server_id(ctx.taasContext.txn_node_ip_index);
     tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
     txn_state_map.insert(tid, std::make_shared<Taas::TwoPCTxnStateStruct>(sharding_num, 0, 0, 0, 0, 0, 0,
                                                                           client_txn));
@@ -437,7 +437,7 @@ namespace Taas {
                 SendToClient(ctx, *txn_ptr, proto::TxnType::CommittedTxn, proto::TxnState::Commit);
                 if(txn_ptr->server_id() == ctx.taasContext.txn_node_ip_index) {
                     // TODO: refering to RedoLoger::RedoLog(txn_ptr);
-                    txn_ptr->set_commit_epoch(0);
+                    txn_ptr->set_commit_epoch(EpochManager::GetPushDownEpoch());
                     RedoLoger::RedoLog(txn_ptr);
                 }
                 // TODO: ValidateReadSet

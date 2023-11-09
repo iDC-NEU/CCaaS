@@ -36,9 +36,11 @@ namespace Taas {
       // 工具
     struct Comparator {
       bool operator()(const std::string& x1, const std::string& x2) const{
-        int int_a = std::stoi(x1);
-        int int_b = std::stoi(x2);
-        return int_a < int_b;
+        return x1 < x2;
+//        if(x1 <x2))
+//            return true;
+//        else
+//            return false;
       }
     };
 
@@ -151,7 +153,7 @@ namespace Taas {
     static uint64_t  sharding_num;
     static Context ctx;
     std::string tid;  // 记录当前tid
-    std::map<std::string, uint64_t , Comparator> key_sorted; // first is the key/row
+    std::map<std::string, uint64_t> key_sorted; // first is the key/row
 
     bool res, sleep_flag;
 
