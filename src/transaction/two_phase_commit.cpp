@@ -173,18 +173,18 @@ namespace Taas {
   bool TwoPC::Send(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn,
                    proto::TxnType txn_type) {
     // assert(to_whom != ctx.txn_node_ip_index);
-      if (to_whom == ctx.taasContext.txn_node_ip_index){
-          auto msg = std::make_unique<proto::Message>();
-          auto* txn_temp = msg->mutable_txn();
-          *(txn_temp) = txn;
-          txn_temp->set_txn_type(txn_type);
-          auto serialized_txn_str = std::string();
-          Gzip(msg.get(), &serialized_txn_str);
-          void *data = static_cast<void *>(const_cast<char *>(serialized_txn_str.data()));
-          MessageQueue::listen_message_epoch_queue->enqueue(
-                  std::make_unique<zmq::message_t>(data, serialized_txn_str.size()));
-          return true;
-      }
+    if (to_whom == ctx.taasContext.txn_node_ip_index){
+        auto msg = std::make_unique<proto::Message>();
+        auto* txn_temp = msg->mutable_txn();
+        *(txn_temp) = txn;
+        txn_temp->set_txn_type(txn_type);
+        auto serialized_txn_str = std::string();
+        Gzip(msg.get(), &serialized_txn_str);
+        void *data = static_cast<void *>(const_cast<char *>(serialized_txn_str.data()));
+        MessageQueue::listen_message_txn_queue->enqueue(
+                std::make_unique<zmq::message_t>(data, serialized_txn_str.size()));
+        return true;
+    }
     auto msg = std::make_unique<proto::Message>();
     auto* txn_temp = msg->mutable_txn();
     *(txn_temp) = txn;
@@ -334,6 +334,7 @@ namespace Taas {
         tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
         std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
         txn_state_map.getValue(tid, txn_state_struct);
+        if(txn_state_struct == nullptr) txn_state_struct = std::make_shared<TwoPCTxnStateStruct>();
 
         txn_state_struct->two_pl_reply.fetch_add(1);
         txn_state_struct->two_pl_num.fetch_add(1);
@@ -377,9 +378,11 @@ namespace Taas {
       }
       case proto::TxnType::Prepare_ok: {
         // 修改元数据
-          tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
-          auto txn_state_struct = std::make_shared<TwoPCTxnStateStruct>();
-          txn_state_map.getValue(tid, txn_state_struct);
+        tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
+        std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
+        txn_state_map.getValue(tid, txn_state_struct);
+        if(txn_state_struct == nullptr) txn_state_struct = std::make_shared<TwoPCTxnStateStruct>();
+
         txn_state_struct->two_pc_prepare_reply.fetch_add(1);
         txn_state_struct->two_pc_prepare_num.fetch_add(1);
         // 当所有应答已经收到
@@ -421,8 +424,12 @@ namespace Taas {
         // 与上相同
         // 修改元数据
         tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
+//        std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
+//        txn_state_map.getValue(tid, txn_state_struct);
         std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
         txn_state_map.getValue(tid, txn_state_struct);
+        if(txn_state_struct == nullptr) txn_state_struct = std::make_shared<TwoPCTxnStateStruct>();
+
         txn_state_struct->two_pc_commit_reply.fetch_add(1);
         txn_state_struct->two_pc_commit_num.fetch_add(1);
 
