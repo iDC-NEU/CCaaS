@@ -81,7 +81,7 @@ namespace Taas {
                 if (txn_ptr == nullptr || txn_ptr->txn_type() == proto::TxnType::NullMark) {
                     continue;
                 }
-                hbase_txn.connect(ctx.kHbaseIP,9090);
+                hbase_txn.connect(ctx.taasContext.kHbaseIP,9090);
                 try{
                     total_commit_txn_num.fetch_add(1);
                     for (auto i = 0; i < txn_ptr->row_size(); i++) {
