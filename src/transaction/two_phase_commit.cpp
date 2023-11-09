@@ -181,7 +181,7 @@ namespace Taas {
         auto serialized_txn_str = std::string();
         Gzip(msg.get(), &serialized_txn_str);
         void *data = static_cast<void *>(const_cast<char *>(serialized_txn_str.data()));
-        MessageQueue::listen_message_txn_queue->enqueue(
+        MessageQueue::listen_message_epoch_queue->enqueue(
                 std::make_unique<zmq::message_t>(data, serialized_txn_str.size()));
         return true;
     }
@@ -314,11 +314,13 @@ namespace Taas {
 
     switch (txn_ptr->txn_type()) {
       case proto::TxnType::ClientTxn: {
+        LOG(INFO) << "ClientTxn" ;
         ClientTxn_Init();
         Sharding_2PL();
         break;
       }
       case proto::TxnType::RemoteServerTxn: {
+          LOG(INFO) << "RemoteServerTxn" ;
         if (Two_PL_LOCK(*txn_ptr)) {
 //          if (Two_PL_LOCK_WAIT(*txn_ptr)) {
           // 发送lock ok
@@ -330,6 +332,7 @@ namespace Taas {
         break;
       }
       case proto::TxnType::Lock_ok: {
+          LOG(INFO) << "Lock_ok" ;
         // 修改元数据
         tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
         std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
@@ -359,6 +362,7 @@ namespace Taas {
         break;
       }
       case proto::TxnType::Lock_abort: {
+          LOG(INFO) << "Lock_abort" ;
         // 修改元数据, no need
 //        TwoPCTxnStateStruct txn_state_struct;
 //        txn_state_map.getValue(tid, txn_state_struct);
@@ -377,6 +381,7 @@ namespace Taas {
         break;
       }
       case proto::TxnType::Prepare_ok: {
+      LOG(INFO) << "Prepare_ok" ;
         // 修改元数据
         tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
         std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
@@ -405,6 +410,7 @@ namespace Taas {
         break;
       }
       case proto::TxnType::Prepare_abort: {
+          LOG(INFO) << "Prepare_abort" ;
         // 修改元数据, no need
         // 直接发送abort
         for (uint64_t i = 0; i < sharding_num; i++) {
@@ -416,11 +422,13 @@ namespace Taas {
         break;
       }
       case proto::TxnType::Commit_req: {
+          LOG(INFO) << "Commit_req" ;
         // 日志操作等等，总之返回Commit_ok
         Send(ctx, epoch, ctx.taasContext.txn_node_ip_index, *txn_ptr, proto::TxnType::Commit_ok);
         break;
       }
       case proto::TxnType::Commit_ok: {
+          LOG(INFO) << "Commit_ok" ;
         // 与上相同
         // 修改元数据
         tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
@@ -461,6 +469,7 @@ namespace Taas {
         break;
       }
       case proto::TxnType::Commit_abort: {
+          LOG(INFO) << "Commit_abort" ;
         // 与上相同
         // TwoPCTxnStateStruct txn_state_struct;
         // txn_state_map.getValue(tid, txn_state_struct);
@@ -474,6 +483,7 @@ namespace Taas {
         break;
       }
       case proto::TxnType::Abort_txn: {
+          LOG(INFO) << "Abort_txn" ;
           Two_PL_UNLOCK(*txn_ptr);
         break;
       }
