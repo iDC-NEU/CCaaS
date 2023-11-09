@@ -310,13 +310,13 @@ namespace Taas {
 
     switch (txn_ptr->txn_type()) {
       case proto::TxnType::ClientTxn: {
-        LOG(INFO) << "ClientTxn" ;
+//        LOG(INFO) << "ClientTxn" ;
         ClientTxn_Init();
         Sharding_2PL();
         break;
       }
       case proto::TxnType::RemoteServerTxn: {
-          LOG(INFO) << "RemoteServerTxn" ;
+//          LOG(INFO) << "RemoteServerTxn" ;
         if (Two_PL_LOCK(*txn_ptr)) {
 //          if (Two_PL_LOCK_WAIT(*txn_ptr)) {
           // 发送lock ok
@@ -330,13 +330,13 @@ namespace Taas {
         break;
       }
       case proto::TxnType::Lock_ok: {
-          LOG(INFO) << "Lock_ok" ;
+//          LOG(INFO) << "Lock_ok" ;
         // 修改元数据
         tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
         std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
         txn_state_map.getValue(tid, txn_state_struct);
         if(txn_state_struct == nullptr) {
-            LOG(INFO) << "Lock_ok txn_state_struct == nullptr" ;
+//            LOG(INFO) << "Lock_ok txn_state_struct == nullptr" ;
             txn_state_map.insert(tid, std::make_shared<Taas::TwoPCTxnStateStruct>(sharding_num, 0, 0, 0, 0, 0, 0,
                                                                                   client_txn));
             txn_state_map.getValue(tid, txn_state_struct);
@@ -346,9 +346,9 @@ namespace Taas {
         txn_state_struct->two_pl_num.fetch_add(1);
 
         // 所有应答收到
-        LOG(INFO) << "two_pl_reply = " << txn_state_struct->two_pl_reply.load() << "\ttxn_sharding_num = " << txn_state_struct->txn_sharding_num;
+//        LOG(INFO) << "two_pl_reply = " << txn_state_struct->two_pl_reply.load() << "\ttxn_sharding_num = " << txn_state_struct->txn_sharding_num;
         if (txn_state_struct->two_pl_reply.load() == txn_state_struct->txn_sharding_num) {
-            LOG(INFO) << "Lock_ok two_pl_reply.load()" ;
+//            LOG(INFO) << "Lock_ok two_pl_reply.load()" ;
             if (Check_2PL_complete(*txn_ptr, txn_state_struct)) {
             // 2pl完成，开始2pc prepare阶段
             for (uint64_t i = 0; i < sharding_num; i++) {
@@ -367,7 +367,7 @@ namespace Taas {
         break;
       }
       case proto::TxnType::Lock_abort: {
-          LOG(INFO) << "Lock_abort" ;
+//          LOG(INFO) << "Lock_abort" ;
         // 修改元数据, no need
 //        TwoPCTxnStateStruct txn_state_struct;
 //        txn_state_map.getValue(tid, txn_state_struct);
@@ -387,13 +387,13 @@ namespace Taas {
         break;
       }
       case proto::TxnType::Prepare_ok: {
-      LOG(INFO) << "Prepare_ok" ;
+//      LOG(INFO) << "Prepare_ok" ;
         // 修改元数据
         tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
         std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
         txn_state_map.getValue(tid, txn_state_struct);
           if(txn_state_struct == nullptr) {
-              LOG(INFO) << "Prepare_ok txn_state_struct == nullptr" ;
+//              LOG(INFO) << "Prepare_ok txn_state_struct == nullptr" ;
               txn_state_map.insert(tid, std::make_shared<Taas::TwoPCTxnStateStruct>(sharding_num, 0, 0, 0, 0, 0, 0,
                                                                                     client_txn));
               txn_state_map.getValue(tid, txn_state_struct);
@@ -401,7 +401,7 @@ namespace Taas {
         txn_state_struct->two_pc_prepare_reply.fetch_add(1);
         txn_state_struct->two_pc_prepare_num.fetch_add(1);
         // 当所有应答已经收到
-          LOG(INFO) << "two_pc_prepare_reply = " << txn_state_struct->two_pc_prepare_reply.load() << "\ttxn_sharding_num = " << txn_state_struct->txn_sharding_num;
+//          LOG(INFO) << "two_pc_prepare_reply = " << txn_state_struct->two_pc_prepare_reply.load() << "\ttxn_sharding_num = " << txn_state_struct->txn_sharding_num;
         if (txn_state_struct->two_pc_prepare_reply.load() == txn_state_struct->txn_sharding_num) {
           if (Check_2PC_Prepare_complete(*txn_ptr, txn_state_struct)) {
             for (uint64_t i = 0; i < sharding_num; i++) {
@@ -421,7 +421,7 @@ namespace Taas {
         break;
       }
       case proto::TxnType::Prepare_abort: {
-          LOG(INFO) << "Prepare_abort" ;
+//          LOG(INFO) << "Prepare_abort" ;
         // 修改元数据, no need
         // 直接发送abort
         for (uint64_t i = 0; i < sharding_num; i++) {
@@ -433,14 +433,14 @@ namespace Taas {
         break;
       }
       case proto::TxnType::Commit_req: {
-          LOG(INFO) << "Commit_req" ;
+//          LOG(INFO) << "Commit_req" ;
         // 日志操作等等，总之返回Commit_ok
           auto to_whom = static_cast<uint64_t >(txn_ptr->server_id());
         Send(ctx, epoch, to_whom, *txn_ptr, proto::TxnType::Commit_ok);
         break;
       }
       case proto::TxnType::Commit_ok: {
-          LOG(INFO) << "Commit_ok" ;
+//          LOG(INFO) << "Commit_ok" ;
         // 与上相同
         // 修改元数据
         tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
@@ -449,7 +449,7 @@ namespace Taas {
         std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
         txn_state_map.getValue(tid, txn_state_struct);
           if(txn_state_struct == nullptr) {
-              LOG(INFO) << "Commit_ok txn_state_struct == nullptr" ;
+//              LOG(INFO) << "Commit_ok txn_state_struct == nullptr" ;
               txn_state_map.insert(tid, std::make_shared<Taas::TwoPCTxnStateStruct>(sharding_num, 0, 0, 0, 0, 0, 0,
                                                                                     client_txn));
               txn_state_map.getValue(tid, txn_state_struct);
@@ -485,7 +485,7 @@ namespace Taas {
         break;
       }
       case proto::TxnType::Commit_abort: {
-          LOG(INFO) << "Commit_abort" ;
+//          LOG(INFO) << "Commit_abort" ;
         // 与上相同
         // TwoPCTxnStateStruct txn_state_struct;
         // txn_state_map.getValue(tid, txn_state_struct);
@@ -499,7 +499,7 @@ namespace Taas {
         break;
       }
       case proto::TxnType::Abort_txn: {
-          LOG(INFO) << "Abort_txn" ;
+//          LOG(INFO) << "Abort_txn" ;
           Two_PL_UNLOCK(*txn_ptr);
         break;
       }
