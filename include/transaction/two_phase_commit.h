@@ -116,7 +116,7 @@ namespace Taas {
     bool HandleReceivedTxn();      // 处理接收到的事务（coordinator/applicant）
     bool SetMessageRelatedCountersInfo();
 
-    void OUTPUTLOG(const std::string& s); // print logs
+    void OUTPUTLOG(const std::string& s, uint64_t time); // print logs
 
 
     // debug map
