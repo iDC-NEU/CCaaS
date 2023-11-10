@@ -53,6 +53,7 @@ namespace Taas {
         key_sorted.clear();
         // k-v : row_key txn
       for (uint64_t i = 0; i < (uint64_t) txn.row_size(); i++) {
+          if (txn.row(i).op_type() == proto::OpType::Read) continue;
           key_sorted[txn.row(i).key()] =  i;
       }
     }
