@@ -13,7 +13,8 @@ namespace Taas {
     Context TwoPC::ctx;
     uint64_t TwoPC::sharding_num;
     std::atomic<uint64_t> TwoPC::successTxnNumber , TwoPC::totalTxnNumber ,
-            TwoPC::failedTxnNumber ,TwoPC::lockFailed, TwoPC::validateFailed;
+            TwoPC::failedTxnNumber ,TwoPC::lockFailed, TwoPC::validateFailed, TwoPC::totalTime,
+            TwoPC::successTime, TwoPC::failedTime;
     concurrent_unordered_map<std::string, std::string> TwoPC::row_lock_map;
     concurrent_unordered_map<std::string, std::shared_ptr<TwoPCTxnStateStruct>> TwoPC::txn_state_map;
     std::mutex TwoPC::mutex;
@@ -72,7 +73,6 @@ namespace Taas {
 
     std::atomic<uint64_t> key_lock_num = 0;
 //    auto tmp_tid = tid;
-//      printSorted(1);
     for (auto iter = key_sorted.begin(); iter != key_sorted.end(); iter++) {
         /// read needs lock
         if (row_lock_map.try_lock(iter->first, tid)){
@@ -132,7 +132,6 @@ namespace Taas {
       auto tmp_keySorted = key_sorted;
     // 事务完全提交或中途abort调用，无需返回coordinator?
       tid = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
-//      printSorted(2);
     for (auto iter = key_sorted.begin(); iter != key_sorted.end(); iter++) {
         auto tmp = row_lock_map.unlock(iter->first, tid);
         if (tmp != "") {
@@ -204,12 +203,17 @@ namespace Taas {
     // commit/abort时发送
     // 不是本地事务不进行回复
       if (txn.server_id() != ctx.taasContext.txn_node_ip_index) return true;
-
+      uint64_t currTxnTime = now_to_us() - txn.csn();
       if (txn_state == proto::TxnState::Commit){
           successTxnNumber.fetch_add(1);
-          if (successTxnNumber % 100 == 0) OUTPUTLOG("============= 2PC + 2PL INFO =============", txn.csn());
+          successTime.fetch_add(currTxnTime);
+          totalTime.fetch_add(currTxnTime);
+          if (successTxnNumber % 100 == 0) OUTPUTLOG("============= 2PC + 2PL INFO =============", currTxnTime);
       } else {
           failedTxnNumber.fetch_add(1);
+          failedTime.fetch_add(currTxnTime);
+          totalTime.fetch_add(currTxnTime);
+          if (failedTxnNumber % 100 == 0) OUTPUTLOG("============= 2PC + 2PL INFO =============", currTxnTime);
       }
       // only coordinator can send to client
 
@@ -243,7 +247,9 @@ namespace Taas {
     failedTxnNumber.store(0);
     lockFailed.store(0);
     validateFailed.store(0);
-
+    totalTime.store(0);
+    successTime.store(0);
+    failedTime.store(0);
     // static init
     return true;
   }
@@ -530,9 +536,14 @@ namespace Taas {
   }
 
   void TwoPC::OUTPUTLOG(const std::string& s, uint64_t time){
+      // TODO: calculate the locking count
       LOG(INFO) << s.c_str() <<
-                "\ntotalTxnNumber: " << totalTxnNumber << "\t\tfailedTxnNumber: " << failedTxnNumber<<"\t\tsuccessTxnNumber: " << successTxnNumber <<
-                "\nlockFailed: " << lockFailed << "\t\tvalidateFailed: " << validateFailed << "\t\ttime:" << now_to_us() - time<<
+                "\ntotalTxnNumber: " << totalTxnNumber << "\t\t\tfailedTxnNumber: " << failedTxnNumber<<"\t\t\tsuccessTxnNumber: " << successTxnNumber <<
+                "\nlockFailed: " << lockFailed << "\t\t\tvalidateFailed: " << validateFailed << "\t\t\tcurTxnTime: " << time<<
+                "\n[TotalTxn] avgTotalTxnTime: " << totalTime/totalTxnNumber << "\t\t\t totalTime: " << totalTime <<
+                "\n[SuccessTxn] avgSuccessTxnTime: " << successTime/successTxnNumber << "\t\t\t successTime: " << successTime <<
+                "\n[FailedTxn] avgFailedTxnTime: " << failedTime/failedTxnNumber << "\t\t\t failedTime: " << failedTime <<
+                "\n[Lock] lockedRowCount: " << row_lock_map.countLock() <<
                 "\n************************************************ ";
 
   }

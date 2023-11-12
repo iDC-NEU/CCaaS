@@ -277,6 +277,19 @@ namespace Taas {
             return tmp;
         }
 
+        uint64_t countLock(){
+           uint64_t count = 0;
+            for(uint64_t i = 0; i < _N; i ++){
+                std::unique_lock<std::mutex> lock(_mutex[i]);
+                for (const auto& pair : _map[i]) {
+                    if (!pair.first.empty() && pair.first != "" && pair.first != "-1" && pair.first != "0") {
+                        count++;
+                    }
+                }
+            }
+           return count;
+        }
+
 
 
         bool contain(const key &k){

@@ -108,7 +108,7 @@ namespace Taas {
     bool Check_2PC_Commit_complete(proto::Transaction& txn, std::shared_ptr<TwoPCTxnStateStruct>);
     bool Send(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn,
               proto::TxnType txn_type);
-    bool  SendToClient(const Context& ctx, proto::Transaction& txn, proto::TxnType txn_type,
+    bool SendToClient(const Context& ctx, proto::Transaction& txn, proto::TxnType txn_type,
                    proto::TxnState txn_state);
     static bool Init(const Taas::Context& ctx_, uint64_t id);
       bool HandleClientMessage();// 处理接收到的消息 from client
@@ -169,7 +169,7 @@ namespace Taas {
     uint64_t sharding_num_struct_progressing, two_pl_num_progressing,
         two_pc_prepare_num_progressing, two_pc_commit_num_progressing;
     static std::atomic<uint64_t> successTxnNumber , totalTxnNumber, failedTxnNumber,
-        lockFailed, validateFailed;
+        lockFailed, validateFailed, totalTime, successTime, failedTime;
   };
 
 }  // namespace Taas
