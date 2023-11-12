@@ -539,11 +539,11 @@ namespace Taas {
   void TwoPC::OUTPUTLOG(const std::string& s, uint64_t time){
       // TODO: calculate the locking count
       LOG(INFO) << s.c_str() <<
-                "\ntotalTxnNumber: " << totalTxnNumber << "\t\t\tfailedTxnNumber: " << failedTxnNumber<<"\t\t\tsuccessTxnNumber: " << successTxnNumber <<
-                "\nlockFailed: " << lockFailed << "\t\t\tvalidateFailed: " << validateFailed << "\t\t\tcurTxnTime: " << time<<
+                "\ntotalTxnNumber: " << totalTxnNumber.load() << "\t\t\tfailedTxnNumber: " << failedTxnNumber.load() <<"\t\t\tsuccessTxnNumber: " << successTxnNumber.load() <<
+                "\nlockFailed: " << lockFailed.load() << "\t\t\tvalidateFailed: " << validateFailed.load() << "\t\t\tcurTxnTime: " << time <<
                 "\n[TotalTxn] avgTotalTxnTime: " << totalTime/totalTxnNumber << "\t\t\t totalTime: " << totalTime <<
-                "\n[SuccessTxn] avgSuccessTxnTime: " << successTime/successTxnNumber << "\t\t\t successTime: " << successTime <<
-                "\n[FailedTxn] avgFailedTxnTime: " << failedTime/failedTxnNumber << "\t\t\t failedTime: " << failedTime <<
+                "\n[SuccessTxn] avgSuccessTxnTime: " << (successTxnNumber.load() == 0 ? "Nan": std::to_string(successTime.load()/successTxnNumber.load())) << "\t\t\t successTime: " << successTime.load() <<
+                "\n[FailedTxn] avgFailedTxnTime: " << (failedTxnNumber.load() == 0 ? "Nan": std::to_string(failedTime.load()/failedTxnNumber.load())) << "\t\t\t failedTime: " << failedTime.load() <<
                 "\n[Lock] lockedRowCount: " << row_lock_map.countLock() <<
                 "\n************************************************ ";
 
