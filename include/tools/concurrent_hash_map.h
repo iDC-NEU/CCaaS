@@ -273,7 +273,6 @@ namespace Taas {
                 }
             }
             value tmp = _map_temp[k];
-            lock.unlock();
             return tmp;
         }
 
@@ -282,7 +281,7 @@ namespace Taas {
             for(uint64_t i = 0; i < _N; i ++){
                 std::unique_lock<std::mutex> lock(_mutex[i]);
                 for (const auto& pair : _map[i]) {
-                    if (!pair.first.empty() && pair.first != "" && pair.first != "-1" && pair.first != "0") {
+                    if (!pair.second.empty() && pair.second != "" && pair.second != "-1" && pair.second != "0") {
                         count++;
                     }
                 }
