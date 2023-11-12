@@ -305,7 +305,7 @@ namespace Taas {
   bool TwoPC::HandleReceivedTxn() {
       if (txn_ptr->txn_type() == proto::TxnType::ClientTxn) {
           ClientTxn_Init();
-          Sharding_2PL();
+          Sharding_2PL();       // sharding and send to remote servers
           return true;
       }
 
@@ -316,13 +316,11 @@ namespace Taas {
 
     switch (txn_ptr->txn_type()) {
       case proto::TxnType::ClientTxn: {
-//        LOG(INFO) << "ClientTxn" ;
         ClientTxn_Init();
         Sharding_2PL();
         break;
       }
       case proto::TxnType::RemoteServerTxn: {
-//          LOG(INFO) << "RemoteServerTxn" ;
         if (Two_PL_LOCK(*txn_ptr)) {
 //          if (Two_PL_LOCK_WAIT(*txn_ptr)) {
           // 发送lock ok
@@ -362,13 +360,14 @@ namespace Taas {
                           Send(ctx, epoch, i, *txn_ptr, proto::TxnType::Prepare_req);
                       }
                   } else {
+                      // do nothing
                       // 统一处理abort
-                      for (uint64_t i = 0; i < sharding_num; i++) {
-                          // the unlock request is handled by other threads
-                          Send(ctx, epoch, i, *txn_ptr, proto::TxnType::Abort_txn);
-                      }
-                      // 发送abort给client
-                      SendToClient(ctx, *txn_ptr, proto::TxnType::Abort_txn, proto::TxnState::Abort);
+//                      for (uint64_t i = 0; i < sharding_num; i++) {
+//                          // the unlock request is handled by other threads
+//                          Send(ctx, epoch, i, *txn_ptr, proto::TxnType::Abort_txn);
+//                      }
+//                      // 发送abort给client
+//                      SendToClient(ctx, *txn_ptr, proto::TxnType::Abort_txn, proto::TxnState::Abort);
                   }
               }
           }
@@ -421,12 +420,13 @@ namespace Taas {
                       }
                   } else {
                       // 统一处理abort
-                      for (uint64_t i = 0; i < sharding_num; i++) {
-                          // Send(ctx, sharding_row_vector[i], proto::TxnType::Abort_txn);
-                          Send(ctx, epoch, i, *txn_ptr, proto::TxnType::Abort_txn);
-                      }
-                      // 发送abort给client
-                      SendToClient(ctx, *txn_ptr, proto::TxnType::Abort_txn, proto::TxnState::Abort);
+                      // do nothing
+//                      for (uint64_t i = 0; i < sharding_num; i++) {
+//                          // Send(ctx, sharding_row_vector[i], proto::TxnType::Abort_txn);
+//                          Send(ctx, epoch, i, *txn_ptr, proto::TxnType::Abort_txn);
+//                      }
+//                      // 发送abort给client
+//                      SendToClient(ctx, *txn_ptr, proto::TxnType::Abort_txn, proto::TxnState::Abort);
                   }
               }
           }
@@ -457,7 +457,7 @@ namespace Taas {
           if (txn_ptr->server_id() == ctx.taasContext.txn_node_ip_index) {
               // 与上相同
               // 修改元数据
-              tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
+          tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
 //        std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
 //        txn_state_map.getValue(tid, txn_state_struct);
               std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
@@ -489,10 +489,11 @@ namespace Taas {
                       UpdateReadSet(*txn_ptr);
                   } else {
                       // 统一处理abort
-                      for (uint64_t i = 0; i < sharding_num; i++) {
-                          Send(ctx, epoch, i, *txn_ptr, proto::TxnType::Abort_txn);
-                      }
-                      SendToClient(ctx, *txn_ptr, proto::TxnType::Abort_txn, proto::TxnState::Abort);
+                      // do nothing
+//                      for (uint64_t i = 0; i < sharding_num; i++) {
+//                          Send(ctx, epoch, i, *txn_ptr, proto::TxnType::Abort_txn);
+//                      }
+//                      SendToClient(ctx, *txn_ptr, proto::TxnType::Abort_txn, proto::TxnState::Abort);
                   }
               }
           }
