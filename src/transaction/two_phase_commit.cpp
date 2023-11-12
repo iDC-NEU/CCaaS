@@ -70,13 +70,13 @@ namespace Taas {
   // 2PL 上锁
   bool TwoPC::Two_PL_LOCK(proto::Transaction& txn) {
     // 上锁完成返回到coordinator
-    std::lock_guard<std::mutex>lock(mutex);
+//    std::lock_guard<std::mutex>lock(mutex);
     GetKeySorted(txn);
     tid = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
 
     std::atomic<uint64_t> key_lock_num = 0;
 
-//    LOG(INFO) << "[Before Lock] : " << row_lock_map.countLock()  << " txn lock count : " << key_sorted.size() <<" tid : "<< tid;
+    LOG(INFO) << "[Before Lock] : " << row_lock_map.countLock()  << " txn lock count : " << key_sorted.size() <<" tid : "<< tid;
     for (auto iter = key_sorted.begin(); iter != key_sorted.end(); iter++) {
         /// read needs lock
         if (row_lock_map.try_lock(iter->first, tid)){
@@ -125,7 +125,7 @@ namespace Taas {
 
   // 2PL 解锁
   bool TwoPC::Two_PL_UNLOCK(proto::Transaction& txn) {
-      std::lock_guard<std::mutex>lock(mutex);
+//      std::lock_guard<std::mutex>lock(mutex);
       GetKeySorted(txn);
     // 事务完全提交或中途abort调用，无需返回coordinator?
       tid = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
@@ -133,7 +133,8 @@ namespace Taas {
       for (auto iter = key_sorted.begin(); iter != key_sorted.end(); iter++) {
           row_lock_map.unlock(iter->first, tid);
       }
-      LOG(INFO) << "[After Unlock] : " << row_lock_map.countLock();
+//      if ((successTxnNumber.load() + failedTxnNumber.load()) % 100 == 0)
+        LOG(INFO) << "[After Unlock] : " << row_lock_map.countLock()  << " txn lock count : " << key_sorted.size() <<" tid :" << tid;
     return true;
   }
 
@@ -173,7 +174,7 @@ namespace Taas {
         void *data = static_cast<void *>(const_cast<char *>(serialized_txn_str.data()));
         MessageQueue::listen_message_epoch_queue->enqueue(
                 std::make_unique<zmq::message_t>(data, serialized_txn_str.size()));
-        return true;
+        return MessageQueue::listen_message_epoch_queue->enqueue(nullptr);
     }
     auto msg = std::make_unique<proto::Message>();
     auto* txn_temp = msg->mutable_txn();
@@ -202,13 +203,13 @@ namespace Taas {
           successTime.fetch_add(currTxnTime);
           totalTime.fetch_add(currTxnTime);
 //          OUTPUTLOG("============= 2PC + 2PL INFO =============", currTxnTime);
-          if (successTxnNumber.load() % 100 == 0) OUTPUTLOG("============= 2PC + 2PL INFO =============", currTxnTime);
+          if ((successTxnNumber.load() + failedTxnNumber.load()) % 100 == 0) OUTPUTLOG("============= 2PC + 2PL INFO =============", currTxnTime);
       } else {
           failedTxnNumber.fetch_add(1);
           failedTime.fetch_add(currTxnTime);
           totalTime.fetch_add(currTxnTime);
-//          OUTPUTLOG("============= 2PC + 2PL INFO =============", currTxnTime);
-          if (failedTxnNumber.load() % 100 == 0) OUTPUTLOG("============= 2PC + 2PL INFO =============", currTxnTime);
+//          OUTPUTLOG("============= 2PC + 2PL Failed INFO =============", currTxnTime);
+          if ((successTxnNumber.load() + failedTxnNumber.load()) % 100 == 0) OUTPUTLOG("============= 2PC + 2PL INFO =============", currTxnTime);
       }
       // only coordinator can send to client
 
@@ -366,6 +367,7 @@ namespace Taas {
         // 直接发送abort
           if (txn_ptr->server_id() == ctx.taasContext.txn_node_ip_index) {
               tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
+              LOG(INFO) << "************** Lock abort : "<< tid << " **************";
               std::vector<std::shared_ptr<proto::Transaction>> tmp_vector;
               txn_phase_map.getValue(tid,tmp_vector);
               for (uint64_t i = 0; i < sharding_num; i++) {
