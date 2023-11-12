@@ -18,7 +18,7 @@ namespace Taas {
     concurrent_unordered_map<std::string, std::string> TwoPC::row_lock_map;
     concurrent_unordered_map<std::string, std::shared_ptr<TwoPCTxnStateStruct>> TwoPC::txn_state_map;
     std::mutex TwoPC::mutex;
-    concurrent_unordered_map<uint64_t ,std::vector<std::shared_ptr<proto::Transaction>>>
+    concurrent_unordered_map<std::string ,std::vector<std::shared_ptr<proto::Transaction>>>
             TwoPC::txn_phase_map;
 
     concurrent_unordered_map<std::string, std::string>
@@ -57,8 +57,8 @@ namespace Taas {
       auto row_ptr = sharding_row_vector[GetHashValue(row.key())]->add_row();
       (*row_ptr) = row;
     }
-    auto tmp_csn = txn_ptr->csn();
-    txn_phase_map.insert(tmp_csn,sharding_row_vector);
+    tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
+    txn_phase_map.insert(tid,sharding_row_vector);
 
     // 分片后发送到applicant
     for (uint64_t i = 0; i < sharding_num; i++) {
@@ -133,7 +133,7 @@ namespace Taas {
       for (auto iter = key_sorted.begin(); iter != key_sorted.end(); iter++) {
           row_lock_map.unlock(iter->first, tid);
       }
-//      LOG(INFO) << "[After Unlock] : " << row_lock_map.countLock();
+      LOG(INFO) << "[After Unlock] : " << row_lock_map.countLock();
     return true;
   }
 
@@ -343,8 +343,7 @@ namespace Taas {
                   if (Check_2PL_complete(*txn_ptr, txn_state_struct)) {
                       // 2pl完成，开始2pc prepare阶段
                       std::vector<std::shared_ptr<proto::Transaction>> tmp_vector;
-                      auto tmp_csn = txn_ptr->csn();
-                      txn_phase_map.getValue(tmp_csn,tmp_vector);
+                      txn_phase_map.getValue(tid,tmp_vector);
                       for (uint64_t i = 0; i < sharding_num; i++) {
                           auto to_whom = tmp_vector[i]->sharding_id();
                           Send(ctx, epoch, to_whom, *tmp_vector[i], proto::TxnType::Prepare_req);
@@ -366,9 +365,9 @@ namespace Taas {
       case proto::TxnType::Lock_abort: {
         // 直接发送abort
           if (txn_ptr->server_id() == ctx.taasContext.txn_node_ip_index) {
+              tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
               std::vector<std::shared_ptr<proto::Transaction>> tmp_vector;
-              auto tmp_csn = txn_ptr->csn();
-              txn_phase_map.getValue(tmp_csn,tmp_vector);
+              txn_phase_map.getValue(tid,tmp_vector);
               for (uint64_t i = 0; i < sharding_num; i++) {
                   auto to_whom = tmp_vector[i]->sharding_id();
                   Send(ctx, epoch, to_whom, *tmp_vector[i], proto::TxnType::Abort_txn);
@@ -403,8 +402,7 @@ namespace Taas {
               if (txn_state_struct->two_pc_prepare_reply.load() == txn_state_struct->txn_sharding_num) {
                   if (Check_2PC_Prepare_complete(*txn_ptr, txn_state_struct)) {
                       std::vector<std::shared_ptr<proto::Transaction>> tmp_vector;
-                      auto tmp_csn = txn_ptr->csn();
-                      txn_phase_map.getValue(tmp_csn,tmp_vector);
+                      txn_phase_map.getValue(tid,tmp_vector);
                       for (uint64_t i = 0; i < sharding_num; i++) {
                           auto to_whom = tmp_vector[i]->sharding_id();
                           Send(ctx, epoch, to_whom, *tmp_vector[i], proto::TxnType::Commit_req);
@@ -428,9 +426,9 @@ namespace Taas {
         // 修改元数据, no need
         // 直接发送abort
           if (txn_ptr->server_id() == ctx.taasContext.txn_node_ip_index) {
+              tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
               std::vector<std::shared_ptr<proto::Transaction>> tmp_vector;
-              auto tmp_csn = txn_ptr->csn();
-              txn_phase_map.getValue(tmp_csn,tmp_vector);
+              txn_phase_map.getValue(tid,tmp_vector);
               for (uint64_t i = 0; i < sharding_num; i++) {
                   auto to_whom = tmp_vector[i]->sharding_id();
                   Send(ctx, epoch, to_whom, *tmp_vector[i], proto::TxnType::Abort_txn);
@@ -468,8 +466,7 @@ namespace Taas {
               if (txn_state_struct->two_pc_commit_reply.load() == txn_state_struct->txn_sharding_num) {
                   if (Check_2PC_Commit_complete(*txn_ptr, txn_state_struct)) {
                       std::vector<std::shared_ptr<proto::Transaction>> tmp_vector;
-                      auto tmp_csn = txn_ptr->csn();
-                      txn_phase_map.getValue(tmp_csn,tmp_vector);
+                      txn_phase_map.getValue(tid,tmp_vector);
                       for (uint64_t i = 0; i < sharding_num; i++) {
                           // 解锁 use Abort_xtn type to unlock
                           auto to_whom = tmp_vector[i]->sharding_id();
@@ -497,9 +494,9 @@ namespace Taas {
       case proto::TxnType::Commit_abort: {
         // 直接发送abort
           if (txn_ptr->server_id() == ctx.taasContext.txn_node_ip_index) {
+              tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
               std::vector<std::shared_ptr<proto::Transaction>> tmp_vector;
-              auto tmp_csn = txn_ptr->csn();
-              txn_phase_map.getValue(tmp_csn,tmp_vector);
+              txn_phase_map.getValue(tid,tmp_vector);
               for (uint64_t i = 0; i < sharding_num; i++) {
                   auto to_whom = tmp_vector[i]->sharding_id();
                   Send(ctx, epoch, to_whom, *tmp_vector[i], proto::TxnType::Abort_txn);
@@ -511,7 +508,7 @@ namespace Taas {
       }
       case proto::TxnType::Abort_txn: {
           Two_PL_UNLOCK(*txn_ptr);
-        break;
+          break;
       }
       default:
         break;
