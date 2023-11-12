@@ -76,7 +76,7 @@ namespace Taas {
 
     std::atomic<uint64_t> key_lock_num = 0;
 
-    LOG(INFO) << "[Before Lock] : " << row_lock_map.countLock()  << " txn lock count : " << key_sorted.size() <<" tid : "<< tid;
+//    LOG(INFO) << "[Before Lock] : " << row_lock_map.countLock()  << " txn lock count : " << key_sorted.size() <<" tid : "<< tid;
     for (auto iter = key_sorted.begin(); iter != key_sorted.end(); iter++) {
         /// read needs lock
         if (row_lock_map.try_lock(iter->first, tid)){
@@ -86,7 +86,7 @@ namespace Taas {
             return false;
         }
     }
-    LOG(INFO) << "[After Lock] : " << row_lock_map.countLock();
+//    LOG(INFO) << "[After Lock] : " << row_lock_map.countLock();
     if (!ValidateReadSet(txn)){
        validateFailed.fetch_add(1);
        return false;
@@ -129,11 +129,11 @@ namespace Taas {
       GetKeySorted(txn);
     // 事务完全提交或中途abort调用，无需返回coordinator?
       tid = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
-      LOG(INFO) << "[Before Unlock] : " << row_lock_map.countLock() << " txn unlock count : " << key_sorted.size() <<" tid : " <<tid;
+//      LOG(INFO) << "[Before Unlock] : " << row_lock_map.countLock() << " txn unlock count : " << key_sorted.size() <<" tid : " <<tid;
       for (auto iter = key_sorted.begin(); iter != key_sorted.end(); iter++) {
           row_lock_map.unlock(iter->first, tid);
       }
-      LOG(INFO) << "[After Unlock] : " << row_lock_map.countLock();
+//      LOG(INFO) << "[After Unlock] : " << row_lock_map.countLock();
     return true;
   }
 
@@ -201,7 +201,7 @@ namespace Taas {
           successTxnNumber.fetch_add(1);
           successTime.fetch_add(currTxnTime);
           totalTime.fetch_add(currTxnTime);
-          OUTPUTLOG("============= 2PC + 2PL INFO =============", currTxnTime);
+//          OUTPUTLOG("============= 2PC + 2PL INFO =============", currTxnTime);
           if (successTxnNumber.load() % 100 == 0) OUTPUTLOG("============= 2PC + 2PL INFO =============", currTxnTime);
       } else {
           failedTxnNumber.fetch_add(1);
