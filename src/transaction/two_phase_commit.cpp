@@ -259,6 +259,7 @@ namespace Taas {
   bool TwoPC::HandleClientMessage() {
       while(!EpochManager::IsTimerStop()) {
           if (MessageQueue::listen_message_txn_queue->try_dequeue(message_ptr)) {
+              LOG(INFO) << "receive a client txn message";
               if (message_ptr == nullptr || message_ptr->empty()) continue;
               message_string_ptr = std::make_unique<std::string>(
                       static_cast<const char *>(message_ptr->data()), message_ptr->size());
@@ -284,7 +285,8 @@ namespace Taas {
   // change queue to listen_message_epoch_queue
   bool TwoPC::HandleReceivedMessage() {
     while(!EpochManager::IsTimerStop()) {
-        if (MessageQueue::listen_message_txn_queue->try_dequeue(message_ptr)) {
+        if (MessageQueue::listen_message_epoch_queue->try_dequeue(message_ptr)) {
+            LOG(INFO) << "receive a client txn message";
             if (message_ptr == nullptr || message_ptr->empty()) continue;
             message_string_ptr = std::make_unique<std::string>(
                     static_cast<const char *>(message_ptr->data()), message_ptr->size());
