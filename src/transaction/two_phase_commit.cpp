@@ -31,12 +31,16 @@ namespace Taas {
   void TwoPC::ClientTxn_Init() {
     // txn_state_struct 记录当前事务的分片个数，完成个数
     totalTxnNumber.fetch_add(1);
-    txn_ptr->set_csn(now_to_us());
-    txn_ptr->set_server_id(ctx.taasContext.txn_node_ip_index);
-    tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
-    txn_state_map.insert(tid, std::make_shared<Taas::TwoPCTxnStateStruct>(sharding_num, 0, 0, 0, 0, 0, 0,
-                                                                          client_txn));
-    }
+    bool res = false;
+    // avoid txn have the same csn
+    do{
+        txn_ptr->set_csn(now_to_us());
+        txn_ptr->set_server_id(ctx.taasContext.txn_node_ip_index);
+        tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
+        res = txn_state_map.insertState(tid, std::make_shared<Taas::TwoPCTxnStateStruct>(sharding_num, 0, 0, 0, 0, 0, 0,
+                                                                                   client_txn));
+    } while (!res);
+  }
 
   // 事务进行分片
   bool TwoPC::Sharding_2PL() {

@@ -173,6 +173,21 @@ namespace Taas {
             _map_temp[k] = v;
         }
 
+        bool insertState(const key &k, const value &v) {
+            std::unordered_map<key, value>& _map_temp = GetMapRef(k);
+            std::unique_lock<std::mutex> lock(GetMutexRef(k));
+            map_iterator iter = _map_temp.find(k);
+            if (iter != _map_temp.end()) {
+                if(iter->second == v){
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            _map_temp[k] = v;
+            return true;
+        }
+
         void remove(const key &k, const value &v) {
             std::unordered_map<key, value>& _map_temp = GetMapRef(k);
             std::unique_lock<std::mutex> lock( GetMutexRef(k));
