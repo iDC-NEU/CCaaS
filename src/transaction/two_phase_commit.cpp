@@ -93,6 +93,7 @@ namespace Taas {
             return false;
         }
     }
+      if (txn_state_struct->txn_state == abort_txn) return false;
 //    LOG(INFO) << "[After Lock] : " << row_lock_map.countLock();
     if (!ValidateReadSet(txn)){
        validateFailed.fetch_add(1);
