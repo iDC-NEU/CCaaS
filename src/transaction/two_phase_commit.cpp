@@ -77,9 +77,12 @@ namespace Taas {
 //    std::lock_guard<std::mutex>lock(mutex);
     GetKeySorted(txn);
     tid = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
-
+    std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
+    txn_state_map.getValue(tid, txn_state_struct);
+    if (txn_state_struct->txn_state == abort_txn) return false;
     std::atomic<uint64_t> key_lock_num = 0;
-    if (txn.txn_type() == proto::TxnType::Abort_txn) return false;
+
+
     LOG(INFO) << "[Before Lock] : " << row_lock_map.countLock()  << " txn lock count : " << key_sorted.size() <<" tid : "<< tid;
     for (auto iter = key_sorted.begin(); iter != key_sorted.end(); iter++) {
         /// read needs lock
