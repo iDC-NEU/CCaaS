@@ -17,13 +17,13 @@ namespace Taas {
   enum TwoPCTxnState {
     client_txn = 0,         // 2pl+2pc client send to txn
     remote_server_txn = 1,  // 2pl+2pc txn sends to txn, transactions sharding
-    lock_info = 2,          // 2pl result remote to local
+    lock_ok = 2,          // 2pl result remote to local
     lock_abort = 3,         // 2pl abort local to remote
     prepare_req = 4,        // 2pc prepare local to remote
-    prepare_info = 5,       // redo log result remote to local
+    prepare_ok = 5,       // redo log result remote to local
     prepare_abort = 6,      // redo log abort local to remote
     commit_req = 7,         // commit local to remote
-    commit_info = 8,        // commit remote to local
+    commit_ok = 8,        // commit remote to local
     commit_done = 9,        // commit has done completely
     commit_abort = 10,      // commit abort
   };

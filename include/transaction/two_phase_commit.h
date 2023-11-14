@@ -37,6 +37,8 @@ namespace Taas {
     static concurrent_unordered_map<std::string ,std::vector<std::shared_ptr<proto::Transaction>>>
         txn_phase_map;          /// tid, txn vector
 
+
+
       // 工具
     struct Comparator {
       bool operator()(const std::string& x1, const std::string& x2) const{
