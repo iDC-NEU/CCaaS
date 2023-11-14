@@ -22,10 +22,14 @@ namespace workload {
         printf("Send Server connect ZMQ_PUSH %s", ("tcp://" + MultiModelWorkload::ctx.multiModelContext.kTaasIP + ":" + std::to_string(5551) + "\n").c_str());
         printf("线程开始工作 SendServerThread\n");
         while (true) {
-            MultiModelWorkload::send_multi_txn_queue->wait_dequeue(params);
-            if (params == nullptr || params->merge_request_ptr == nullptr) continue;
-            msg = std::make_unique<zmq::message_t>(*(params->merge_request_ptr));
-            socket->send(*msg, sendFlags);
+            if(MultiModelWorkload::send_multi_txn_queue->try_dequeue(params)) {
+                if (params == nullptr || params->merge_request_ptr == nullptr) continue;
+                msg = std::make_unique<zmq::message_t>(*(params->merge_request_ptr));
+                socket->send(*msg, sendFlags);
+            }
+            else {
+                usleep(50);
+            }
         }
     }
 
@@ -61,34 +65,38 @@ namespace workload {
         uint64_t csn;
         bool res;
         while (true) {
-            MultiModelWorkload::client_listen_taas_message_queue->wait_dequeue(message_ptr);
-            if (message_ptr != nullptr && !message_ptr->empty()) {
-                message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
-                                                                   message_ptr->size());
-                msg_ptr = std::make_unique<proto::Message>();
-                res = Taas::UnGzip(msg_ptr.get(), message_string_ptr.get());
-                assert(res);
-                if (msg_ptr->type_case() == proto::Message::TypeCase::kReplyTxnResultToClient) {
-                    auto &txn = msg_ptr->reply_txn_result_to_client();
-                    csn = txn.client_txn_id();
-                    if (MultiModelWorkload::multiModelTxnConditionVariable.contain(csn)) {
-                        printf("kReplyTxnResultToClient notify  \n");
-                        std::shared_ptr<std::condition_variable> cv_tmp;
-                        MultiModelWorkload::multiModelTxnConditionVariable.getValue(csn, cv_tmp);
-                        ///map[csn] = txn.txn_state()
-                        cv_tmp->notify_all();
-                        MultiModelWorkload::multiModelTxnConditionVariable.remove(csn);
-                        if (txn.txn_state() == proto::TxnState::Commit)
-                            printf("kReplyTxnResultToClient Commit  \n");
-                        else
-                            printf("kReplyTxnResultToClient Abort  \n");
-                    } else {
-                        printf("未找到 csn %lu \n", csn);
+            if(MultiModelWorkload::client_listen_taas_message_queue->try_dequeue(message_ptr)) {
+                if (message_ptr != nullptr && !message_ptr->empty()) {
+                    message_string_ptr = std::make_unique<std::string>(static_cast<const char *>(message_ptr->data()),
+                                                                       message_ptr->size());
+                    msg_ptr = std::make_unique<proto::Message>();
+                    res = Taas::UnGzip(msg_ptr.get(), message_string_ptr.get());
+                    assert(res);
+                    if (msg_ptr->type_case() == proto::Message::TypeCase::kReplyTxnResultToClient) {
+                        auto &txn = msg_ptr->reply_txn_result_to_client();
+                        csn = txn.client_txn_id();
+                        if (MultiModelWorkload::multiModelTxnConditionVariable.contain(csn)) {
+                            printf("kReplyTxnResultToClient notify  \n");
+                            std::shared_ptr<std::condition_variable> cv_tmp;
+                            MultiModelWorkload::multiModelTxnConditionVariable.getValue(csn, cv_tmp);
+                            ///map[csn] = txn.txn_state()
+                            cv_tmp->notify_all();
+                            MultiModelWorkload::multiModelTxnConditionVariable.remove(csn);
+                            if (txn.txn_state() == proto::TxnState::Commit)
+                                printf("kReplyTxnResultToClient Commit  \n");
+                            else
+                                printf("kReplyTxnResultToClient Abort  \n");
+                        } else {
+                            printf("未找到 csn %lu \n", csn);
+                        }
+                    }
+                    else {
+                        printf("not kReplyTxnResultToClient \n");
                     }
                 }
-                else {
-                    printf("not kReplyTxnResultToClient \n");
-                }
+            }
+            else {
+                usleep(50);
             }
         }
     }

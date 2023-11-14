@@ -46,12 +46,16 @@ namespace Taas {
         printf("线程开始工作 SendServerThread\n");
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
-            MessageQueue::send_to_server_queue->wait_dequeue(params);
-            if (params == nullptr || params->type == proto::TxnType::NullMark || params->str == nullptr) continue;
-            assert(params->id != ctx.taasContext.txn_node_ip_index);
-            assert(params->id < ctx.taasContext.kTxnNodeNum);
-            msg = std::make_unique<zmq::message_t>(*(params->str));
-            socket_map[params->id]->send(*msg, sendFlags);
+            if(MessageQueue::send_to_server_queue->try_dequeue(params)) {
+                if (params == nullptr || params->type == proto::TxnType::NullMark || params->str == nullptr) continue;
+                assert(params->id != ctx.taasContext.txn_node_ip_index);
+                assert(params->id < ctx.taasContext.kTxnNodeNum);
+                msg = std::make_unique<zmq::message_t>(*(params->str));
+                socket_map[params->id]->send(*msg, sendFlags);
+            }
+            else {
+                usleep(50);
+            }
         }
         socket_map[0]->send((zmq::message_t &) "end", sendFlags);
     }
@@ -71,11 +75,12 @@ namespace Taas {
         printf("Send Server bind ZMQ_PUB %s", ("tcp://*:" + std::to_string(22000+ctx.taasContext.txn_node_ip_index) + "\n").c_str());
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
-            MessageQueue::send_to_server_pub_queue->wait_dequeue(params);
-            if (params == nullptr || params->type == proto::TxnType::NullMark || params->str == nullptr) continue;
-            msg = std::make_unique<zmq::message_t>(*(params->str));
-            socket->send(*msg, sendFlags);
+            if(MessageQueue::send_to_server_pub_queue->try_dequeue(params)) {
+                if (params == nullptr || params->type == proto::TxnType::NullMark || params->str == nullptr) continue;
+                msg = std::make_unique<zmq::message_t>(*(params->str));
+                socket->send(*msg, sendFlags);
 //            LOG(INFO) << "send a message "  << params->type;
+            }
         }
         socket->send((zmq::message_t &) "end", sendFlags);
     }

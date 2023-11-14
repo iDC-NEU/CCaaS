@@ -107,10 +107,14 @@ namespace Taas {
         std::unique_ptr<zmq::message_t> msg;
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
-            MessageQueue::send_to_mot_storage_queue->wait_dequeue(params);
-            if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
-            msg = std::make_unique<zmq::message_t>(*(params->str));
-            socket_send.send(*msg, sendFlags);
+            if(MessageQueue::send_to_mot_storage_queue->try_dequeue(params)) {
+                if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
+                msg = std::make_unique<zmq::message_t>(*(params->str));
+                socket_send.send(*msg, sendFlags);
+            }
+            else {
+                usleep(50);
+            }
         }
         socket_send.send((zmq::message_t &) "end", sendFlags);
     }
@@ -129,10 +133,18 @@ namespace Taas {
         std::unique_ptr<zmq::message_t> msg;
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
-            MessageQueue::send_to_nebula_storage_queue->wait_dequeue(params);
-            if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
-            msg = std::make_unique<zmq::message_t>(*(params->str));
-            socket_send.send(*msg, sendFlags);
+            if(MessageQueue::send_to_nebula_storage_queue->try_dequeue(params)) {
+                if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
+                msg = std::make_unique<zmq::message_t>(*(params->str));
+                socket_send.send(*msg, sendFlags);
+            }
+            else {
+                usleep(50);
+            }
+//            MessageQueue::send_to_nebula_storage_queue->wait_dequeue(params);
+//            if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
+//            msg = std::make_unique<zmq::message_t>(*(params->str));
+//            socket_send.send(*msg, sendFlags);
         }
         socket_send.send((zmq::message_t &) "end", sendFlags);
     }

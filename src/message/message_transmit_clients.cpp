@@ -79,27 +79,35 @@ namespace Taas {
         // 测试用，如果设置了会丢弃发送给client的Reply
         if (ctx.taasContext.kTestClientNum > 0) {
             while (!EpochManager::IsTimerStop()) {
-                MessageQueue::send_to_client_queue->wait_dequeue(params);
+                if(MessageQueue::send_to_client_queue->try_dequeue(params)) {
+                    // do nothing
+                }
+                else {
+                    usleep(50);
+                }
             }
         } else {
 //         使用ZeroMQ发送Reply给client
-            while(!EpochManager::IsTimerStop()){
-                MessageQueue::send_to_client_queue->wait_dequeue(params);
-                if(params == nullptr || params->type == proto::TxnType::NullMark) continue;
-                msg = std::make_unique<zmq::message_t>(*(params->str));
-                auto key = "tcp://" + params->ip;
-                if(socket_map.find(key) != socket_map.end()) {
+            while(!EpochManager::IsTimerStop()) {
+                if (MessageQueue::send_to_client_queue->try_dequeue(params)) {
+                    if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
+                    msg = std::make_unique<zmq::message_t>(*(params->str));
+                    auto key = "tcp://" + params->ip;
+                    if (socket_map.find(key) != socket_map.end()) {
 //                    printf("send to client %s\n", key.c_str());
-                    socket_map[key]->send(*(msg), sendFlags);
+                        socket_map[key]->send(*(msg), sendFlags);
+                    } else {
+                        auto socket = std::make_unique<zmq::socket_t>(context, ZMQ_PUSH);
+                        socket->set(zmq::sockopt::sndhwm, queue_length);
+                        socket->set(zmq::sockopt::rcvhwm, queue_length);
+                        socket->connect("tcp://" + params->ip + ":5552");
+//                    printf("send to client %s\n", key.c_str());
+                        socket_map[key] = std::move(socket);
+                        socket_map[key]->send(*(msg), sendFlags);
+                    }
                 }
                 else {
-                    auto socket = std::make_unique<zmq::socket_t>(context, ZMQ_PUSH);
-                    socket->set(zmq::sockopt::sndhwm, queue_length);
-                    socket->set(zmq::sockopt::rcvhwm, queue_length);
-                    socket->connect("tcp://" + params->ip + ":5552");
-//                    printf("send to client %s\n", key.c_str());
-                    socket_map[key] = std::move(socket);
-                    socket_map[key]->send(*(msg), sendFlags);
+                    usleep(50);
                 }
             }
         }
