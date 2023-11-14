@@ -79,7 +79,7 @@ namespace Taas {
     tid = std::to_string(txn.csn()) + ":" + std::to_string(txn.server_id());
 
     std::atomic<uint64_t> key_lock_num = 0;
-
+    if (txn.txn_type() == proto::TxnType::Abort_txn) return false;
     LOG(INFO) << "[Before Lock] : " << row_lock_map.countLock()  << " txn lock count : " << key_sorted.size() <<" tid : "<< tid;
     for (auto iter = key_sorted.begin(); iter != key_sorted.end(); iter++) {
         /// read needs lock
@@ -168,6 +168,7 @@ namespace Taas {
   bool TwoPC::Send(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn,
                    proto::TxnType txn_type) {
     // assert(to_whom != ctx.txn_node_ip_index);
+//      LOG(INFO) << "send a epoch txn message";
     if (to_whom == ctx.taasContext.txn_node_ip_index){
         auto msg = std::make_unique<proto::Message>();
         auto* txn_temp = msg->mutable_txn();
@@ -200,6 +201,7 @@ namespace Taas {
                            proto::TxnState txn_state) {
     // commit/abort时发送
     // 不是本地事务不进行回复
+//      LOG(INFO) << "send a client txn message";
       if (txn.server_id() != ctx.taasContext.txn_node_ip_index) return true;
       uint64_t currTxnTime = now_to_us() - txn.csn();
       if (txn_state == proto::TxnState::Commit){
@@ -259,7 +261,7 @@ namespace Taas {
   bool TwoPC::HandleClientMessage() {
       while(!EpochManager::IsTimerStop()) {
           if (MessageQueue::listen_message_txn_queue->try_dequeue(message_ptr)) {
-              LOG(INFO) << "receive a client txn message";
+//              LOG(INFO) << "receive a client txn message";
               if (message_ptr == nullptr || message_ptr->empty()) continue;
               message_string_ptr = std::make_unique<std::string>(
                       static_cast<const char *>(message_ptr->data()), message_ptr->size());
@@ -286,7 +288,7 @@ namespace Taas {
   bool TwoPC::HandleReceivedMessage() {
     while(!EpochManager::IsTimerStop()) {
         if (MessageQueue::listen_message_epoch_queue->try_dequeue(message_ptr)) {
-            LOG(INFO) << "receive a client txn message";
+//            LOG(INFO) << "receive a server message";
             if (message_ptr == nullptr || message_ptr->empty()) continue;
             message_string_ptr = std::make_unique<std::string>(
                     static_cast<const char *>(message_ptr->data()), message_ptr->size());
@@ -295,6 +297,7 @@ namespace Taas {
             assert(res);
             if (msg_ptr->type_case() == proto::Message::TypeCase::kTxn) {
                 txn_ptr = std::make_unique<proto::Transaction>(*(msg_ptr->release_txn()));
+                SetTxnState(*txn_ptr);
                 SetMessageRelatedCountersInfo();
                 HandleReceivedTxn();
             } else {

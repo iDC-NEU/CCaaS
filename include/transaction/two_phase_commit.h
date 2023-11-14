@@ -50,6 +50,25 @@ namespace Taas {
       }
     };
 
+    void SetTxnState(proto::Transaction& txn){
+        tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
+        std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
+        txn_state_map.getValue(tid, txn_state_struct);
+        if (txn_state_struct == nullptr) {
+            txn_state_map.insert(tid, std::make_shared<Taas::TwoPCTxnStateStruct>(sharding_num, 0, 0, 0, 0, 0, 0,
+                                                                                  client_txn));
+            txn_state_map.getValue(tid, txn_state_struct);
+        }
+        if (txn_state_struct->txn_state == abort_txn) {
+            txn.set_txn_type(proto::TxnType::Abort_txn);
+            return;
+        }
+        if (txn.txn_type() == proto::TxnType::Abort_txn) {
+            txn_state_struct->txn_state = abort_txn;
+        }
+
+    }
+
     uint64_t GetHashValue(const std::string& key) const {
         uint64_t hash_value = _hash(key);
         return hash_value % sharding_num;

@@ -26,6 +26,7 @@ namespace Taas {
     commit_ok = 8,        // commit remote to local
     commit_done = 9,        // commit has done completely
     commit_abort = 10,      // commit abort
+    abort_txn = 11,
   };
 
   struct TwoPCTxnStateStruct {
