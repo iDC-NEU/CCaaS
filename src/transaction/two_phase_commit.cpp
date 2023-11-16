@@ -542,8 +542,6 @@ namespace Taas {
       }
       case proto::TxnType::Abort_txn: {
           Two_PL_UNLOCK(*txn_ptr);
-          tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
-          txn_state_map.remove(tid);
           break;
       }
       default:
