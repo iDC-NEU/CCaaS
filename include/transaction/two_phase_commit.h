@@ -60,12 +60,12 @@ namespace Taas {
                                                                                       client_txn));
                 txn_state_map.getValue(tid, txn_state_struct);
             }
-            if (txn_state_struct->txn_state == abort_txn) {
+            if (txn_state_struct->txn_state == TwoPCTxnState::abort_txn) {
                 txn.set_txn_type(proto::TxnType::Abort_txn);
                 return;
             }
             if (txn.txn_type() == proto::TxnType::Abort_txn) {
-                txn_state_struct->txn_state = abort_txn;
+                txn_state_struct->txn_state = TwoPCTxnState::abort_txn;
             }
         }
     }

@@ -93,7 +93,11 @@ namespace Taas {
             return false;
         }
     }
-      if (txn_state_struct->txn_state == abort_txn) return false;
+      if (txn_state_struct->txn_state == abort_txn) {
+          Two_PL_UNLOCK(txn);
+          return true;
+      }
+
 //    LOG(INFO) << "[After Lock] : " << row_lock_map.countLock();
     if (!ValidateReadSet(txn)){
        validateFailed.fetch_add(1);
@@ -235,6 +239,10 @@ namespace Taas {
     auto serialized_txn_str_ptr = std::make_unique<std::string>();
     Gzip(msg.get(), serialized_txn_str_ptr.get());
 
+    // free txn_state_map and txn_phase_map
+    tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
+    txn_state_map.remove(tid);
+    txn_phase_map.remove(tid);
 
     // 将序列化的Transaction放到send_to_client_queue中，等待发送给client
     MessageQueue::send_to_client_queue->enqueue(std::make_unique<send_params>(
