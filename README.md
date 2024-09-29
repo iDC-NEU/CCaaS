@@ -16,3 +16,5 @@ go-ycsb: https://anonymous.4open.science/r/go-ycsb-6B12 when connecting to CCaaS
 openGauss-MOT: https://anonymous.4open.science/r/CCaaS-MOT-620B (execution and storage) add a config to send requests to CCaaS
 
 when connecting to storage, you need set the ip and the push down threads in the CCaaS/Storage_config.xml
+
+new edition：https://github.com/Mister-Star/Taas-Sharding.git
