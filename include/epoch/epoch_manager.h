@@ -8,6 +8,7 @@
 #pragma once
 
 #include "tools/atomic_counters.h"
+#include "tools/atomic_counters_cache.h"
 #include "tools/context.h"
 
 #include "proto/transaction.pb.h"
@@ -30,10 +31,10 @@ namespace Taas {
             commit_epoch , redo_log_epoch , clear_epoch ;
     extern std::atomic<int> init_ok_num;
     extern std::atomic<bool> is_epoch_advance_started, test_start;
-    extern void InitEpochTimerManager(const Context& ctx);
-    extern bool CheckRedoLogPushDownState(const Context& ctx);
-    extern void EpochLogicalTimerManagerThreadMain(const Context& ctx);
-    extern void EpochPhysicalTimerManagerThreadMain(Context ctx);
+    extern void InitEpochTimerManager();
+    extern bool CheckRedoLogPushDownState();
+    extern void EpochLogicalTimerManagerThreadMain();
+    extern void EpochPhysicalTimerManagerThreadMain();
     std::string PrintfToString(const char* format, ...);
     void OUTPUTLOG(const std::string& s, uint64_t& epoch);
 
@@ -49,11 +50,10 @@ namespace Taas {
         static std::atomic<uint64_t> logical_epoch, physical_epoch, push_down_epoch;
     public:
 
-        static Context ctx;
         static uint64_t max_length;
         static std::vector<std::unique_ptr<std::atomic<bool>>>
                     merge_complete, abort_set_merge_complete,
-                    commit_complete, record_committed,
+                    commit_complete, record_committed, result_returned,
                     is_current_epoch_abort;
 
         ///epoch, index, value  for 集群状态
@@ -62,12 +62,13 @@ namespace Taas {
         ///fault tolerance: cache server mod
         static std::vector<std::unique_ptr<std::atomic<uint64_t>>>  cache_server_received_epoch;
 
+        static std::atomic<uint64_t> view_change_epoch, view_change_server_num;
 
         static void SetTimerStop(bool value) {timerStop = value;}
         static bool IsTimerStop() {return timerStop;}
 
-        static bool IsShardingMergeComplete(uint64_t epoch) {return merge_complete[epoch % max_length]->load();}
-        static void SetShardingMergeComplete(uint64_t epoch, bool value) {merge_complete[epoch % max_length]->store(value);}
+        static bool IsEpochMergeComplete(uint64_t epoch) {return merge_complete[epoch % max_length]->load();}
+        static void SetEpochMergeComplete(uint64_t epoch, bool value) {merge_complete[epoch % max_length]->store(value);}
 
         static bool IsAbortSetMergeComplete(uint64_t epoch) {return abort_set_merge_complete[epoch % max_length]->load();}
         static void SetAbortSetMergeComplete(uint64_t epoch, bool value) {abort_set_merge_complete[epoch % max_length]->store(value);}
@@ -77,6 +78,9 @@ namespace Taas {
 
         static bool IsRecordCommitted(uint64_t epoch){ return record_committed[epoch % max_length]->load();}
         static void SetRecordCommitted(uint64_t epoch, bool value){ record_committed[epoch % max_length]->store(value);}
+
+        static bool IsResultReturned(uint64_t epoch){ return result_returned[epoch % max_length]->load();}
+        static void SetResultReturned(uint64_t epoch, bool value){ result_returned[epoch % max_length]->store(value);}
 
         static bool IsCurrentEpochAbort(uint64_t epoch){ return is_current_epoch_abort[epoch % max_length]->load();}
         static void SetCurrentEpochAbort(uint64_t epoch, bool value){ is_current_epoch_abort[epoch % max_length]->store(value);}
@@ -106,12 +110,13 @@ namespace Taas {
             abort_set_merge_complete[epoch_mod]->store(false);
             commit_complete[epoch_mod]->store(false);
             record_committed[epoch_mod]->store(false);
+            result_returned[epoch_mod]->store(false);
             is_current_epoch_abort[epoch_mod]->store(false);
         }
 
         static void EpochCacheSafeCheck() {
-            if(((GetLogicalEpoch() % ctx.taasContext.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.taasContext.kCacheMaxLength)) ||
-                    ((GetPushDownEpoch() % ctx.taasContext.kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % ctx.taasContext.kCacheMaxLength))) {
+            if(((GetLogicalEpoch() % TaasContext::kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % TaasContext::kCacheMaxLength)) ||
+                    ((GetPushDownEpoch() % TaasContext::kCacheMaxLength) ==  ((GetPhysicalEpoch() + 55) % TaasContext::kCacheMaxLength))) {
                 uint64_t i = 0;
                 OUTPUTLOG("Assert", reinterpret_cast<uint64_t &>(i));
                 printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
@@ -142,7 +147,8 @@ namespace Taas {
         }
 
         static bool IsInitOK() {
-            return init_ok_num.load() >= 1;
+            return init_ok_num.load() >= (int)(TaasContext::kEpochMessageThreadNum +
+            TaasContext::kEpochTxnThreadNum + TaasContext::kMergeThreadNum + 1 + 4);
         }
     };
 }

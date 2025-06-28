@@ -14,8 +14,9 @@ namespace Taas {
             MessageQueue::send_to_nebula_storage_queue, MessageQueue::send_to_server_pub_queue;
     std::unique_ptr<MessageBlockingConcurrentQueue<std::unique_ptr<proto::Message>>> MessageQueue::request_queue,
             MessageQueue::raft_message_queue;
+    std::atomic<uint64_t> MessageQueue::client_receive_message_num, MessageQueue::client_send_message_num;
 
-    void MessageQueue::StaticInitMessageQueue(const Context& ctx) {
+    void MessageQueue::StaticInitMessageQueue() {
         listen_message_queue = std::make_unique<MessageBlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>>();
         listen_message_txn_queue = std::make_unique<MessageBlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>>();
         listen_message_epoch_queue = std::make_unique<MessageBlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>>();

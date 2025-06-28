@@ -7,6 +7,39 @@
 
 namespace Taas {
 
+   ServerMode TaasContext::server_type = ServerMode::Taas;
+   TaasMode TaasContext::taasMode = TaasMode::MultiMaster;
+   std::vector<std::string> TaasContext::kServerIp;
+   uint64_t TaasContext::kTxnNodeNum = 1, TaasContext::kBackUpNum = 1;
+   uint64_t TaasContext::kIndexNum = 1, TaasContext::kEpochSize_us = 10000/** us */, TaasContext::txn_node_ip_index = 0,
+            TaasContext::kShardNum = 1, TaasContext::kReplicaNum = 1,
+            TaasContext::kDurationTime_us = 0,
+            TaasContext::kCacheMaxLength = 200000, TaasContext::kDelayEpochNum = 0, TaasContext::print_mode_size = 1000;
+   uint64_t TaasContext::kMergeThreadNum = 0, TaasContext::kEpochTxnThreadNum = 0, TaasContext::kEpochMessageThreadNum = 0;
+   uint64_t TaasContext::kTestClientNum = 0, TaasContext::kTestKeyRange = 1000000, TaasContext::kTestTxnOpNum = 10;
+   uint64_t TaasContext::kHandleEpochMessageNumOfEachTraversal = 1, TaasContext::kHandleTxnMessageNumOfEachTraversal = 1, TaasContext::kSafeEpochDistance = 10;
+
+   bool TaasContext::is_read_repeatable = false, TaasContext::is_snap_isolation = false,
+        TaasContext::is_breakdown = false, TaasContext::is_sync_start = false,
+        TaasContext::is_cache_server_available = false;
+   std::string TaasContext::glog_path = "/tmp";
+
+   bool StorageContext::is_tikv_enable = false, StorageContext::is_leveldb_enable = false, StorageContext::is_hbase_enable = false,
+        StorageContext::is_mot_enable = true, StorageContext::is_nebula_enable = false;
+   std::string StorageContext::kMasterIp, StorageContext::kPrivateIp, StorageContext::kTiKVIP, StorageContext::kLevelDBIP, StorageContext::kHbaseIP;
+   uint64_t StorageContext::kTikvThreadNum = 10, StorageContext::kLeveldbThreadNum = 10, StorageContext::kHbaseThreadNum = 10, StorageContext::kMOTThreadNum = 10;
+
+
+    std::string  MultiModelContext::kMultiModelClientIP, MultiModelContext::kTaasIP,
+       MultiModelContext::kNebulaIP, MultiModelContext::kNebulaSpace, MultiModelContext::kNebulaUser, MultiModelContext::kNebulaPwd,
+       MultiModelContext::kMOTIP, MultiModelContext::kMOTDsnName, MultiModelContext::kMOTDsnUid, MultiModelContext::kMOTDsnPwd;
+    TestMode MultiModelContext::kTestMode = MultiModelTest;
+    bool MultiModelContext::isLoadData = true , MultiModelContext::isUseMot = true, MultiModelContext::isUseNebula = true;
+
+    uint64_t MultiModelContext::kRecordCount = 1000000, MultiModelContext::kTxnNum = 10000, MultiModelContext::kWriteNum = 100,
+                   MultiModelContext::kReadNum = 0, MultiModelContext::kOpNum = 10, MultiModelContext::kClientNum = 10;
+    std::string MultiModelContext::kDistribution = "zipfian";
+
     void TaasContext::GetTaaSServerInfo(const std::string& config_file_path){
         tinyxml2::XMLDocument doc;
         doc.LoadFile(config_file_path.c_str());
@@ -43,10 +76,17 @@ namespace Taas {
         tinyxml2::XMLElement* cachemaxlength = root->FirstChildElement("cache_max_length");
         kCacheMaxLength = std::stoull(cachemaxlength->GetText());
 
+        tinyxml2::XMLElement* shard_num = root->FirstChildElement("shard_num");
+        kShardNum= std::stoull(shard_num->GetText());
+        tinyxml2::XMLElement* replica_num = root->FirstChildElement("replica_num");
+        kReplicaNum = std::stoull(replica_num->GetText());
+
+        if(kReplicaNum > kTxnNodeNum) kReplicaNum = kTxnNodeNum;
+        if(kShardNum > kTxnNodeNum) kShardNum = kTxnNodeNum;
+        kBackUpNum = 2; /// send to another 2 server
+
         tinyxml2::XMLElement* merge_thread_num = root->FirstChildElement("merge_thread_num");
         kMergeThreadNum = std::stoull(merge_thread_num->GetText());
-        tinyxml2::XMLElement* commit_thread_num = root->FirstChildElement("commit_thread_num");
-        kCommitThreadNum = std::stoull(commit_thread_num->GetText());
         tinyxml2::XMLElement* epoch_txn_thread_num = root->FirstChildElement("epoch_txn_thread_num");
         kEpochTxnThreadNum = std::stoull(epoch_txn_thread_num->GetText());
         tinyxml2::XMLElement* epoch_message_thread_num = root->FirstChildElement("epoch_message_thread_num");
@@ -61,13 +101,22 @@ namespace Taas {
         tinyxml2::XMLElement* test_txn_op_num = root->FirstChildElement("test_txn_op_num");
         kTestTxnOpNum = std::stoull(test_txn_op_num->GetText());
 
-        /** Get glog path */
-        tinyxml2::XMLElement *glog_path = root->FirstChildElement("glog_path");
-        glog_path_ = std::string(glog_path->GetText());
+        tinyxml2::XMLElement* handle_epoch_message_num_each_traversal = root->FirstChildElement("handle_epoch_message_num_each_traversal");
+        kHandleEpochMessageNumOfEachTraversal = std::stoull(handle_epoch_message_num_each_traversal->GetText());
+        tinyxml2::XMLElement* handle_txn_message_num_each_traversal = root->FirstChildElement("handle_txn_message_num_each_traversal");
+        kHandleTxnMessageNumOfEachTraversal = std::stoull(handle_txn_message_num_each_traversal->GetText());
+        tinyxml2::XMLElement* safe_epoch_distance = root->FirstChildElement("safe_epoch_distance");
+        kSafeEpochDistance = std::stoull(safe_epoch_distance->GetText());
 
-        auto* mode_size_t = root->FirstChildElement("print_mode_size");
+
+        /** Get glog path */
+//        tinyxml2::XMLElement* glog_path_ = root->FirstChildElement("glog_path");
+//        glog_path = std::string(glog_path_->GetText());
+
+        tinyxml2::XMLElement* mode_size_t = root->FirstChildElement("print_mode_size");
         print_mode_size = std::stoull(mode_size_t->GetText());
 
+//        kBackUpNum = kTxnNodeNum - 1;
     }
 
     std::string TaasContext::Print() {
@@ -96,6 +145,9 @@ namespace Taas {
         is_mot_enable = std::stoull(mot->GetText());
         tinyxml2::XMLElement* mot_thread_num = root->FirstChildElement("mot_thread_num");
         kMOTThreadNum = std::stoull(mot_thread_num->GetText());
+        tinyxml2::XMLElement* nebula = root->FirstChildElement("is_nebula_enable");
+        is_nebula_enable = std::stoull(nebula->GetText());
+
 
         tinyxml2::XMLElement* tikv = root->FirstChildElement("is_tikv_enable");
         is_tikv_enable = std::stoull(tikv->GetText());
@@ -119,7 +171,7 @@ namespace Taas {
         auto hbase_ip=hbase_ip_port->GetText();
         kHbaseIP = std::string(hbase_ip);
         tinyxml2::XMLElement* hbase_thread_num = root->FirstChildElement("hbase_thread_num");
-        kHbaseTxnThreadNum = std::stoull(hbase_thread_num->GetText());
+        kHbaseThreadNum = std::stoull(hbase_thread_num->GetText());
 
     }
 

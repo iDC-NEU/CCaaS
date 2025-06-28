@@ -30,7 +30,7 @@ namespace workload {
     uint64_t MOTConnectionPool::connectionNum(1);
 
     void MOTConnectionPool::Init() {
-        connectionNum = MultiModelWorkload::ctx.multiModelContext.kClientNum;
+        connectionNum = Taas::MultiModelContext::kClientNum;
         for(int i = 0; i < (int)connectionNum; i ++) {
             motEnv.push_back(std::make_unique<SQLHENV>());
             motHdbc.push_back(std::make_unique<SQLHDBC>());
@@ -124,7 +124,7 @@ namespace workload {
     }
 
     void MOTConnectionPool::CloseDB() {
-        connectionNum = MultiModelWorkload::ctx.multiModelContext.kClientNum;
+        connectionNum = Taas::MultiModelContext::kClientNum;
         for(int i = 0; i < (int)connectionNum; i ++) {
             auto &env = *motEnv[i];
             auto &conn = *motHdbc[i];
@@ -147,7 +147,7 @@ namespace workload {
     }
 
     void MOT::InsertData(const uint64_t& tid) {
-        if(tid > MultiModelWorkload::ctx.multiModelContext.kRecordCount) return;
+        if(tid > Taas::MultiModelContext::kRecordCount) return;
         char genKey[100], sql[5000];
         std::string data = Taas::RandomString(256);
         sprintf(genKey, "usertable_key:%064lu", tid);
@@ -167,10 +167,10 @@ namespace workload {
         char genKey[100], sql[5000];
         std::string value;
         int cnt, i;
-        if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::MultiModelTest) {
+        if(Taas::MultiModelContext::kTestMode == Taas::MultiModelTest) {
             cnt = 4;
         }
-        else if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::SQL) {
+        else if(Taas::MultiModelContext::kTestMode == Taas::SQL) {
             cnt = 9;
         }
         else {

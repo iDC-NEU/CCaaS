@@ -9,12 +9,12 @@
 
 namespace Taas {
 
-    extern void WorkerFroTiKVStorageThreadMain(const Context& ctx, uint64_t id);
-    extern void WorkerFroMOTStorageThreadMain(const Context& ctx, uint64_t id);
-    extern void WorkerFroNebulaStorageThreadMain(const Context& ctx, uint64_t id);
-    extern void WorkerFroLevelDBStorageThreadMain(const Context& ctx, uint64_t id);
-    extern void WorkerFroHBaseStorageThreadMain(const Context& ctx, uint64_t id);
-    extern void StateChecker(const Context& ctx);
+    extern void WorkerFroTiKVStorageThreadMain(uint64_t id);
+    extern void WorkerFroMOTStorageThreadMain(uint64_t id);
+    extern void WorkerFroNebulaStorageThreadMain(uint64_t id);
+    extern void WorkerFroLevelDBStorageThreadMain(uint64_t id);
+    extern void WorkerFroHBaseStorageThreadMain(uint64_t id);
+    extern void StateChecker();
 }
 
 #endif //TAAS_WORKER_STORAGE_H

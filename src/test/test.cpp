@@ -5,11 +5,12 @@
 #include "test/test.h"
 #include "transaction/merge.h"
 #include "tools/utilities.h"
+#include "transaction/transaction_cache.h"
 #include <random>
 
 namespace Taas {
 
-    void Client(const Context& ctx, uint64_t id) {
+    void Client(uint64_t id) {
         printf("Test Client %lu start\n", id);
         srand(now_to_us() % 71);
         uint64_t txn_id = 0, op_num, op_type;
@@ -17,29 +18,29 @@ namespace Taas {
         std::random_device rd;
         auto gen = std::default_random_engine (rd());
         std::uniform_int_distribution<int>
-            op_num_dis(1, static_cast<int>(ctx.taasContext.kTestTxnOpNum)),
+            op_num_dis(1, static_cast<int>(TaasContext::kTestTxnOpNum)),
             op_type_dis(1,4),
-            key_range_dis(1,static_cast<int>(ctx.taasContext.kTestTxnOpNum)),
+            key_range_dis(1,static_cast<int>(TaasContext::kTestTxnOpNum)),
             sleep_dis(1, 20000);
 
-        while(!EpochManager::IsInitOK() || EpochManager::GetLogicalEpoch() < 10) usleep(sleep_time);
+        while(!EpochManager::IsInitOK() || EpochManager::GetLogicalEpoch() < 150) usleep(sleep_time);
         usleep(sleep_time);
         while(!EpochManager::IsTimerStop()) {
             auto message_ptr = std::make_unique<proto::Message>();
             auto* txn_ptr = message_ptr->mutable_txn();
-            txn_ptr->set_client_txn_id(txn_id * ctx.taasContext.kTestClientNum + id);
-            write_version = std::to_string(txn_ptr->client_txn_id()) + std::to_string(ctx.taasContext.txn_node_ip_index);
+            txn_ptr->set_client_txn_id(txn_id * TaasContext::kTestClientNum + id);
+            write_version = std::to_string(txn_ptr->client_txn_id()) + std::to_string(TaasContext::txn_node_ip_index);
             txn_id ++;
             txn_ptr->set_txn_type(proto::ClientTxn);
             op_num = op_num_dis(gen);
             for(unsigned int i = 0; i < op_num; i ++) {
-                auto key = std::to_string(key_range_dis(gen) % ctx.taasContext.kTestKeyRange);
+                auto key = std::to_string(key_range_dis(gen) % TaasContext::kTestKeyRange);
                 op_type = op_type_dis(gen);
                 auto row = txn_ptr->add_row();
                 row->set_key(key);
                 switch (op_type) {
                     case 0 : {
-                        Merger::read_version_map_data.getValue(key, read_version);
+                        TransactionCache::read_version_map.getValue(key, read_version);
                         row->set_op_type(proto::Read);
                         write_version = read_version;
                         break;

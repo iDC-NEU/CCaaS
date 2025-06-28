@@ -59,7 +59,6 @@ namespace workload {
     class MultiModelWorkload {
     public:
         static std::atomic<uint64_t> txn_id, graph_vid, success_txn_num, failed_txn_num, success_op_num, failed_op_num, subWorksNum;
-        static Taas::Context ctx;
         static std::unique_ptr<util::thread_pool_light> thread_pool;
         static std::unique_ptr<utils::DiscreteGenerator<Operation>> operationChooser;
         static std::vector<std::unique_ptr<utils::NumberGenerator>> keyChooser;
@@ -71,7 +70,7 @@ namespace workload {
         static Taas::concurrent_unordered_map<uint64_t ,bool> multiModelTxnMap;
         static Taas::concurrent_unordered_map<uint64_t, std::shared_ptr<std::condition_variable>> multiModelTxnConditionVariable;
 
-        static void StaticInit(const Taas::Context& ctx_);
+        static void StaticInit();
         static void buildValues(utils::ByteIteratorMap &values);
         static void LoadData();
         static void LoadKVData();
@@ -92,14 +91,14 @@ namespace workload {
 
         static void CreateOperationGenerator() {
             operationChooser = std::make_unique<utils::DiscreteGenerator<Operation>>();
-            operationChooser->addValue((double)ctx.multiModelContext.kReadNum / 100.0, Operation::READ);
-            operationChooser->addValue((double)ctx.multiModelContext.kWriteNum / 100.0, Operation::UPDATE);
+            operationChooser->addValue((double)Taas::MultiModelContext::kReadNum / 100.0, Operation::READ);
+            operationChooser->addValue((double)Taas::MultiModelContext::kWriteNum / 100.0, Operation::UPDATE);
         }
 
         static void CreateKeyChooser() {
-            keyChooser.push_back(utils::ScrambledZipfianGenerator::NewScrambledZipfianGenerator(1, ctx.multiModelContext.kRecordCount/3));
-            keyChooser.push_back(utils::ScrambledZipfianGenerator::NewScrambledZipfianGenerator(ctx.multiModelContext.kRecordCount/3 + 1,ctx.multiModelContext.kRecordCount * 2 / 3));
-            keyChooser.push_back(utils::ScrambledZipfianGenerator::NewScrambledZipfianGenerator(ctx.multiModelContext.kRecordCount * 2 / 3 + 1,ctx.multiModelContext.kRecordCount));
+            keyChooser.push_back(utils::ScrambledZipfianGenerator::NewScrambledZipfianGenerator(1, Taas::MultiModelContext::kRecordCount/3));
+            keyChooser.push_back(utils::ScrambledZipfianGenerator::NewScrambledZipfianGenerator(Taas::MultiModelContext::kRecordCount/3 + 1,Taas::MultiModelContext::kRecordCount * 2 / 3));
+            keyChooser.push_back(utils::ScrambledZipfianGenerator::NewScrambledZipfianGenerator(Taas::MultiModelContext::kRecordCount * 2 / 3 + 1,Taas::MultiModelContext::kRecordCount));
         }
     };
 }

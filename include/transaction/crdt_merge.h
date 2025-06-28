@@ -14,7 +14,6 @@ namespace Taas{
 
 class CRDTMerge{
 public:
-    static Context ctx;
     static bool ValidateReadSet(std::shared_ptr<proto::Transaction> txn_ptr);
     static bool ValidateWriteSet(std::shared_ptr<proto::Transaction> txn_ptr);
     static bool MultiMasterCRDTMerge(std::shared_ptr<proto::Transaction> txn_ptr);

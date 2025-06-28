@@ -9,6 +9,7 @@
 
 #include "tools/atomic_counters.h"
 #include "tools/context.h"
+#include "tools/atomic_counters_cache.h"
 
 namespace Taas {
     class BackUp {
@@ -19,8 +20,7 @@ namespace Taas {
                 backup_should_receive_txn_num, backup_received_txn_num,
         ///backup ack
         backup_received_ack_num;
-        static Context ctx;
-        static void Init(const Context& ctx);
+        static void Init();
     };
 }
 

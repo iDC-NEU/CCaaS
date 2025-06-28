@@ -15,7 +15,7 @@
 namespace workload {
 
     void KV::InsertData(uint64_t tid) {
-        if(tid > MultiModelWorkload::ctx.multiModelContext.kRecordCount) return;
+        if(tid > Taas::MultiModelContext::kRecordCount) return;
         auto msg = std::make_unique<proto::Message>();
         auto message_txn = msg->mutable_txn();
         proto::Row *row = message_txn->add_row();
@@ -26,7 +26,7 @@ namespace workload {
         row->set_data(data);
         row->set_op_type(proto::OpType::Insert);
         message_txn->set_csn(1);
-        message_txn->set_client_ip(MultiModelWorkload::ctx.multiModelContext.kMultiModelClientIP);
+        message_txn->set_client_ip(Taas::MultiModelContext::kMultiModelClientIP);
         message_txn->set_client_txn_id(tid);
         message_txn->set_txn_type(proto::TxnType::ClientTxn);
         std::unique_ptr<std::string> serialized_txn_str_ptr(new std::string());
@@ -45,7 +45,7 @@ namespace workload {
 //        brpc::Channel chan;
 //        brpc::ChannelOptions options;
 //        std::unique_ptr<proto::KvDBPutService_Stub> put_stub;
-//        chan.Init(MultiModelWorkload::ctx.storageContext.kLevelDBIP.c_str(), &options);
+//        chan.Init(MultiModelWorkload::StorageContext::kLevelDBIP.c_str(), &options);
 //        put_stub = std::make_unique<proto::KvDBPutService_Stub>(&chan);
 //        proto::KvDBRequest request;
 //        proto::KvDBResponse response;
@@ -65,10 +65,10 @@ namespace workload {
         char genKey[100];
         std::string value;
         int cnt, i;
-        if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::MultiModelTest) {
+        if(Taas::MultiModelContext::kTestMode == Taas::MultiModelTest) {
             cnt = 4;
         }
-        else if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::KV) {
+        else if(Taas::MultiModelContext::kTestMode == Taas::KV) {
             cnt = 9;
         }
         else return ;
@@ -77,7 +77,7 @@ namespace workload {
             brpc::Channel chan;
             brpc::ChannelOptions options;
             std::unique_ptr<proto::KvDBGetService_Stub> get_stub;
-            chan.Init(MultiModelWorkload::ctx.storageContext.kLevelDBIP.c_str(), &options);
+            chan.Init(Taas::StorageContext::kLevelDBIP.c_str(), &options);
             get_stub = std::make_unique<proto::KvDBGetService_Stub>(&chan);
             auto s = std::string("KV exec :");
             for (i = 0; i < cnt; i++) {

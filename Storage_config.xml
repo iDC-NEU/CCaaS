@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <root>
 <!--Storage config-->
-    <is_mot_enable>1</is_mot_enable>
+    <is_mot_enable>0</is_mot_enable>
+    <is_nebula_enable>0</is_nebula_enable> <!--use the same thread number as mot-->
     <mot_thread_num>1</mot_thread_num><!--MOT port 5556 & Nebula port 5557-->
 
     <!--    tikv config -->
-    <is_tikv_enable>1</is_tikv_enable>
+    <is_tikv_enable>0</is_tikv_enable>
     <tikv_ip>202.199.6.123:2379</tikv_ip>
     <tikv_thread_num>5</tikv_thread_num>
 

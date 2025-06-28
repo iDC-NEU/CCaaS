@@ -3,14 +3,12 @@
 //
 #include "epoch/epoch_manager.h"
 #include "epoch/two_phase_commit.h"
-#include "message/epoch_message_receive_handler.h"
-#include "transaction/merge.h"
 
-#include "string"
-#include "tools/thread_pool_light.h"
+#include "tools/thread_counters.h"
+#include "message/epoch_message_receive_handler.h"
 
 namespace Taas {
-    void TwoPhaseCommitManager::TwoPhaseCommitManagerThreadMain(const Context& ctx) {
+    void TwoPhaseCommitManager::TwoPhaseCommitManagerThreadMain() {
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         // print some info message
         while(!EpochManager::IsTimerStop()) {

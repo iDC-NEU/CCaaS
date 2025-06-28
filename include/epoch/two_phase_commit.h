@@ -11,7 +11,7 @@
 namespace Taas {
     class TwoPhaseCommitManager {
     public:
-        static void TwoPhaseCommitManagerThreadMain(const Context &ctx);
+        static void TwoPhaseCommitManagerThreadMain();
     };
 }
 #endif //TAAS_TWO_PHASE_COMMIT_H

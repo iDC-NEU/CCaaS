@@ -9,13 +9,13 @@
 #include "tools/context.h"
 
 namespace Taas {
-    class ShardingEpochManager {
+    class ShardEpochManager {
     public:
-        static bool CheckEpochMergeState(const Context& ctx);
-        static bool CheckEpochAbortMergeState(const Context& ctx);
-        static bool CheckEpochCommitState(const Context& ctx);
+        static bool CheckEpochMergeState();
+        static bool CheckEpochAbortMergeState();
+        static bool CheckEpochCommitState();
 
-        static void EpochLogicalTimerManagerThreadMain(const Context &ctx);
+        static void EpochLogicalTimerManagerThreadMain();
     };
 }
 

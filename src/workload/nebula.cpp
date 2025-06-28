@@ -13,22 +13,22 @@ namespace workload {
     nebula::SessionPoolConfig Nebula::nebulaSessionPoolConfig;
     std::unique_ptr<nebula::SessionPool> Nebula::nebulaSessionPool;
 
-    void Nebula::Init(const Taas::Context& ctx) {
+    void Nebula::Init() {
         nebula::ConnectionPool pool;
         auto connectConfig = nebula::Config{};
-        connectConfig.maxConnectionPoolSize_ = ctx.multiModelContext.kClientNum ;
-        pool.init({ctx.multiModelContext.kNebulaIP}, connectConfig);
-        auto session = pool.getSession(ctx.multiModelContext.kNebulaUser, ctx.multiModelContext.kNebulaPwd);
+        connectConfig.maxConnectionPoolSize_ = Taas::MultiModelContext::kClientNum ;
+        pool.init({Taas::MultiModelContext::kNebulaIP}, connectConfig);
+        auto session = pool.getSession(Taas::MultiModelContext::kNebulaUser, Taas::MultiModelContext::kNebulaPwd);
         assert(session.valid());
         auto resp = session.execute(
-                "CREATE SPACE IF NOT EXISTS " + ctx.multiModelContext.kNebulaSpace +" (vid_type = FIXED_STRING(30));");
+                "CREATE SPACE IF NOT EXISTS " + Taas::MultiModelContext::kNebulaSpace +" (vid_type = FIXED_STRING(30));");
         assert(resp.errorCode == nebula::ErrorCode::SUCCEEDED);
 
-        nebulaSessionPoolConfig.username_ = ctx.multiModelContext.kNebulaUser;
-        nebulaSessionPoolConfig.password_ = ctx.multiModelContext.kNebulaPwd;
-        nebulaSessionPoolConfig.addrs_ = {ctx.multiModelContext.kNebulaIP};
-        nebulaSessionPoolConfig.spaceName_ = ctx.multiModelContext.kNebulaSpace;
-        nebulaSessionPoolConfig.maxSize_ = ctx.multiModelContext.kClientNum;
+        nebulaSessionPoolConfig.username_ = Taas::MultiModelContext::kNebulaUser;
+        nebulaSessionPoolConfig.password_ = Taas::MultiModelContext::kNebulaPwd;
+        nebulaSessionPoolConfig.addrs_ = {Taas::MultiModelContext::kNebulaIP};
+        nebulaSessionPoolConfig.spaceName_ = Taas::MultiModelContext::kNebulaSpace;
+        nebulaSessionPoolConfig.maxSize_ = Taas::MultiModelContext::kClientNum;
         nebulaSessionPool = std::make_unique<nebula::SessionPool>(nebulaSessionPoolConfig);
         nebulaSessionPool->init();
         resp = nebulaSessionPool->execute("CREATE TAG IF NOT EXISTS usertable (key string, filed string, tid string);");
@@ -41,7 +41,7 @@ namespace workload {
     }
 
     void Nebula::InsertData(const uint64_t& tid) {
-        if(tid > MultiModelWorkload::ctx.multiModelContext.kRecordCount) return;
+        if(tid > Taas::MultiModelContext::kRecordCount) return;
 //        char genKey[100], gql[5000];
 //        std::string data1 = Taas::RandomString(256);
 //        std::string data2 = Taas::RandomString(256);
@@ -64,10 +64,10 @@ namespace workload {
         char genKey[100], gql[5000];
         std::string value;
         int cnt, i;
-        if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::MultiModelTest) {
+        if(Taas::MultiModelContext::kTestMode == Taas::MultiModelTest) {
             cnt = 1;
         }
-        else if(MultiModelWorkload::ctx.multiModelContext.kTestMode == Taas::GQL) {
+        else if(Taas::MultiModelContext::kTestMode == Taas::GQL) {
             cnt = 9;
         }
         else {

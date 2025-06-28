@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 3.14...3.22)
 CPMAddPackage(
         NAME openssl
         GITHUB_REPOSITORY openssl/openssl
-        VERSION v3.0.7
-        GIT_TAG openssl-3.0.7
+        VERSION v3.3.0
+        GIT_TAG openssl-3.3.0
         DOWNLOAD_ONLY True
         GIT_SHALLOW TRUE
 )

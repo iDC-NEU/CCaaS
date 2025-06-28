@@ -12,7 +12,7 @@ namespace Taas {
     static std::vector<std::unique_ptr<DBConnection>> leveldb_connections;
     static std::atomic<uint64_t> connection_num(0);
 
-    void LevelDBServer(const Context &context){
+    void LevelDBServer(){
         brpc::Server leveldb_server;
         brpc::ServerOptions options;
         LevelDBGetService leveldb_get_service;
@@ -35,6 +35,7 @@ namespace Taas {
         if (leveldb_server.Start(2379, &options) != 0) {
             LOG(ERROR) << "Fail to start leveldb_server";
         }
+
         LOG(INFO) << "======*** LEVELDB SERVER START ***=====\n";
         leveldb_server.RunUntilAskedToQuit();
     }

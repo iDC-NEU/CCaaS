@@ -51,12 +51,12 @@ namespace Taas {
     };
 
     void SetTxnState(proto::Transaction& txn){
-        if (txn.sharding_id() == ctx.taasContext.txn_node_ip_index) {
-            tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
+        if (txn.shard_id() == TaasContext::txn_node_ip_index) {
+            tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->txn_server_id());
             std::shared_ptr<TwoPCTxnStateStruct> txn_state_struct;
             txn_state_map.getValue(tid, txn_state_struct);
             if (txn_state_struct == nullptr) {
-                txn_state_map.insert(tid, std::make_shared<Taas::TwoPCTxnStateStruct>(sharding_num, 0, 0, 0, 0, 0, 0,
+                txn_state_map.insert(tid, std::make_shared<Taas::TwoPCTxnStateStruct>(shard_num, 0, 0, 0, 0, 0, 0,
                                                                                       client_txn));
                 txn_state_map.getValue(tid, txn_state_struct);
             }
@@ -72,7 +72,7 @@ namespace Taas {
 
     uint64_t GetHashValue(const std::string& key) const {
         uint64_t hash_value = _hash(key);
-        return hash_value % sharding_num;
+        return hash_value % shard_num;
     }
     // 生成key_sorted, map[key] = changed_data
     void GetKeySorted(proto::Transaction& txn) {
@@ -111,7 +111,7 @@ namespace Taas {
 
     // update set
     bool UpdateReadSet(proto::Transaction& txn){
-        tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->server_id());
+        tid = std::to_string(txn_ptr->csn()) + ":" + std::to_string(txn_ptr->txn_server_id());
         for(auto i = 0; i < txn_ptr->row_size(); i ++) {
             const auto& row = txn_ptr->row(i);
             auto key = txn_ptr->storage_type() + ":" + row.key();
@@ -125,18 +125,18 @@ namespace Taas {
     }
 
     void ClientTxn_Init();
-    bool Sharding_2PL();
+    bool Shard_2PL();
     bool Two_PL_LOCK(proto::Transaction& txn);
     bool Two_PL_LOCK_WAIT(proto::Transaction& txn);
     bool Two_PL_UNLOCK(proto::Transaction& txn);
     bool Check_2PL_complete(proto::Transaction& txn, std::shared_ptr<TwoPCTxnStateStruct>);
     bool Check_2PC_Prepare_complete(proto::Transaction& txn, std::shared_ptr<TwoPCTxnStateStruct>);
     bool Check_2PC_Commit_complete(proto::Transaction& txn, std::shared_ptr<TwoPCTxnStateStruct>);
-    bool Send(const Context& ctx, uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn,
+    bool Send(uint64_t& epoch, uint64_t& to_whom, proto::Transaction& txn,
               proto::TxnType txn_type);
-    bool SendToClient(const Context& ctx, proto::Transaction& txn, proto::TxnType txn_type,
+    bool SendToClient(proto::Transaction& txn, proto::TxnType txn_type,
                    proto::TxnState txn_state);
-    static bool Init(const Taas::Context& ctx_, uint64_t id);
+    static bool Init(uint64_t id);
       bool HandleClientMessage();// 处理接收到的消息 from client
       bool HandleReceivedMessage();  // from coordinator
 
@@ -174,11 +174,10 @@ namespace Taas {
     std::unique_ptr<proto::Transaction> local_txn_ptr;
     std::unique_ptr<pack_params> pack_param;
     std::string csn_temp, key_temp, key_str, table_name, csn_result;
-    uint64_t thread_id, server_dequeue_id, epoch_mod, epoch, max_length,
+    uint64_t thread_id = 0, server_dequeue_id, epoch_mod, epoch, max_length,
                                                          /// cache check
-        message_epoch, message_sharding_id, message_server_id;  /// message epoch info
-    static uint64_t  sharding_num;
-    static Context ctx;
+        message_epoch, message_shard_id, message_server_id;  /// message epoch info
+    static uint64_t  shard_num;
     std::string tid;  // 记录当前tid
     std::map<std::string, uint64_t> key_sorted; // first is the key/row
 
@@ -192,7 +191,7 @@ namespace Taas {
     /// to_whom = all
     uint64_t to_whom_all = 0;
 
-    uint64_t sharding_num_struct_progressing, two_pl_num_progressing,
+    uint64_t shard_num_struct_progressing, two_pl_num_progressing,
         two_pc_prepare_num_progressing, two_pc_commit_num_progressing;
     static std::atomic<uint64_t> successTxnNumber , totalTxnNumber, failedTxnNumber,
         lockFailed, validateFailed, totalTime, successTime, failedTime;

@@ -41,7 +41,7 @@ namespace Taas {
             int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset);
 //            int rc = sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
             if (rc != 0) {
-                std::cout << "Set CPU Error!!!" << std::endl;
+                std::cout << "Set CPU Failed!!!" << std::endl;
 //                assert(false);
             }
         #elif __APPLE__

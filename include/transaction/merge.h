@@ -13,128 +13,72 @@
 
 #include "zmq.hpp"
 #include "proto/message.pb.h"
+#include "tools/thread_counters.h"
 
 #include <cstdint>
 
 namespace Taas {
 
-    class Merger {
+    class Merger : public ThreadCounters {
 
     public:
         std::unique_ptr<zmq::message_t> message_ptr;
         std::unique_ptr<std::string> message_string_ptr;
         std::unique_ptr<proto::Message> msg_ptr;
-        std::shared_ptr<proto::Transaction> txn_ptr;
+        std::shared_ptr<proto::Transaction> txn_ptr, write_set, backup_txn, full_txn;
+        std::shared_ptr<std::vector<std::shared_ptr<proto::Transaction>>> shard_row_vector;
         std::unique_ptr<pack_params> pack_param;
         std::string csn_temp, key_temp, key_str, table_name, csn_result;
-        uint64_t thread_id = 0, epoch = 0, epoch_mod = 0, txn_server_id = 0;
+        uint64_t local_server_id, epoch_mod = 0, epoch = 0, max_length = 0, server_num = 1, shard_id = 0, shard_server_id =0, replica_num = 1,
+                round_robin = 0, sent_to = 0,///cache check
+        message_epoch = 0, message_epoch_mod = 0, message_server_id = 0, ///message epoch info
+        txn_server_id = 0;
+
         bool res, sleep_flag;
-        CRDTMerge merger;
-        EpochMessageSendHandler message_transmitter;
-        EpochMessageReceiveHandler message_handler;
+        std::shared_ptr<proto::Transaction> empty_txn_ptr;
+        std::hash<std::string> _hash;
 
-        ///epoch
-        static Context ctx;
-        static AtomicCounters_Cache
-                epoch_should_merge_txn_num, epoch_merged_txn_num,
-                epoch_should_commit_txn_num, epoch_committed_txn_num,
-                epoch_record_commit_txn_num, epoch_record_committed_txn_num;
-        static std::vector<std::unique_ptr<concurrent_crdt_unordered_map<std::string, std::string, std::string>>>
-                epoch_merge_map,
-                local_epoch_abort_txn_set,
-                epoch_abort_txn_set;
+        uint64_t total_single_shard_time = 0,
+        total_single_remote_handle_time = 0,
+        total_single_validate_time = 0,
+        total_single_merge_time = 0,
+        total_single_abort_set_time = 0,
+        total_single_commit_time = 0,
+        total_single_log_time = 0,
+        total_single_result_time = 0,
+        total_single_time = 0,
 
-        /// whole server state
-        static concurrent_unordered_map<std::string, std::string> read_version_map_data, read_version_map_csn, insert_set;
+        total_single_shard_num = 0,
+        total_single_remote_handle_num = 0,
+        total_single_validate_num = 0,
+        total_single_merge_num = 0,
+        total_single_abort_set_num = 0,
+        total_single_commit_num = 0,
+        total_single_log_num = 0,
+        total_single_result_num = 0,
+        total_single_num = 0;
 
-        ///queues
-        static std::vector<std::unique_ptr<BlockingConcurrentQueue<std::shared_ptr<proto::Transaction>>>>
-                epoch_merge_queue,///merge_queue 存放需要进行merge的子事务 不区分epoch
-                epoch_commit_queue;///epoch_commit_queue 当前epoch的涉及当前分片的要进行validate和commit的子事务 receive from servers and local sharding txn, wait to validate
+        [[nodiscard]] uint64_t GetHashValue(const std::string& key) const {
+            return _hash(key) % shard_num;
+        }
 
-        static std::vector<std::unique_ptr<std::atomic<bool>>>
-                epoch_merge_complete,
-                epoch_commit_complete;
+    public:
+        bool MergeQueueTryDequeue(uint64_t &epoch_, const std::shared_ptr<proto::Transaction>& txn_ptr_);
+        bool CommitQueueTryDequeue(uint64_t &epoch_, std::shared_ptr<proto::Transaction> txn_ptr_);
 
-        static std::atomic<uint64_t> total_merge_txn_num, total_merge_latency, total_commit_txn_num, total_commit_latency, success_commit_txn_num, success_commit_latency,
-            total_read_version_check_failed_txn_num, total_failed_txn_num;
-
-        static std::condition_variable merge_cv, commit_cv;
-
-        static void StaticInit(const Context& ctx_);
-        static void ClearMergerEpochState(uint64_t &epoch);
-
-        void Init(uint64_t id_);
-
+        void MergeInit(const uint64_t &id);
+        void ReadValidate();
+        void Send();
         void Merge();
         void Commit();
+        void RedoLog();
+        void ResultReturn();
         void EpochMerge();
 
-        static void MergeQueueEnqueue(uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr);
-        static bool MergeQueueTryDequeue(uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr);
-        static void CommitQueueEnqueue(uint64_t &epoch, const std::shared_ptr<proto::Transaction>& txn_ptr);
-        static bool CommitQueueTryDequeue(uint64_t &epoch, std::shared_ptr<proto::Transaction> txn_ptr);
-
-
-        static bool CheckEpochMergeComplete(const uint64_t& epoch) {
-            if(epoch_merge_complete[epoch % ctx.taasContext.kCacheMaxLength]->load()) {
-                return true;
-            }
-            if (epoch < EpochManager::GetPhysicalEpoch() && IsMergeComplete(epoch)) {
-                epoch_merge_complete[epoch % ctx.taasContext.kCacheMaxLength]->store(true);
-                return true;
-            }
-            return false;
-        }
-        static bool IsEpochMergeComplete(const uint64_t& epoch) {
-            return epoch_merge_complete[epoch % ctx.taasContext.kCacheMaxLength]->load();
-        }
-
-        static bool CheckEpochCommitComplete(const uint64_t& epoch) {
-            if (epoch_commit_complete[epoch % ctx.taasContext.kCacheMaxLength]->load()) return true;
-            if (epoch < EpochManager::GetPhysicalEpoch() && IsCommitComplete(epoch)) {
-                epoch_commit_complete[epoch % ctx.taasContext.kCacheMaxLength]->store(true);
-                return true;
-            }
-            return false;
-        }
-        static bool IsEpochCommitComplete(const uint64_t& epoch) {
-            return epoch_commit_complete[epoch % ctx.taasContext.kCacheMaxLength]->load();
-        }
-
-
-
-        static bool IsMergeComplete(const uint64_t& epoch) {
-            for(uint64_t i = 0; i < ctx.taasContext.kTxnNodeNum; i++) {
-                if (epoch_should_merge_txn_num.GetCount(epoch, i) > epoch_merged_txn_num.GetCount(epoch, i))
-                    return false;
-            }
-            return true;
-        }
-        static bool IsMergeComplete(const uint64_t &epoch, const uint64_t &server_id) {
-            return epoch_should_merge_txn_num.GetCount(epoch, server_id) <= epoch_merged_txn_num.GetCount(epoch, server_id);
-        }
-        static bool IsCommitComplete(const uint64_t & epoch) {
-            for(uint64_t i = 0; i < ctx.taasContext.kTxnNodeNum; i++) {
-                if (epoch_should_commit_txn_num.GetCount(epoch, i) > epoch_committed_txn_num.GetCount(epoch, i))
-                    return false;
-            }
-            return true;
-        }
-        static bool IsCommitComplete(const uint64_t & epoch, const uint64_t & server_id) {
-            return epoch_should_commit_txn_num.GetCount(epoch, server_id) <= epoch_committed_txn_num.GetCount(epoch, server_id);
-        }
-
-        static bool IsRedoLogComplete(const uint64_t & epoch) {
-            for(uint64_t i = 0; i < ctx.taasContext.kTxnNodeNum; i++) {
-                if (epoch_record_commit_txn_num.GetCount(epoch, i) > epoch_record_committed_txn_num.GetCount(epoch, i))
-                    return false;
-            }
-            return true;
-        }
-        static bool IsRedoLogComplete(const uint64_t & epoch, const uint64_t & server_id) {
-            return epoch_record_commit_txn_num.GetCount(epoch, server_id) <= epoch_record_committed_txn_num.GetCount(epoch, server_id);
-        }
+        void ReadValidateQueueEnqueue(uint64_t &epoch_, const std::shared_ptr<proto::Transaction> &txn_ptr_);
+        void MergeQueueEnqueue(uint64_t &epoch_, const std::shared_ptr<proto::Transaction>& txn_ptr_);
+        void CommitQueueEnqueue(uint64_t &epoch_, const std::shared_ptr<proto::Transaction>& txn_ptr_);
+        void ResultReturnQueueEnqueue(uint64_t &epoch_, const std::shared_ptr<proto::Transaction>& txn_ptr_);
 
     };
 }

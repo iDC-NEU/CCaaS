@@ -12,34 +12,41 @@ enum Result {
 }
 
 enum TxnType {
-  ClientTxn = 0; // client sends to txn Coordinator接收到client发来的txn
-  RemoteServerTxn = 1; // txn sends to txn, transactions sharding，coordinator发送到applicant，相当于lock req
-  EpochEndFlag = 2; // txn sends to txn, epoch transactions info
-  CommittedTxn = 3; // txn sends to storage , redo log
-  BackUpTxn = 4; // txn sends to txn, transactions backup
-  BackUpEpochEndFlag = 5; // txn sends to txn, transactions backup info
-  AbortSet = 6; // epoch abort set
-  InsertSet = 7; // epoch insert set backup
-  EpochShardingACK = 8;
-  BackUpACK = 9;
-  AbortSetACK = 10;
-  InsertSetACK = 11;
-  EpochLogPushDownComplete = 12;
-  NullMark = 13;
+  ClientTxn = 0;
+  ShardedClientTxn = 1;
+  EpochShardEndFlag = 2;
+  RemoteServerTxn = 3;
+  EpochRemoteServerEndFlag = 4;
+  BackUpTxn = 5;
+  EpochBackUpEndFlag = 6;
+  CommittedTxn = 7;
+  EpochCommittedTxnEndFlag = 8;
+  ViewChange = 9;
+  MetaInfo = 10;
+
+  AbortSet = 20;
+  InsertSet = 21;
+  EpochShardACK = 30;
+  EpochRemoteServerACK = 31;
+  BackUpACK = 32;
+  AbortSetACK = 33;
+  InsertSetACK = 34;
+  EpochLogPushDownComplete = 35;
+  NullMark = 40;
 
   // 添加2PL状态
-  Lock_ok = 14;
-  Lock_abort = 15;
+  Lock_ok = 51;
+  Lock_abort = 52;
   // 添加2PC状态
-  Prepare_req = 16;
-  Prepare_ok = 17;
-  Prepare_abort = 18;
+  Prepare_req = 53;
+  Prepare_ok = 54;
+  Prepare_abort = 55;
 
-  Commit_req = 19;
-  Commit_ok = 20;
-  Commit_abort = 21;
+  Commit_req = 56;
+  Commit_ok = 57;
+  Commit_abort = 58;
   // abort统一处理
-  Abort_txn = 22;
+  Abort_txn = 59;
 }
 
 enum TxnState {
@@ -75,17 +82,21 @@ message Transaction{
   uint64 commit_epoch = 3;
   uint64 csn = 4; //Taas
 
-  string server_ip = 5; // used to identify which remote server sends this txn to current server
-  uint32 server_id = 6; // used to identify which remote server sends this txn to current server
+  TxnType txn_type = 5;
+  TxnState txn_state = 6;
 
-  string client_ip = 7; // used to identify which client sends this txn to current server
-  uint64 client_txn_id = 8; // used to identify which txn it is in client
+  uint64 message_server_id= 10;
 
-  TxnType txn_type = 9;
-  TxnState txn_state = 10;
+  uint64 shard_id = 11;
+  uint64 shard_server_id = 12;
 
-  uint64 sharding_id = 11;
-  uint64 storage_total_num = 12; //multi-model transaction
-  string storage_type = 13; //multi-model transaction
+  string txn_server_ip = 13; // used to identify which remote server sends this txn to current server
+  uint32 txn_server_id = 14; // used to identify which remote server sends this txn to current server
+
+  string client_ip = 15; // used to identify which client sends this txn to current server
+  uint64 client_txn_id = 16; // used to identify which txn it is in client
+
+  uint64 storage_total_num = 21; //multi-model transaction
+  string storage_type = 22; //multi-model transaction
 
 }

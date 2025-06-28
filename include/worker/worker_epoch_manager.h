@@ -8,19 +8,19 @@
 #include "tools/context.h"
 
 namespace Taas {
-    extern void WorkerForPhysicalThreadMain(const Context &ctx);
-    extern void WorkerForLogicalThreadMain(const Context& ctx);
+    extern void WorkerForPhysicalThreadMain();
+    extern void WorkerForLogicalThreadMain();
 
-    extern void WorkerForLogicalTxnMergeCheckThreadMain(const Context& ctx);
-    extern void WorkerForLogicalAbortSetMergeCheckThreadMain(const Context& ctx);
-    extern void WorkerForLogicalCommitCheckThreadMain(const Context& ctx);
-    extern void WorkerForLogicalRedoLogPushDownCheckThreadMain(const Context& ctx);
+    extern void WorkerForLogicalTxnMergeCheckThreadMain();
+    extern void WorkerForLogicalAbortSetMergeCheckThreadMain();
+    extern void WorkerForLogicalCommitCheckThreadMain();
+    extern void WorkerForLogicalRedoLogPushDownCheckThreadMain();
 
-    extern void WorkerForEpochControlMessageThreadMain(const Context& ctx);
-    extern void WorkerForLogicalReceiveAndReplyCheckThreadMain(const Context& ctx) ;
-    extern void WorkerForEpochAbortSendThreadMain(const Context& ctx);
-    extern void WorkerForEpochEndFlagSendThreadMain(const Context& ctx) ;
-    extern void WorkerForEpochBackUpEndFlagSendThreadMain(const Context& ctx);
+    extern void WorkerForEpochControlMessageThreadMain();
+    extern void WorkerForLogicalReceiveAndReplyCheckThreadMain() ;
+    extern void WorkerForEpochAbortSendThreadMain();
+    extern void WorkerForEpochEndFlagSendThreadMain() ;
+    extern void WorkerForEpochBackUpEndFlagSendThreadMain();
 
 }
 

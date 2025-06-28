@@ -19,7 +19,7 @@ namespace workload {
         static nebula::SessionPoolConfig nebulaSessionPoolConfig;
         static std::unique_ptr<nebula::SessionPool> nebulaSessionPool;
     public:
-        static void Init(const Taas::Context& ctx);
+        static void Init();
         static void InsertData(const uint64_t& tid);
         static void RunTxn(const uint64_t& tid, const std::shared_ptr<std::atomic<uint64_t>>& sunTxnNum, std::shared_ptr<std::atomic<uint64_t>>& txn_num);
     };

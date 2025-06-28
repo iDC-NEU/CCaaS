@@ -16,7 +16,6 @@ namespace workload{
             MultiModelWorkload::failed_txn_num(1), MultiModelWorkload::success_op_num(1), MultiModelWorkload::failed_op_num(1),
             MultiModelWorkload::subWorksNum(0);
 
-    Taas::Context MultiModelWorkload::ctx;
     std::unique_ptr<util::thread_pool_light> MultiModelWorkload::thread_pool;
     std::unique_ptr<utils::DiscreteGenerator<Operation>> MultiModelWorkload::operationChooser;
     std::vector<std::unique_ptr<utils::NumberGenerator>> MultiModelWorkload::keyChooser;
@@ -29,15 +28,15 @@ namespace workload{
     Taas::concurrent_unordered_map<uint64_t ,bool> MultiModelWorkload::multiModelTxnMap;// (txn id,commit cnt)
     Taas::concurrent_unordered_map<uint64_t, std::shared_ptr<std::condition_variable>> MultiModelWorkload::multiModelTxnConditionVariable;
 
-    void MultiModelWorkload::StaticInit(const Taas::Context& ctx_) {
-        ctx = ctx_;
-        thread_pool = std::make_unique<util::thread_pool_light>(ctx.multiModelContext.kClientNum);
-        workCountDown.reset((int)ctx.multiModelContext.kClientNum);
+    void MultiModelWorkload::StaticInit() {
+
+        thread_pool = std::make_unique<util::thread_pool_light>(Taas::MultiModelContext::kClientNum);
+        workCountDown.reset((int)Taas::MultiModelContext::kClientNum);
         send_multi_txn_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<send_multimodel_params>>>();
         client_listen_taas_message_queue = std::make_unique<BlockingConcurrentQueue<std::unique_ptr<zmq::message_t>>>();
         CreateOperationGenerator();
         CreateKeyChooser();
-        execTimes.resize(ctx.multiModelContext.kTxnNum + 10000);
+        execTimes.resize(Taas::MultiModelContext::kTxnNum + 10000);
     }
 
     void MultiModelWorkload::buildValues(utils::ByteIteratorMap &values) {
@@ -50,9 +49,9 @@ namespace workload{
     }
 
     void MultiModelWorkload::LoadData() {
-        if ((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::KV)) {
-            workCountDown.reset((int) ctx.multiModelContext.kClientNum);
-            for (int i = 0; i < (int) ctx.multiModelContext.kClientNum; i++) {
+        if ((Taas::MultiModelContext::kTestMode == Taas::MultiModelTest || Taas::MultiModelContext::kTestMode == Taas::KV)) {
+            workCountDown.reset((int) Taas::MultiModelContext::kClientNum);
+            for (int i = 0; i < (int) Taas::MultiModelContext::kClientNum; i++) {
                 thread_pool->push_task([] {
                     int _seed = 0;
                     utils::GetThreadLocalRandomGenerator()->seed(_seed);
@@ -63,9 +62,9 @@ namespace workload{
             workCountDown.wait();
             SetTxnId(0);
         }
-        if ((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::SQL)) {
-            workCountDown.reset((int) ctx.multiModelContext.kClientNum);
-            for (int i = 0; i < (int) ctx.multiModelContext.kClientNum; i++) {
+        if ((Taas::MultiModelContext::kTestMode == Taas::MultiModelTest || Taas::MultiModelContext::kTestMode == Taas::SQL)) {
+            workCountDown.reset((int) Taas::MultiModelContext::kClientNum);
+            for (int i = 0; i < (int) Taas::MultiModelContext::kClientNum; i++) {
                 thread_pool->push_task([] {
                     int _seed = 0;
                     utils::GetThreadLocalRandomGenerator()->seed(_seed);
@@ -76,9 +75,9 @@ namespace workload{
             workCountDown.wait();
             SetTxnId(0);
         }
-        if ((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::GQL)) {
-            workCountDown.reset((int) ctx.multiModelContext.kClientNum);
-            for (int i = 0; i < (int) ctx.multiModelContext.kClientNum; i++) {
+        if ((Taas::MultiModelContext::kTestMode == Taas::MultiModelTest || Taas::MultiModelContext::kTestMode == Taas::GQL)) {
+            workCountDown.reset((int) Taas::MultiModelContext::kClientNum);
+            for (int i = 0; i < (int) Taas::MultiModelContext::kClientNum; i++) {
                 thread_pool->push_task([] {
                     int _seed = 0;
                     utils::GetThreadLocalRandomGenerator()->seed(_seed);
@@ -93,7 +92,7 @@ namespace workload{
     }
 
     void MultiModelWorkload::LoadKVData() {
-        uint64_t txnId, kTotalTxnNum = ctx.multiModelContext.kTxnNum;
+        uint64_t txnId, kTotalTxnNum = Taas::MultiModelContext::kTxnNum;
         while(true) {
             txnId = AddTxnId();
             if(txnId > kTotalTxnNum) break;
@@ -102,7 +101,7 @@ namespace workload{
     }
 
     void MultiModelWorkload::LoadSQLData() {
-        uint64_t txnId, kTotalTxnNum = ctx.multiModelContext.kTxnNum;
+        uint64_t txnId, kTotalTxnNum = Taas::MultiModelContext::kTxnNum;
         while(true) {
             txnId = AddTxnId();
             if(txnId > kTotalTxnNum) break;
@@ -111,7 +110,7 @@ namespace workload{
     }
 
     void MultiModelWorkload::LoadGQLData() {
-        uint64_t txnId, kTotalTxnNum = ctx.multiModelContext.kTxnNum;
+        uint64_t txnId, kTotalTxnNum = Taas::MultiModelContext::kTxnNum;
         while(true) {
             txnId = AddTxnId();
             if(txnId > kTotalTxnNum) break;
@@ -120,7 +119,7 @@ namespace workload{
     }
 
     void MultiModelWorkload::RunMultiTxn() {
-        uint64_t txnId, kTotalTxnNum = ctx.multiModelContext.kTxnNum;
+        uint64_t txnId, kTotalTxnNum = Taas::MultiModelContext::kTxnNum;
         auto sunTxnNum = std::make_shared<std::atomic<uint64_t>>(0);
         uint64_t totalSubTxnNum = 0;
         auto threads = std::make_unique<util::thread_pool_light>(4);
@@ -142,24 +141,24 @@ namespace workload{
             auto message_txn = msg->mutable_txn();
             sunTxnNum->store(0);
             totalSubTxnNum = 0;
-            if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::GQL)) {
+            if((Taas::MultiModelContext::kTestMode == Taas::MultiModelTest || Taas::MultiModelContext::kTestMode == Taas::GQL)) {
                 totalSubTxnNum ++;
                 threads->push_task(Nebula::RunTxn, txnId, sunTxnNum, txn_num);
                 ///if a read only txn , txn_num should not be added
             }
-            if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::SQL)) {
+            if((Taas::MultiModelContext::kTestMode == Taas::MultiModelTest || Taas::MultiModelContext::kTestMode == Taas::SQL)) {
                 totalSubTxnNum ++;
                 threads->push_task(MOT::RunTxn, txnId, sunTxnNum, txn_num);
                 ///if a read only txn , txn_num should not be added
             }
-            if((ctx.multiModelContext.kTestMode == Taas::MultiModelTest || ctx.multiModelContext.kTestMode == Taas::KV)) {
+            if((Taas::MultiModelContext::kTestMode == Taas::MultiModelTest || Taas::MultiModelContext::kTestMode == Taas::KV)) {
                 KV::RunTxn(message_txn);
                 ///read onlu txn, also send to taas
             }
             txn_num->fetch_add(1);
             ///todo : block wait sql and gql send
             message_txn->set_csn(txn_num->load());
-            message_txn->set_client_ip(ctx.multiModelContext.kMultiModelClientIP);
+            message_txn->set_client_ip(Taas::MultiModelContext::kMultiModelClientIP);
             message_txn->set_client_txn_id(txnId);
             message_txn->set_txn_type(proto::TxnType::ClientTxn);
             message_txn->set_storage_type("kv");

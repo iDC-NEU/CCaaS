@@ -12,13 +12,19 @@ namespace Taas {
 
 /**
  * port status:                                                                     PULL bind *:port   PUSH connect ip+port
+ *
+ * Server && Client
+ * 5551 : client sends txns to txn node                                             client  PUSH       txn PULL
+ * 5552 : txn node sends txn_state to client                                        client  PULL       txn PUSH
 
- * 5553 : storage sends pull log request to txn node                                storage PUSH       txn PULL
- * 5554 : txn node sends pull_response to storage node                              storage PULL       txn PUSH
+
+ * Server && Storage
+ * 5553 (not use for now): storage sends pull log request to txn node                                storage PUSH       txn PULL
+ * 5554 (not use for now):: txn node sends pull_response to storage node                              storage PULL       txn PUSH
  *
  * 5555 :
- * 5556 : txn nodes sends log to storage nodes                                      txn PUSH            storage PULL
-
+ * 5556 : txn nodes sends log to storage nodes MOT                                   txn PUB            storage SUB
+ * 5557 : txn nodes sends log to storage nodes NEBULA                                txn PUB            storage SUB
  */
 /// set cache size
 //        recv_socket.set(zmq::sockopt::sndhwm, queue_length);
@@ -27,15 +33,14 @@ namespace Taas {
 //        recv_socket.setsockopt(ZMQ_SNDHWM, &queue_length, sizeof(queue_length));
 //        recv_socket.setsockopt(ZMQ_RCVHWM, &queue_length, sizeof(queue_length));
 
-    void ListenStorageThreadMain(const Context& ctx) { //PULL & PUSH
+    void ListenStorageThreadMain() { //PULL & PUSH
         uint32_t recv_port = 5553;
-        int queue_length = 0;
+        int queue_length = 1000000000;
         zmq::context_t context(1);
         zmq::socket_t recv_socket(context, ZMQ_PULL);
         zmq::send_flags sendFlags = zmq::send_flags::none;
         zmq::recv_flags recvFlags = zmq::recv_flags::none;
         zmq::recv_result_t recvResult;
-
         recv_socket.set(zmq::sockopt::sndhwm, queue_length);
         recv_socket.set(zmq::sockopt::rcvhwm, queue_length);
 
@@ -63,8 +68,10 @@ namespace Taas {
             auto pull_msg_resp = std::make_unique<proto::Message>();
             auto pull_resp = pull_msg_resp->mutable_storage_pull_response();
 
-            if (Merger::epoch_committed_txn_num.GetCount(epoch_id) ==
-                    Merger::epoch_should_commit_txn_num.GetCount(epoch_id)) { // the epoch's txns all have been c committed
+            if (Merger::GetAllThreadLocalCountNum(epoch_id,
+                    Merger::epoch_committed_txn_num_local_vec)==
+                Merger::GetAllThreadLocalCountNum(epoch_id,
+                      Merger::epoch_should_commit_txn_num_local_vec)) { // the epoch's txns all have been c committed
                 auto s = std::to_string(epoch_id) + ":";
                 auto epoch_mod = epoch_id % EpochManager::max_length;
                 auto total_num = RedoLoger::epoch_log_lsn.GetCount(epoch_id);
@@ -93,8 +100,8 @@ namespace Taas {
 
     }
 
-    void SendToMOTStorageThreadMain(const Context& ctx) { //PUB Txn
-        int queue_length = 0;
+    void SendToMOTStorageThreadMain() { //PUB Txn
+        int queue_length = 1000000000;
         zmq::context_t context(1);
         zmq::message_t reply(5);
         zmq::send_flags sendFlags = zmq::send_flags::none;
@@ -107,20 +114,25 @@ namespace Taas {
         std::unique_ptr<zmq::message_t> msg;
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
-            if(MessageQueue::send_to_mot_storage_queue->try_dequeue(params)) {
-                if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
-                msg = std::make_unique<zmq::message_t>(*(params->str));
-                socket_send.send(*msg, sendFlags);
-            }
-            else {
-                usleep(50);
-            }
+//            if(MessageQueue::send_to_mot_storage_queue->try_dequeue(params)) {
+//                if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
+//                msg = std::make_unique<zmq::message_t>(*(params->str));
+//                socket_send.send(*msg, sendFlags);
+//            }
+//            else {
+//                usleep(50);
+//            }
+            MessageQueue::send_to_mot_storage_queue->wait_dequeue(params);
+            if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
+            msg = std::make_unique<zmq::message_t>(*(params->str));
+            socket_send.send(*msg, sendFlags);
+//            LOG(INFO) << "MOT PUB a txn";
         }
         socket_send.send((zmq::message_t &) "end", sendFlags);
     }
 
-    void SendToNebulaStorageThreadMain(const Context& ctx) { //PUB Txn
-        int queue_length = 0;
+    void SendToNebulaStorageThreadMain() { //PUB Txn
+        int queue_length = 1000000000;
         zmq::context_t context(1);
         zmq::message_t reply(5);
         zmq::send_flags sendFlags = zmq::send_flags::none;
@@ -133,18 +145,18 @@ namespace Taas {
         std::unique_ptr<zmq::message_t> msg;
         while(!EpochManager::IsInitOK()) usleep(sleep_time);
         while (!EpochManager::IsTimerStop()) {
-            if(MessageQueue::send_to_nebula_storage_queue->try_dequeue(params)) {
-                if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
-                msg = std::make_unique<zmq::message_t>(*(params->str));
-                socket_send.send(*msg, sendFlags);
-            }
-            else {
-                usleep(50);
-            }
-//            MessageQueue::send_to_nebula_storage_queue->wait_dequeue(params);
-//            if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
-//            msg = std::make_unique<zmq::message_t>(*(params->str));
-//            socket_send.send(*msg, sendFlags);
+//            if(MessageQueue::send_to_nebula_storage_queue->try_dequeue(params)) {
+//                if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
+//                msg = std::make_unique<zmq::message_t>(*(params->str));
+//                socket_send.send(*msg, sendFlags);
+//            }
+//            else {
+//                usleep(50);
+//            }
+            MessageQueue::send_to_nebula_storage_queue->wait_dequeue(params);
+            if (params == nullptr || params->type == proto::TxnType::NullMark) continue;
+            msg = std::make_unique<zmq::message_t>(*(params->str));
+            socket_send.send(*msg, sendFlags);
         }
         socket_send.send((zmq::message_t &) "end", sendFlags);
     }

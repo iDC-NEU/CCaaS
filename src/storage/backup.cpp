@@ -16,8 +16,7 @@ namespace Taas {
         BackUp::backup_should_receive_txn_num(10, 1),
         BackUp::backup_received_txn_num(10, 1);
 
-    void BackUp::Init(const Context& ctx) {
-
+    void BackUp::Init() {
     }
 }
 
